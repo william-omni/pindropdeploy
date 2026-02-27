@@ -876,6 +876,7 @@
       <div class="result-handle"></div>
       <div class="result-round-label" id="result-round-label">Round 1 of 5</div>
       <div class="result-location" id="result-location">—</div>
+      <div class="result-quality" id="result-quality" style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin:-4px 0 12px;"></div>
 
       <div class="result-stats">
         <div class="result-stat">
@@ -888,7 +889,7 @@
         </div>
         <div class="result-stat">
           <div class="result-stat-val" id="result-total">—</div>
-          <div class="result-stat-lbl">Avg</div>
+          <div class="result-stat-lbl">Total</div>
         </div>
       </div>
 
@@ -899,7 +900,7 @@
         <div class="score-bar-labels">
           <span class="score-bar-lbl">0</span>
           <span class="score-bar-lbl right" id="score-bar-pct">—</span>
-          <span class="score-bar-lbl">1000</span>
+          <span class="score-bar-lbl">200</span>
         </div>
       </div>
 
@@ -1282,11 +1283,30 @@ function formatDist(km) {
 }
 
 function scoreToEmoji(pts) {
-  if (pts >= 900) return '🟢';
-  if (pts >= 700) return '🟡';
-  if (pts >= 400) return '🟠';
-  if (pts >= 100) return '🔴';
-  return '⚫';
+  if (pts >= 190) return '🎯'; // Exact
+  if (pts >= 150) return '🟢'; // Great
+  if (pts >= 100) return '🟡'; // Good
+  if (pts >= 50)  return '🟠'; // Okay
+  if (pts >= 20)  return '🔴'; // Bad
+  return '⚫';                  // Way Off
+}
+
+function scoreToLabel(pts) {
+  if (pts >= 190) return 'Exact!';
+  if (pts >= 150) return 'Great';
+  if (pts >= 100) return 'Good';
+  if (pts >= 50)  return 'Okay';
+  if (pts >= 20)  return 'Bad';
+  return 'Way Off';
+}
+
+function scoreToColor(pts) {
+  if (pts >= 190) return '#47ffff';
+  if (pts >= 150) return '#47ff9e';
+  if (pts >= 100) return '#e8ff47';
+  if (pts >= 50)  return '#ffaa47';
+  if (pts >= 20)  return '#ff8c47';
+  return '#ff5c5c';
 }
 
 function showToast(msg, duration = 2000) {
@@ -1572,6 +1592,9 @@ function showRoundResult(name, distKm, pts) {
   document.getElementById('result-round-label').textContent =
     `Round ${state.round + 1} of ${ROUNDS_PER_GAME}`;
   document.getElementById('result-location').textContent = name;
+  const qualityEl = document.getElementById('result-quality');
+  qualityEl.textContent = scoreToLabel(pts);
+  qualityEl.style.color = scoreToColor(pts);
   document.getElementById('result-dist').textContent = formatDist(distKm);
   document.getElementById('result-pts').textContent = pts;
   document.getElementById('result-total').textContent = state.totalScore;
@@ -1622,7 +1645,7 @@ function nextRound() {
 function loadRound() {
   const loc = state.todayLocations[state.round];
   document.getElementById('hud-round-num').textContent = state.round + 1;
-  document.getElementById('clue-text').textContent = loc[1];
+  document.getElementById('clue-text').textContent = loc[0];
 
   // Update dots
   const dotsEl = document.getElementById('hud-dots');
@@ -1662,7 +1685,7 @@ function buildSummary() {
   document.getElementById('share-day').textContent = `Day #${getDayNumber()}`;
 
   // Ring fill (conic gradient)
-  const pct = state.totalScore / MAX_SCORE_PER_ROUND;
+  const pct = state.totalScore / (MAX_SCORE_PER_ROUND * ROUNDS_PER_GAME);
   const deg = Math.round(pct * 360);
   document.getElementById('score-ring').style.background =
     `conic-gradient(var(--accent) 0deg, var(--accent2) ${deg}deg, var(--surface2) ${deg}deg)`;
@@ -1673,7 +1696,7 @@ function buildSummary() {
   state.roundResults.forEach((r, i) => {
     const row = document.createElement('div');
     row.className = 'round-row';
-    const color = r.pts >= 900 ? '#47ff9e' : r.pts >= 600 ? '#e8ff47' : r.pts >= 300 ? '#ffaa47' : '#ff5c5c';
+    const color = scoreToColor(r.pts);
     row.innerHTML = `
       <div class="round-row-num">${i+1}</div>
       <div class="round-row-name">${r.name}</div>
