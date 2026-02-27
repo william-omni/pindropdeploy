@@ -904,6 +904,20 @@
         </div>
       </div>
 
+      <div id="result-description" style="
+        font-size: 13px;
+        line-height: 1.55;
+        color: rgba(240,240,245,0.55);
+        font-family: 'DM Mono', monospace;
+        font-weight: 300;
+        margin: -8px 0 18px;
+        padding: 10px 14px;
+        background: rgba(255,255,255,0.04);
+        border-radius: 10px;
+        border-left: 2px solid rgba(255,255,255,0.12);
+        text-align: left;
+      "></div>
+
       <button class="btn-next" id="btn-next">Next Round →</button>
     </div>
   </div>
@@ -974,7 +988,7 @@
 
     <button class="btn-share-review" id="btn-share-review">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
       </svg>
       Challenge Your Friends
     </button>
@@ -1466,13 +1480,83 @@ function initMap() {
   });
 
   map.on('load', () => {
-    // Remove all label/symbol layers so the map gives nothing away
+    // Boost water/land contrast: make water a visible dark navy
+    ['water', 'water-shadow', 'water-depth'].forEach(id => {
+      if (map.getLayer(id)) {
+        try { map.setPaintProperty(id, 'fill-color', '#0d2140'); } catch(e) {}
+      }
+    });
+    // Lighten land slightly so it reads clearly against water
+    ['land', 'landcover'].forEach(id => {
+      if (map.getLayer(id)) {
+        try { map.setPaintProperty(id, 'background-color', '#1c1d2e'); } catch(e) {}
+        try { map.setPaintProperty(id, 'fill-color', '#1c1d2e'); } catch(e) {}
+      }
+    });
+
+    // Remove all symbol layers (labels/icons) so the map gives nothing away
     const layers = map.getStyle().layers;
     for (const layer of layers) {
       if (layer.type === 'symbol') {
         map.removeLayer(layer.id);
       }
     }
+
+    // Add back major city labels — these help orient players without giving answers away
+    const cityLabelLayout = {
+      'text-field': ['get', 'name_en'],
+      'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+      'text-size': ['interpolate', ['linear'], ['zoom'], 1, 9, 5, 13],
+      'text-max-width': 8,
+      'text-padding': 4,
+      'symbol-sort-key': ['-', 0, ['coalesce', ['get', 'population'], 0]],
+    };
+    const cityLabelPaint = {
+      'text-color': 'rgba(255,255,255,0.55)',
+      'text-halo-color': 'rgba(10,10,20,0.85)',
+      'text-halo-width': 1.5,
+    };
+
+    // Global mega-cities: population > 5M
+    map.addLayer({
+      id: 'city-labels-global',
+      type: 'symbol',
+      source: 'composite',
+      'source-layer': 'place_label',
+      filter: ['all',
+        ['==', ['get', 'type'], 'city'],
+        ['>=', ['coalesce', ['get', 'population'], 0], 5000000],
+      ],
+      layout: cityLabelLayout,
+      paint: cityLabelPaint,
+    });
+
+    // Europe & North America: cities > 2M (helpful for familiar regions)
+    const europaNAGeoJSON = {
+      type: 'Feature',
+      geometry: {
+        type: 'MultiPolygon',
+        coordinates: [
+          [[[-30,34],[50,34],[50,72],[-30,72],[-30,34]]],   // Europe
+          [[[-170,15],[-50,15],[-50,75],[-170,75],[-170,15]]] // North America
+        ]
+      }
+    };
+    map.addLayer({
+      id: 'city-labels-eu-na',
+      type: 'symbol',
+      source: 'composite',
+      'source-layer': 'place_label',
+      filter: ['all',
+        ['==', ['get', 'type'], 'city'],
+        ['>=', ['coalesce', ['get', 'population'], 0], 2000000],
+        ['<',  ['coalesce', ['get', 'population'], 0], 5000000],
+        ['within', europaNAGeoJSON],
+      ],
+      layout: cityLabelLayout,
+      paint: cityLabelPaint,
+    });
+
     map.on('click', onMapClick);
   });
 }
@@ -1526,7 +1610,7 @@ function lockPin() {
   if (navigator.vibrate) navigator.vibrate([20, 10, 20]);
 
   const target = state.todayLocations[state.round];
-  const [name, , targetLat, targetLng] = target;
+  const [name, description, targetLat, targetLng] = target;
   const { lat, lng } = state.pendingPin;
 
   const distKm = haversineKm(lat, lng, targetLat, targetLng);
@@ -1585,16 +1669,17 @@ function lockPin() {
   map.fitBounds(bounds, { padding: 80, duration: 800 });
 
   // Show result overlay
-  showRoundResult(name, distKm, pts);
+  showRoundResult(name, description, distKm, pts);
 }
 
-function showRoundResult(name, distKm, pts) {
+function showRoundResult(name, description, distKm, pts) {
   document.getElementById('result-round-label').textContent =
     `Round ${state.round + 1} of ${ROUNDS_PER_GAME}`;
   document.getElementById('result-location').textContent = name;
   const qualityEl = document.getElementById('result-quality');
   qualityEl.textContent = scoreToLabel(pts);
   qualityEl.style.color = scoreToColor(pts);
+  document.getElementById('result-description').textContent = description;
   document.getElementById('result-dist').textContent = formatDist(distKm);
   document.getElementById('result-pts').textContent = pts;
   document.getElementById('result-total').textContent = state.totalScore;
