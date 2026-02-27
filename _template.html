@@ -1723,7 +1723,7 @@ function getShareText() {
     ? state.totalScore
     : (store.lastScore || 0);
   const emojis = results.map(r => scoreToEmoji(r.pts)).join(' ');
-  return `📍 PinDrop Day #${day}\n${emojis}\n${score} / 1000\nhttps://pindrop.app`;
+  return `📍 PinDrop Day #${day}\n${emojis}\n${score} / 1000\n${window.location.origin}`;
 }
 
 async function shareScore() {
