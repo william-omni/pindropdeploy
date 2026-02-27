@@ -1008,7 +1008,9 @@
 const MAPBOX_TOKEN = '__MAPBOX_TOKEN__';
 
 // Location database - seeded daily
-// Each entry: [name, clue, lat, lng]
+// Each entry: [name, clue, lat, lng, perfectRadiusKm?]
+// perfectRadiusKm: anything within this distance = full 200pts. Default 5km (cities/monuments).
+// Use larger values for sprawling geographic features (lakes, deserts, national parks, etc.)
 const LOCATIONS = [
   // ── EUROPE ──────────────────────────────────────────────
   ["Eiffel Tower, Paris",          "Europe's most-photographed iron lattice tower, built in 1889",                   48.8584,   2.2945],
@@ -1019,27 +1021,27 @@ const LOCATIONS = [
   ["Big Ben, London",              "Iconic clock tower at the north end of the Houses of Parliament",                51.5007,  -0.1246],
   ["Hagia Sophia, Istanbul",       "6th-century cathedral turned mosque, a symbol of two great empires",             41.0086,  28.9802],
   ["Neuschwanstein Castle",        "Fairy-tale Bavarian castle that inspired Disney's Sleeping Beauty",              47.5576,  10.7498],
-  ["Santorini Caldera, Greece",    "Volcanic island famous for blue-domed churches and sunsets",                     36.3932,  25.4615],
+  ["Santorini Caldera, Greece",    "Volcanic island famous for blue-domed churches and sunsets",                     36.3932,  25.4615,  12],
   ["Alhambra Palace, Granada",     "Stunning Moorish palace and fortress complex in southern Spain",                 37.1760,  -3.5881],
   ["Mont Saint-Michel, France",    "Tidal island commune topped by a medieval abbey off the Normandy coast",         48.6360,  -1.5114],
   ["Dubrovnik Old City, Croatia",  "Walled medieval city on the Adriatic coast, known as the Pearl of the Adriatic", 42.6507,  18.0944],
   ["Colmar, France",               "Picturesque Alsatian town of half-timbered houses on canals",                    48.0793,   7.3585],
   ["Hallstatt, Austria",           "Tiny lakeside village in the Austrian Alps, one of Europe's oldest towns",       47.5622,  13.6493],
-  ["Cinque Terre, Italy",          "Five colorful clifftop fishing villages strung along the Ligurian coast",        44.1461,   9.6439],
-  ["Plitvice Lakes, Croatia",      "Cascading turquoise lakes and waterfalls in a UNESCO national park",             44.8654,  15.5820],
+  ["Cinque Terre, Italy",          "Five colorful clifftop fishing villages strung along the Ligurian coast",        44.1461,   9.6439,  10],
+  ["Plitvice Lakes, Croatia",      "Cascading turquoise lakes and waterfalls in a UNESCO national park",             44.8654,  15.5820,  10],
   ["Meteora, Greece",              "Byzantine monasteries perched atop soaring sandstone rock pillars",              39.7217,  21.6306],
   ["Bruges, Belgium",              "Impeccably preserved medieval city crisscrossed by canals",                      51.2093,   3.2247],
   ["Ronda, Spain",                 "Dramatic clifftop city split by a 120-meter gorge in Andalusia",                 36.7464,  -5.1613],
-  ["Amalfi Coast, Italy",          "Dramatic stretch of coastline with clifftop villages above the Tyrrhenian Sea",  40.6340,  14.6027],
+  ["Amalfi Coast, Italy",          "Dramatic stretch of coastline with clifftop villages above the Tyrrhenian Sea",  40.6340,  14.6027,  15],
   ["Vatican City",                 "World's smallest country, home to St. Peter's Basilica and the Sistine Chapel", 41.9029,  12.4534],
   ["Charles Bridge, Prague",       "14th-century Gothic bridge lined with Baroque statues over the Vltava River",   50.0865,  14.4114],
-  ["Loch Ness, Scotland",          "Deep glacial loch in the Scottish Highlands, famously home to a mythical beast", 57.3229,  -4.4244],
-  ["Cappadocia, Turkey",           "Surreal landscape of fairy chimneys and cave dwellings in central Anatolia",    38.6431,  34.8289],
+  ["Loch Ness, Scotland",          "Deep glacial loch in the Scottish Highlands, famously home to a mythical beast", 57.3229,  -4.4244,  18],
+  ["Cappadocia, Turkey",           "Surreal landscape of fairy chimneys and cave dwellings in central Anatolia",    38.6431,  34.8289,  20],
   ["Trolltunga, Norway",           "Dramatic rock ledge jutting horizontally above a fjord in western Norway",       60.1241,   6.7398],
   ["Fiordland, New Zealand",       "Remote fjordland of dramatic peaks, waterfalls and dark waters",                -45.4169, 167.7180],
   ["Pamukkale, Turkey",            "Natural terraces of mineral-rich thermal waters cascading down white travertine", 37.9199,  29.1202],
   ["Sintra, Portugal",             "Fairy-tale hilltop town of colorful palaces hidden in forested mountains",       38.7978,  -9.3876],
-  ["Cliffs of Moher, Ireland",     "Dramatic sea cliffs rising 214m above the Atlantic on Ireland's west coast",    52.9715,  -9.4309],
+  ["Cliffs of Moher, Ireland",     "Dramatic sea cliffs rising 214m above the Atlantic on Ireland's west coast",    52.9715,  -9.4309,  10],
   ["Lake Bled, Slovenia",          "Alpine lake with an island church and medieval castle on a cliff above",         46.3683,  14.0938],
 
   // ── ASIA ────────────────────────────────────────────────
@@ -1047,81 +1049,81 @@ const LOCATIONS = [
   ["Taj Mahal, Agra",              "Ivory-white marble mausoleum on the south bank of the Yamuna River",            27.1751,  78.0421],
   ["Angkor Wat, Cambodia",         "World's largest religious monument, ancient Khmer capital",                      13.4125, 103.8670],
   ["Great Wall of China",          "Fortification spanning thousands of miles across northern China",                40.4319, 116.5704],
-  ["Halong Bay, Vietnam",          "Emerald waters studded with thousands of limestone karst islands",               20.9101, 107.1839],
-  ["Bagan, Myanmar",               "Ancient plain scattered with thousands of Buddhist temples and pagodas",         21.1717,  94.8585],
+  ["Halong Bay, Vietnam",          "Emerald waters studded with thousands of limestone karst islands",               20.9101, 107.1839,  20],
+  ["Bagan, Myanmar",               "Ancient plain scattered with thousands of Buddhist temples and pagodas",         21.1717,  94.8585,  12],
   ["Petra, Jordan",                "Rose-red city half as old as time, carved into sandstone cliffs",               30.3285,  35.4444],
   ["Burj Khalifa, Dubai",          "World's tallest building at 828 meters in the UAE",                             25.1972,  55.2744],
   ["Borobudur, Indonesia",         "9th-century Mahayana Buddhist temple, the world's largest",                     -7.6079, 110.2038],
   ["Sigiriya, Sri Lanka",          "Ancient rock fortress rising 180m above the jungle with frescoed walls",          7.9570,  80.7603],
   ["Shwedagon Pagoda, Myanmar",    "98-meter gilded Buddhist stupa dominating the Yangon skyline",                  16.7986,  96.1497],
-  ["Jiuzhaigou Valley, China",     "Remote valley of multi-colored lakes and waterfalls in Sichuan province",        33.2600, 103.9200],
-  ["Zhangjiajie, China",           "Towering sandstone pillar mountains that inspired Avatar's floating peaks",      29.1260, 110.4790],
+  ["Jiuzhaigou Valley, China",     "Remote valley of multi-colored lakes and waterfalls in Sichuan province",        33.2600, 103.9200,  12],
+  ["Zhangjiajie, China",           "Towering sandstone pillar mountains that inspired Avatar's floating peaks",      29.1260, 110.4790,  15],
   ["Kyoto Bamboo Grove, Japan",    "Dense forest of towering bamboo stalks in the Arashiyama district",             35.0117, 135.6761],
   ["Uluru, Australia",             "Sacred sandstone monolith rising from Australia's Red Centre",                  -25.3444, 131.0369],
-  ["Dead Sea, Jordan",             "Earth's lowest point and saltiest body of water, where you float effortlessly",  31.5590,  35.4732],
-  ["Wadi Rum, Jordan",             "Vast desert landscape of rose-red sandstone mountains and valleys",              29.5797,  35.4229],
-  ["Maldives Atolls",              "Low-lying coral atolls scattered across the Indian Ocean",                        4.1755,  73.5093],
-  ["Phi Phi Islands, Thailand",    "Dramatic limestone cliffs rising from turquoise Andaman Sea waters",              7.7407,  98.7784],
-  ["Guilin Karst, China",          "Surreal landscape of limestone peaks rising from rice paddies and rivers",       24.8138, 110.4980],
+  ["Dead Sea, Jordan",             "Earth's lowest point and saltiest body of water, where you float effortlessly",  31.5590,  35.4732,  20],
+  ["Wadi Rum, Jordan",             "Vast desert landscape of rose-red sandstone mountains and valleys",              29.5797,  35.4229,  20],
+  ["Maldives Atolls",              "Low-lying coral atolls scattered across the Indian Ocean",                        4.1755,  73.5093,  75],
+  ["Phi Phi Islands, Thailand",    "Dramatic limestone cliffs rising from turquoise Andaman Sea waters",              7.7407,  98.7784,  12],
+  ["Guilin Karst, China",          "Surreal landscape of limestone peaks rising from rice paddies and rivers",       24.8138, 110.4980,  15],
 
   // ── AFRICA & MIDDLE EAST ────────────────────────────────
   ["Great Pyramid of Giza",        "Last surviving wonder of the ancient world, built for Pharaoh Khufu",            29.9792,  31.1342],
   ["Victoria Falls, Zambia",       "World's largest waterfall by combined width and height",                         -17.9244,  25.8567],
   ["Mount Kilimanjaro, Tanzania",  "Africa's highest peak, a freestanding volcanic mountain capped in snow",          -3.0674,  37.3556],
-  ["Serengeti, Tanzania",          "Vast savanna ecosystem famous for the annual wildebeest migration",               -2.3333,  34.8333],
-  ["Sossusvlei, Namibia",          "Towering red sand dunes surrounding a stark white clay pan in the Namib Desert", -24.7272,  15.3445],
-  ["Sahara Desert, Algeria",       "World's largest hot desert, stretching across North Africa",                     23.4162,   5.0418],
-  ["Okavango Delta, Botswana",     "World's largest inland delta, a lush oasis in the middle of the Kalahari",       -19.2948,  22.9411],
+  ["Serengeti, Tanzania",          "Vast savanna ecosystem famous for the annual wildebeest migration",               -2.3333,  34.8333,  50],
+  ["Sossusvlei, Namibia",          "Towering red sand dunes surrounding a stark white clay pan in the Namib Desert", -24.7272,  15.3445,  20],
+  ["Sahara Desert, Algeria",       "World's largest hot desert, stretching across North Africa",                     23.4162,   5.0418,  75],
+  ["Okavango Delta, Botswana",     "World's largest inland delta, a lush oasis in the middle of the Kalahari",       -19.2948,  22.9411,  40],
   ["Wadi Halfa, Sudan",            "Ancient town on the banks of the Nile near the Egyptian border",                 21.8006,  31.3503],
   ["Mount Nyiragongo, DRC",        "Active stratovolcano with the world's largest lava lake in its crater",           -1.5216,  29.2497],
   ["Lamu Old Town, Kenya",         "Swahili stone town and the oldest living settlement in East Africa",             -2.2696,  40.9020],
   ["Djemaa el-Fna, Marrakech",     "Legendary square and marketplace at the heart of Marrakech's medina",           31.6258,  -7.9892],
   ["Timbuktu, Mali",               "Fabled Saharan city, once the world's most important center of Islamic learning", 16.7735,  -3.0074],
-  ["Danakil Depression, Ethiopia", "One of the hottest and most alien landscapes on Earth, with lava lakes and salt flats", 14.2417, 40.3100],
+  ["Danakil Depression, Ethiopia", "One of the hottest and most alien landscapes on Earth, with lava lakes and salt flats", 14.2417, 40.3100,  35],
 
   // ── AMERICAS ────────────────────────────────────────────
   ["Machu Picchu, Peru",           "Lost Inca citadel high in the Andes, rediscovered in 1911",                     -13.1631, -72.5450],
-  ["Grand Canyon, USA",            "Mile-deep gorge carved by the Colorado River over millions of years",            36.1069,-112.1129],
+  ["Grand Canyon, USA",            "Mile-deep gorge carved by the Colorado River over millions of years",            36.1069,-112.1129,  25],
   ["Iguazu Falls, Argentina",      "Spectacular waterfall system on the Argentine-Brazilian border",                 -25.6953, -54.4367],
   ["Chichén Itzá, Mexico",         "Mayan pyramid dedicated to Kukulcan, built circa 600 AD",                       20.6843, -88.5678],
   ["Statue of Liberty, New York",  "French gift to the US standing in New York Harbor since 1886",                  40.6892, -74.0445],
   ["Golden Gate Bridge",           "Iconic suspension bridge spanning the entrance to San Francisco Bay",            37.8199,-122.4783],
   ["Christ the Redeemer, Rio",     "Art Deco statue of Jesus atop Corcovado mountain overlooking Rio",              -22.9519, -43.2105],
-  ["Galápagos Islands, Ecuador",   "Pacific archipelago that inspired Darwin's theory of evolution",                  -0.9538, -90.9656],
+  ["Galápagos Islands, Ecuador",   "Pacific archipelago that inspired Darwin's theory of evolution",                  -0.9538, -90.9656,  60],
   ["Antelope Canyon, USA",         "Narrow slot canyon carved by flash floods in the Arizona sandstone",             36.8619,-111.3743],
-  ["Yellowstone, USA",             "World's first national park, sitting atop a supervolcano",                      44.4280,-110.5885],
-  ["Patagonia, Argentina",         "Remote wilderness of jagged peaks, glaciers and vast steppe at the end of the world", -50.9423, -73.4068],
-  ["Amazon River Delta, Brazil",   "Where the world's largest river meets the Atlantic in a vast maze of channels",   0.1500, -50.0000],
+  ["Yellowstone, USA",             "World's first national park, sitting atop a supervolcano",                      44.4280,-110.5885,  35],
+  ["Patagonia, Argentina",         "Remote wilderness of jagged peaks, glaciers and vast steppe at the end of the world", -50.9423, -73.4068,  75],
+  ["Amazon River Delta, Brazil",   "Where the world's largest river meets the Atlantic in a vast maze of channels",   0.1500, -50.0000,  60],
   ["Tikal, Guatemala",             "Ancient Mayan city rising above the jungle canopy, abandoned for a thousand years", 17.2220, -89.6237],
-  ["Salar de Uyuni, Bolivia",      "World's largest salt flat, a mirror-like expanse at 3,600m altitude",           -20.1338, -67.4891],
+  ["Salar de Uyuni, Bolivia",      "World's largest salt flat, a mirror-like expanse at 3,600m altitude",           -20.1338, -67.4891,  40],
   ["Easter Island, Chile",         "Remote Pacific island famous for its 900 monolithic Moai statues",              -27.1127,-109.3497],
   ["Niagara Falls, Canada",        "Twin waterfalls on the US-Canada border drawing millions of visitors yearly",    43.0896, -79.0849],
-  ["Monument Valley, USA",         "Iconic sandstone buttes rising from the Colorado Plateau on Navajo land",        36.9980,-110.0985],
-  ["Torres del Paine, Chile",      "Dramatic granite towers soaring above glaciers and turquoise lakes in Patagonia",-50.9423, -72.9956],
+  ["Monument Valley, USA",         "Iconic sandstone buttes rising from the Colorado Plateau on Navajo land",        36.9980,-110.0985,  15],
+  ["Torres del Paine, Chile",      "Dramatic granite towers soaring above glaciers and turquoise lakes in Patagonia",-50.9423, -72.9956,  20],
   ["Havana Old City, Cuba",        "Colorful colonial architecture and vintage cars in Cuba's historic capital",      23.1360, -82.3590],
   ["Cartagena, Colombia",          "Walled colonial city on the Caribbean coast with brightly painted buildings",    10.3910, -75.4794],
 
   // ── OCEANIA & POLAR ─────────────────────────────────────
   ["Sydney Opera House",           "Sail-shaped performing arts center on Sydney Harbour",                           -33.8568, 151.2153],
-  ["Great Barrier Reef, Australia","World's largest coral reef system, visible from space",                          -18.2871, 147.6992],
+  ["Great Barrier Reef, Australia","World's largest coral reef system, visible from space",                          -18.2871, 147.6992,  75],
   ["Milford Sound, New Zealand",   "Fiord of sheer cliffs, waterfalls and wildlife in Fiordland National Park",     -44.6414, 167.8974],
   ["Waitomo Glowworm Caves, NZ",   "Limestone caves illuminated by thousands of bioluminescent glowworms",          -38.2608, 175.1038],
   ["Bora Bora, French Polynesia",  "Volcanic island ringed by turquoise lagoon and overwater bungalows",            -16.5004,-151.7415],
-  ["Antarcic Peninsula",           "Icy wilderness of glaciers, penguins and icebergs at the bottom of the world",  -63.4000, -57.0000],
+  ["Antarcic Peninsula",           "Icy wilderness of glaciers, penguins and icebergs at the bottom of the world",  -63.4000, -57.0000,  75],
   ["Rotorua, New Zealand",         "Geothermal city of bubbling mud pools, geysers and Māori culture",             -38.1368, 176.2497],
-  ["Kakadu, Australia",            "Ancient Aboriginal land of rock art, wetlands and dramatic escarpments",         -12.6767, 132.8851],
-  ["Palau, Micronesia",            "Remote Pacific archipelago of pristine reefs and jellyfish lakes",                7.5150, 134.5825],
+  ["Kakadu, Australia",            "Ancient Aboriginal land of rock art, wetlands and dramatic escarpments",         -12.6767, 132.8851,  40],
+  ["Palau, Micronesia",            "Remote Pacific archipelago of pristine reefs and jellyfish lakes",                7.5150, 134.5825,  25],
 
   // ── MORE EUROPE ─────────────────────────────────────────
-  ["Svalbard, Norway",             "Arctic archipelago halfway between Norway and the North Pole, land of polar bears",  78.2232,  15.6267],
+  ["Svalbard, Norway",             "Arctic archipelago halfway between Norway and the North Pole, land of polar bears",  78.2232,  15.6267,  40],
   ["Pompeii, Italy",               "Roman city frozen in time by the eruption of Vesuvius in 79 AD",                    40.7462,  14.4989],
-  ["Dolomites, Italy",             "Jagged pale limestone peaks forming one of the world's most dramatic mountain ranges", 46.4102,  11.8440],
+  ["Dolomites, Italy",             "Jagged pale limestone peaks forming one of the world's most dramatic mountain ranges", 46.4102,  11.8440,  25],
   ["Whitby, England",              "Clifftop ruined abbey and fishing town that inspired Bram Stoker's Dracula",          54.4858,  -0.6206],
   ["Gorëme, Turkey",               "Village in the heart of Cappadocia surrounded by cone-shaped fairy chimneys",        38.6431,  34.8289],
-  ["Faroe Islands",                "Remote North Atlantic archipelago of dramatic cliffs, puffins and waterfalls",        62.0000,  -6.7900],
+  ["Faroe Islands",                "Remote North Atlantic archipelago of dramatic cliffs, puffins and waterfalls",        62.0000,  -6.7900,  25],
   ["Bioluminescent Bay, Menorca",  "Magical sea cave where the water glows electric blue at night",                      39.9063,   4.0600],
   ["Delphi, Greece",               "Ancient sanctuary of Apollo perched on the slopes of Mount Parnassus",               38.4824,  22.5010],
-  ["Lake Como, Italy",             "Elegant glacial lake ringed by villas and the foothills of the Alps",                46.0160,   9.2570],
+  ["Lake Como, Italy",             "Elegant glacial lake ringed by villas and the foothills of the Alps",                46.0160,   9.2570,  15],
   ["Kirkjufell, Iceland",          "Arrow-shaped mountain beside a waterfall, Iceland's most photographed peak",         64.9280, -23.3070],
   ["Skógafoss, Iceland",           "Massive curtain waterfall on Iceland's south coast where rainbows appear daily",     63.5322, -19.5133],
   ["Blue Lagoon, Iceland",         "Geothermal spa of milky blue water in a lava field on the Reykjanes Peninsula",     63.8804, -22.4495],
@@ -1138,36 +1140,36 @@ const LOCATIONS = [
   ["Varanasi Ghats, India",        "Ancient city on the Ganges, the world's holiest Hindu site",                        25.3176,  83.0062],
   ["Hampi, India",                 "Ruins of the mighty Vijayanagara Empire scattered across a boulder-strewn landscape", 15.3350,  76.4600],
   ["Ellora Caves, India",          "Rock-cut cave temples representing Buddhism, Hinduism and Jainism",                  20.0269,  75.1780],
-  ["Ha Giang Loop, Vietnam",       "Breathtaking mountain passes and rice terraces in Vietnam's far north",              23.2080, 104.9800],
+  ["Ha Giang Loop, Vietnam",       "Breathtaking mountain passes and rice terraces in Vietnam's far north",              23.2080, 104.9800,  20],
   ["Batu Caves, Malaysia",         "Limestone hill with a series of caves and cave temples near Kuala Lumpur",            3.2379, 101.6840],
   ["Preah Vihear, Cambodia",       "Stunning Khmer temple perched on a cliff at the edge of the Dangrek escarpment",    14.3914, 104.6786],
   ["Kinkaku-ji, Kyoto",            "Golden Pavilion Zen temple reflected in a still pond, Japan's most visited site",   35.0394, 135.7292],
   ["Miyajima Island, Japan",       "Sacred island where a torii gate appears to float on the sea at high tide",         34.2957, 132.3192],
   ["Hitachi Seaside Park, Japan",  "Fields of nemophila flowers turning hillsides vivid blue every spring",              36.4031, 140.6060],
-  ["Zhangye Danxia, China",        "Layered mineral deposits creating a rainbow of striped rock formations",             38.9300, 100.9200],
+  ["Zhangye Danxia, China",        "Layered mineral deposits creating a rainbow of striped rock formations",             38.9300, 100.9200,  12],
   ["Hsipaw, Myanmar",              "Quiet Shan town surrounded by tea plantations and tribal villages",                  22.6200,  97.3000],
-  ["Nubra Valley, India",          "High-altitude cold desert valley with sand dunes between Himalayan ranges",          34.6500,  77.5500],
-  ["Tian Shan, Kazakhstan",        "Vast snowy mountain range stretching across Central Asia",                           42.0000,  78.0000],
+  ["Nubra Valley, India",          "High-altitude cold desert valley with sand dunes between Himalayan ranges",          34.6500,  77.5500,  20],
+  ["Tian Shan, Kazakhstan",        "Vast snowy mountain range stretching across Central Asia",                           42.0000,  78.0000,  75],
   ["Samarkand, Uzbekistan",        "Silk Road city of turquoise-domed mosques and madrasas in Central Asia",             39.6270,  66.9750],
   ["Paro Taktsang, Bhutan",        "Tiger's Nest monastery clinging to a cliff 900m above the Paro Valley",             27.4914,  89.3634],
   ["Coron Island, Philippines",    "Limestone karst island with crystal-clear lagoons and World War II wrecks",          11.9987, 120.2046],
   ["Chocolate Hills, Philippines", "Over 1,200 perfectly conical hills that turn brown in the dry season",              9.8000, 124.1667],
-  ["Mergui Archipelago, Myanmar",  "Remote chain of 800 islands in the Andaman Sea, barely touched by tourism",         12.4000,  98.2000],
-  ["Wadi Draa, Morocco",           "Long river valley of palm oases and kasbahs cutting through the Sahara",            29.0000,  -6.5000],
+  ["Mergui Archipelago, Myanmar",  "Remote chain of 800 islands in the Andaman Sea, barely touched by tourism",         12.4000,  98.2000,  50],
+  ["Wadi Draa, Morocco",           "Long river valley of palm oases and kasbahs cutting through the Sahara",            29.0000,  -6.5000,  30],
   ["Al-Ula, Saudi Arabia",         "Ancient Nabataean city of monumental rock tombs in a dramatic desert canyon",       26.6167,  37.9167],
   ["Socotra Island, Yemen",        "Remote island with alien-looking dragon blood trees found nowhere else on Earth",   12.4634,  53.8237],
 
   // ── MORE AFRICA ──────────────────────────────────────────
-  ["Bwindi Forest, Uganda",        "Impenetrable forest reserve home to nearly half the world's mountain gorillas",      -1.0636,  29.6636],
-  ["Tsingy de Bemaraha, Madagascar","Forest of razor-sharp limestone pinnacles, a UNESCO natural wonder",               -18.7500,  44.7500],
-  ["Omo Valley, Ethiopia",         "Remote valley where ancient tribal cultures have remained largely unchanged",          5.5000,  36.0000],
-  ["Saharan Tuareg Camps, Niger",  "Salt caravans and nomadic Tuareg camps deep in the Sahara",                         16.0000,   8.0000],
-  ["Bazaruto Archipelago, Mozambique","Pristine coral islands with dugongs, manta rays and dhow sailboats",             -21.6000,  35.4667],
-  ["Simien Mountains, Ethiopia",   "Dramatic highlands plateau with vertical escarpments and gelada baboons",            13.2350,  38.0640],
-  ["Rwenzori Mountains, Uganda",   "Glaciated equatorial Mountains of the Moon straddling the DRC-Uganda border",        0.3833,  29.9000],
-  ["Fish River Canyon, Namibia",   "Second largest canyon in the world, carved over 500 million years",                 -27.6740,  17.5757],
+  ["Bwindi Forest, Uganda",        "Impenetrable forest reserve home to nearly half the world's mountain gorillas",      -1.0636,  29.6636,  15],
+  ["Tsingy de Bemaraha, Madagascar","Forest of razor-sharp limestone pinnacles, a UNESCO natural wonder",               -18.7500,  44.7500,  20],
+  ["Omo Valley, Ethiopia",         "Remote valley where ancient tribal cultures have remained largely unchanged",          5.5000,  36.0000,  30],
+  ["Saharan Tuareg Camps, Niger",  "Salt caravans and nomadic Tuareg camps deep in the Sahara",                         16.0000,   8.0000,  75],
+  ["Bazaruto Archipelago, Mozambique","Pristine coral islands with dugongs, manta rays and dhow sailboats",             -21.6000,  35.4667,  25],
+  ["Simien Mountains, Ethiopia",   "Dramatic highlands plateau with vertical escarpments and gelada baboons",            13.2350,  38.0640,  25],
+  ["Rwenzori Mountains, Uganda",   "Glaciated equatorial Mountains of the Moon straddling the DRC-Uganda border",        0.3833,  29.9000,  25],
+  ["Fish River Canyon, Namibia",   "Second largest canyon in the world, carved over 500 million years",                 -27.6740,  17.5757,  20],
   ["Zanzibar Stone Town, Tanzania","UNESCO Swahili trading port of labyrinthine alleys, spices and carved doors",       -6.1622,  39.1921],
-  ["Ngorongoro Crater, Tanzania",  "Vast volcanic caldera sheltering the world's densest concentration of wildlife",     -3.1667,  35.5833],
+  ["Ngorongoro Crater, Tanzania",  "Vast volcanic caldera sheltering the world's densest concentration of wildlife",     -3.1667,  35.5833,  15],
   ["Dakar, Senegal",               "Westernmost point of continental Africa on a wind-swept Atlantic peninsula",         14.7167, -17.4677],
   ["Chefchaouen, Morocco",         "The Blue Pearl — a mountain town where every wall is painted in shades of blue",    35.1688,  -5.2636],
 
@@ -1176,30 +1178,30 @@ const LOCATIONS = [
   ["Banff, Canada",                "Turquoise glacial lakes and Rocky Mountain peaks in Canada's oldest national park",  51.4968,-115.9281],
   ["Guanajuato, Mexico",           "Colonial city of colorful houses tumbling down hillsides in central Mexico",         21.0190,-101.2574],
   ["Carnaval, Rio de Janeiro",     "Sambadrome where samba schools parade through in an explosion of color and rhythm", -22.9000, -43.1956],
-  ["Atacama Desert, Chile",        "World's driest non-polar desert of salt flats, geysers and alien landscapes",       -23.8634, -69.0742],
+  ["Atacama Desert, Chile",        "World's driest non-polar desert of salt flats, geysers and alien landscapes",       -23.8634, -69.0742,  60],
   ["Oaxaca, Mexico",               "Colonial city known for Zapotec ruins, mezcal and one of Mexico's richest cuisines", 17.0732, -96.7266],
   ["Corcovado, Costa Rica",        "Incredibly biodiverse national park on the Osa Peninsula, a global hotspot",         8.5417, -83.5920],
-  ["Pantanal, Brazil",             "World's largest tropical wetland, the best place on Earth to see jaguars",          -17.0000, -57.0000],
-  ["Quebrada de Humahuaca, Argentina","Colourful gorge of multicoloured hills and pre-Columbian ruins in the Andes",   -23.2061, -65.3464],
-  ["Tayrona, Colombia",            "Lush national park where the Andes meet white-sand beaches on the Caribbean",       11.3204, -73.9192],
-  ["Lake Titicaca, Peru",          "World's highest navigable lake straddling the Peru-Bolivia border",                 -15.8402, -69.3361],
-  ["Canaima, Venezuela",           "Tepui plateau landscape where Angel Falls — world's highest waterfall — plunges",    5.9430, -62.8475],
+  ["Pantanal, Brazil",             "World's largest tropical wetland, the best place on Earth to see jaguars",          -17.0000, -57.0000,  75],
+  ["Quebrada de Humahuaca, Argentina","Colourful gorge of multicoloured hills and pre-Columbian ruins in the Andes",   -23.2061, -65.3464,  25],
+  ["Tayrona, Colombia",            "Lush national park where the Andes meet white-sand beaches on the Caribbean",       11.3204, -73.9192,  15],
+  ["Lake Titicaca, Peru",          "World's highest navigable lake straddling the Peru-Bolivia border",                 -15.8402, -69.3361,  60],
+  ["Canaima, Venezuela",           "Tepui plateau landscape where Angel Falls — world's highest waterfall — plunges",    5.9430, -62.8475,  25],
   ["Choquequirao, Peru",           "Remote Inca citadel perched on a ridge, larger than Machu Picchu and rarely visited", -13.5332, -72.8506],
   ["Florianópolis, Brazil",        "Island city with 42 beaches and a lively surf culture off Brazil's southern coast", -27.5954, -48.5480],
-  ["Chiloé Island, Chile",         "Mythical island of wooden churches, palafito stilt houses and misty forests",       -42.6000, -73.9000],
+  ["Chiloé Island, Chile",         "Mythical island of wooden churches, palafito stilt houses and misty forests",       -42.6000, -73.9000,  30],
   ["Dominica",                     "Volcanic island of boiling lakes, rainforest and whale-watching in the Caribbean",   15.4150, -61.3710],
-  ["Copper Canyon, Mexico",        "System of canyons deeper and wider than the Grand Canyon in the Sierra Madre",      27.5500,-107.7500],
+  ["Copper Canyon, Mexico",        "System of canyons deeper and wider than the Grand Canyon in the Sierra Madre",      27.5500,-107.7500,  30],
 
   // ── MORE OCEANIA ─────────────────────────────────────────
-  ["Whitsunday Islands, Australia","74 tropical islands inside the Great Barrier Reef with pure white silica beaches",  -20.2734, 148.8930],
-  ["Karijini, Australia",          "Ancient gorges of striped rock plunging into crystal pools in the Pilbara",         -22.3350, 118.3020],
-  ["Vanuatu Volcanoes",            "Pacific island nation where you can hike to the rim of an active lava lake",        -15.3767, 166.9592],
+  ["Whitsunday Islands, Australia","74 tropical islands inside the Great Barrier Reef with pure white silica beaches",  -20.2734, 148.8930,  25],
+  ["Karijini, Australia",          "Ancient gorges of striped rock plunging into crystal pools in the Pilbara",         -22.3350, 118.3020,  20],
+  ["Vanuatu Volcanoes",            "Pacific island nation where you can hike to the rim of an active lava lake",        -15.3767, 166.9592,  25],
   ["Lord Howe Island, Australia",  "Remote crescent island of coral reefs and 300m basalt sea stacks in the Tasman Sea", -31.5540, 159.0820],
   ["Aoraki/Mt Cook, New Zealand",  "New Zealand's highest peak, rising above a valley of glaciers",                    -43.5950, 170.1418],
-  ["Raja Ampat, Indonesia",        "Remote archipelago with the highest marine biodiversity on Earth",                  -0.2333, 130.5167],
+  ["Raja Ampat, Indonesia",        "Remote archipelago with the highest marine biodiversity on Earth",                  -0.2333, 130.5167,  40],
   ["Komodo Island, Indonesia",     "Home of the Komodo dragon, the world's largest living lizard",                      -8.5500, 119.4500],
-  ["Tonga",                        "Polynesian kingdom of 170 islands where you can swim with humpback whales",        -21.1790,-175.1982],
-  ["Samoa",                        "Lush volcanic islands of To Sua ocean trenches and to-the-last-resort beaches",    -13.7590,-172.1046],
+  ["Tonga",                        "Polynesian kingdom of 170 islands where you can swim with humpback whales",        -21.1790,-175.1982,  40],
+  ["Samoa",                        "Lush volcanic islands of To Sua ocean trenches and to-the-last-resort beaches",    -13.7590,-172.1046,  30],
 
   // ── UNIQUE & OFFBEAT ────────────────────────────────────
   ["Surtsey, Iceland",             "Volcanic island that erupted from the sea in 1963 — one of Earth's newest lands",   63.3000, -20.6000],
@@ -1209,9 +1211,9 @@ const LOCATIONS = [
   ["Nauru",                        "World's smallest island nation and third-smallest country by area",                  -0.5228, 166.9315],
   ["Hashima Island, Japan",        "Abandoned concrete island fortress that was once the world's most densely populated place", 32.6278, 129.7381],
   ["Chernobyl, Ukraine",           "Exclusion zone around the 1986 nuclear disaster, now a haunting ghost landscape",   51.2731,  30.2219],
-  ["Salar de Atacama, Chile",      "Lithium-rich salt flat ringed by volcanoes, home to flamingo colonies",             -23.4935, -68.2500],
-  ["Skeleton Coast, Namibia",      "Foggy Atlantic coast of shipwrecks, seal colonies and desert-adapted lions",        -19.0000,  12.5000],
-  ["Kamchatka Peninsula, Russia",  "Remote volcanic peninsula of geysers, brown bears and undisturbed wilderness",      54.0000, 159.0000],
+  ["Salar de Atacama, Chile",      "Lithium-rich salt flat ringed by volcanoes, home to flamingo colonies",             -23.4935, -68.2500,  30],
+  ["Skeleton Coast, Namibia",      "Foggy Atlantic coast of shipwrecks, seal colonies and desert-adapted lions",        -19.0000,  12.5000,  60],
+  ["Kamchatka Peninsula, Russia",  "Remote volcanic peninsula of geysers, brown bears and undisturbed wilderness",      54.0000, 159.0000,  60],
   ["Svalbard Global Seed Vault",   "Doomsday vault buried in permafrost preserving the world's crop diversity",         78.2380,  15.4910],
   ["Inaccessible Island",          "Uninhabited volcanic island — one of the most remote places on the planet",        -37.3120, -12.6780],
 ];
@@ -1279,14 +1281,14 @@ function haversineKm(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-function scoreFromDistance(km) {
-  // 0km = 200pts, ~10,000km (quarter globe) = 0pts
-  // Same country (~500km) still scores ~80pts
-  if (km <= 0) return 200;
-  if (km <= 25)   return Math.round(200 - (km / 25) * 10);           // 200 → 190
-  if (km <= 500)  return Math.round(190 - ((km - 25) / 475) * 110);  // 190 → 80
-  if (km <= 2000) return Math.round(80  - ((km - 500) / 1500) * 60); // 80 → 20
-  if (km <= 10000)return Math.round(20  - ((km - 2000) / 8000) * 20);// 20 → 0
+function scoreFromDistance(km, perfectRadius = 5) {
+  // Anything within perfectRadius = full marks. Beyond that the normal curve applies.
+  const d = Math.max(0, km - perfectRadius);
+  if (d <= 0)     return 200;
+  if (d <= 25)    return Math.round(200 - (d / 25) * 10);           // 200 → 190
+  if (d <= 500)   return Math.round(190 - ((d - 25) / 475) * 110);  // 190 → 80
+  if (d <= 2000)  return Math.round(80  - ((d - 500) / 1500) * 60); // 80  → 20
+  if (d <= 10000) return Math.round(20  - ((d - 2000) / 8000) * 20);// 20  → 0
   return 0;
 }
 
@@ -1610,11 +1612,11 @@ function lockPin() {
   if (navigator.vibrate) navigator.vibrate([20, 10, 20]);
 
   const target = state.todayLocations[state.round];
-  const [name, description, targetLat, targetLng] = target;
+  const [name, description, targetLat, targetLng, perfectRadius = 5] = target;
   const { lat, lng } = state.pendingPin;
 
   const distKm = haversineKm(lat, lng, targetLat, targetLng);
-  const pts = scoreFromDistance(distKm);
+  const pts = scoreFromDistance(distKm, perfectRadius);
   state.totalScore += pts;
 
   state.roundResults.push({ name, pts, distKm, userLat: lat, userLng: lng, targetLat, targetLng });
