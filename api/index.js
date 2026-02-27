@@ -9,7 +9,7 @@ module.exports = (req, res) => {
     return;
   }
 
-  const htmlPath = path.join(process.cwd(), 'index.html');
+  const htmlPath = path.join(process.cwd(), '_template.html');
   let html = fs.readFileSync(htmlPath, 'utf8');
 
   // Inject the token at request time — never stored in source code
