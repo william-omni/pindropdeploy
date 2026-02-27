@@ -1312,6 +1312,12 @@ const LOCATIONS = [
 const ROUNDS_PER_GAME = 5;
 const MAX_SCORE_PER_ROUND = 200;
 
+// Detect system color scheme once at startup
+const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+const MAP_STYLE   = prefersDark
+  ? 'mapbox://styles/mapbox/dark-v11'
+  : 'mapbox://styles/mapbox/light-v11';
+
 let map = null;
 let state = {
   round: 0,
@@ -1551,6 +1557,101 @@ function initHome() {
 // MAP / GAME
 // ─────────────────────────────────────────────────────────
 
+/**
+ * Applies water/land contrast colours and (optionally) city labels
+ * to a Mapbox map instance, adapting to light or dark mode.
+ * Must be called inside a 'load' or 'style.load' event handler.
+ */
+function applyMapStyle(m, isDark, cityLabels = true) {
+  // ── Contrast colours ──────────────────────────────────
+  for (const layer of m.getStyle().layers) {
+    const lid = layer.id.toLowerCase();
+    const isWater = lid.includes('water') || lid.includes('waterway') || lid.includes('ocean');
+    if (isDark) {
+      // Land/earth base → warm dark gray; water → deep navy
+      if (layer.type === 'background') {
+        try { m.setPaintProperty(layer.id, 'background-color', '#2a2d3a'); } catch(e) {}
+      } else if (isWater && layer.type === 'fill') {
+        try { m.setPaintProperty(layer.id, 'fill-color', '#0d2850'); } catch(e) {}
+      } else if (isWater && layer.type === 'line') {
+        try { m.setPaintProperty(layer.id, 'line-color', '#091e40'); } catch(e) {}
+      }
+    } else {
+      // Light mode: boost water to a vivid sky-blue for clear contrast
+      if (isWater && layer.type === 'fill') {
+        try { m.setPaintProperty(layer.id, 'fill-color', '#7ab8d9'); } catch(e) {}
+      } else if (isWater && layer.type === 'line') {
+        try { m.setPaintProperty(layer.id, 'line-color', '#5ea3c8'); } catch(e) {}
+      }
+    }
+  }
+
+  // ── Strip all symbol/label layers ─────────────────────
+  for (const layer of m.getStyle().layers) {
+    if (layer.type === 'symbol') m.removeLayer(layer.id);
+  }
+
+  // ── Add back major city labels (gameplay map only) ────
+  if (!cityLabels) return;
+
+  const labelColor = isDark ? 'rgba(255,255,255,0.60)' : 'rgba(15,35,70,0.85)';
+  const haloColor  = isDark ? 'rgba(8,8,18,0.85)'     : 'rgba(255,255,255,0.85)';
+
+  const cityLabelLayout = {
+    'text-field': ['get', 'name_en'],
+    'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+    'text-size': ['interpolate', ['linear'], ['zoom'], 1, 9, 5, 13],
+    'text-max-width': 8,
+    'text-padding': 4,
+    'symbol-sort-key': ['-', 0, ['coalesce', ['get', 'population'], 0]],
+  };
+  const cityLabelPaint = {
+    'text-color': labelColor,
+    'text-halo-color': haloColor,
+    'text-halo-width': 1.5,
+  };
+
+  // Global mega-cities: population > 5M
+  m.addLayer({
+    id: 'city-labels-global',
+    type: 'symbol',
+    source: 'composite',
+    'source-layer': 'place_label',
+    filter: ['all',
+      ['==', ['get', 'type'], 'city'],
+      ['>=', ['coalesce', ['get', 'population'], 0], 5000000],
+    ],
+    layout: cityLabelLayout,
+    paint: cityLabelPaint,
+  });
+
+  // Europe & North America: cities > 2M
+  const europaNAGeoJSON = {
+    type: 'Feature',
+    geometry: {
+      type: 'MultiPolygon',
+      coordinates: [
+        [[[-30,34],[50,34],[50,72],[-30,72],[-30,34]]],         // Europe
+        [[[-170,15],[-50,15],[-50,75],[-170,75],[-170,15]]],   // North America
+      ]
+    }
+  };
+  m.addLayer({
+    id: 'city-labels-eu-na',
+    type: 'symbol',
+    source: 'composite',
+    'source-layer': 'place_label',
+    filter: ['all',
+      ['==', ['get', 'type'], 'city'],
+      ['>=', ['coalesce', ['get', 'population'], 0], 2000000],
+      ['<',  ['coalesce', ['get', 'population'], 0], 5000000],
+      ['within', europaNAGeoJSON],
+    ],
+    layout: cityLabelLayout,
+    paint: cityLabelPaint,
+  });
+}
+
 function initMap() {
   if (map) return; // already initialized
 
@@ -1558,7 +1659,7 @@ function initMap() {
 
   map = new mapboxgl.Map({
     container: 'map',
-    style: 'mapbox://styles/mapbox/dark-v11',
+    style: MAP_STYLE,
     center: [15, 25],
     zoom: 1.8,
     minZoom: 1,
@@ -1570,84 +1671,7 @@ function initMap() {
   });
 
   map.on('load', () => {
-    // Boost water/land contrast — iterate ALL style layers by type + id pattern.
-    // dark-v11 uses a `background` type for the land base; water layers contain 'water' in id.
-    for (const layer of map.getStyle().layers) {
-      const lid = layer.id.toLowerCase();
-      const isWater = lid.includes('water') || lid.includes('waterway') || lid.includes('ocean');
-      if (layer.type === 'background') {
-        // Land/earth base — warm dark gray so it reads clearly against navy water
-        try { map.setPaintProperty(layer.id, 'background-color', '#2a2d3a'); } catch(e) {}
-      } else if (isWater && layer.type === 'fill') {
-        try { map.setPaintProperty(layer.id, 'fill-color', '#0d2850'); } catch(e) {}
-      } else if (isWater && layer.type === 'line') {
-        try { map.setPaintProperty(layer.id, 'line-color', '#091e40'); } catch(e) {}
-      }
-    }
-
-    // Remove all symbol layers (labels/icons) so the map gives nothing away
-    const layers = map.getStyle().layers;
-    for (const layer of layers) {
-      if (layer.type === 'symbol') {
-        map.removeLayer(layer.id);
-      }
-    }
-
-    // Add back major city labels — these help orient players without giving answers away
-    const cityLabelLayout = {
-      'text-field': ['get', 'name_en'],
-      'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
-      'text-size': ['interpolate', ['linear'], ['zoom'], 1, 9, 5, 13],
-      'text-max-width': 8,
-      'text-padding': 4,
-      'symbol-sort-key': ['-', 0, ['coalesce', ['get', 'population'], 0]],
-    };
-    const cityLabelPaint = {
-      'text-color': 'rgba(255,255,255,0.55)',
-      'text-halo-color': 'rgba(10,10,20,0.85)',
-      'text-halo-width': 1.5,
-    };
-
-    // Global mega-cities: population > 5M
-    map.addLayer({
-      id: 'city-labels-global',
-      type: 'symbol',
-      source: 'composite',
-      'source-layer': 'place_label',
-      filter: ['all',
-        ['==', ['get', 'type'], 'city'],
-        ['>=', ['coalesce', ['get', 'population'], 0], 5000000],
-      ],
-      layout: cityLabelLayout,
-      paint: cityLabelPaint,
-    });
-
-    // Europe & North America: cities > 2M (helpful for familiar regions)
-    const europaNAGeoJSON = {
-      type: 'Feature',
-      geometry: {
-        type: 'MultiPolygon',
-        coordinates: [
-          [[[-30,34],[50,34],[50,72],[-30,72],[-30,34]]],   // Europe
-          [[[-170,15],[-50,15],[-50,75],[-170,75],[-170,15]]] // North America
-        ]
-      }
-    };
-    map.addLayer({
-      id: 'city-labels-eu-na',
-      type: 'symbol',
-      source: 'composite',
-      'source-layer': 'place_label',
-      filter: ['all',
-        ['==', ['get', 'type'], 'city'],
-        ['>=', ['coalesce', ['get', 'population'], 0], 2000000],
-        ['<',  ['coalesce', ['get', 'population'], 0], 5000000],
-        ['within', europaNAGeoJSON],
-      ],
-      layout: cityLabelLayout,
-      paint: cityLabelPaint,
-    });
-
+    applyMapStyle(map, prefersDark);
     map.on('click', onMapClick);
   });
 }
@@ -1941,7 +1965,7 @@ function initReviewMap(results) {
 
   reviewMap = new mapboxgl.Map({
     container: 'review-map',
-    style: 'mapbox://styles/mapbox/dark-v11',
+    style: MAP_STYLE,
     center: [15, 25],
     zoom: 1.4,
     minZoom: 1,
@@ -1954,11 +1978,7 @@ function initReviewMap(results) {
   });
 
   reviewMap.on('load', () => {
-    // Strip labels
-    const layers = reviewMap.getStyle().layers;
-    for (const layer of layers) {
-      if (layer.type === 'symbol') reviewMap.removeLayer(layer.id);
-    }
+    applyMapStyle(reviewMap, prefersDark, /* cityLabels= */ false);
     populateReviewMap(results);
   });
 }
