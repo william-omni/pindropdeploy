@@ -436,6 +436,54 @@ const LOCATIONS = [
   // Oceania
   ["Melbourne, Australia",         "Australia's cultural capital, a liveable city of laneways, coffee culture and footy",   -37.8136, 144.9631, 1],
 
+
+  // ── PREVIOUSLY MISSING ICONIC CITIES (D1) ───────────────────────────────
+  ["Paris, France",                "The City of Light — Europe's most-visited capital, home to the Eiffel Tower and the Louvre",  48.8566,   2.3522, 1],
+
+  ["London, UK",                   "The capital of the United Kingdom, a global hub of history, culture and finance on the Thames", 51.5074,  -0.1278, 1],
+
+  ["New York, USA",                "The Big Apple — America's most iconic city, a vertical island metropolis on the Hudson River", 40.7128,  -74.0060, 1],
+
+  ["Sydney, Australia",            "Australia's harbour city, where the Opera House sails meet the world's most beautiful natural bay", -33.8688, 151.2093, 1],
+
+  ["Dubai, UAE",                   "City of superlatives rising from the Gulf desert — home to the world's tallest building",   25.2048,  55.2708, 1],
+
+  ["Rome, Italy",                  "The Eternal City, built on seven hills with 3,000 years of history at every street corner", 41.9028,  12.4964, 1],
+
+  ["Istanbul, Turkey",             "The city straddling two continents, bridging Europe and Asia across the Bosphorus Strait",  41.0082,  28.9784, 1],
+
+  ["Rio de Janeiro, Brazil",       "Cidade Maravilhosa — city of carnival, samba and Christ the Redeemer above Guanabara Bay", -22.9068, -43.1729, 1],
+
+
+  // ── NEW D2 LANDMARK ADDITIONS ────────────────────────────────────────────
+  ["Mount Everest, Nepal",         "Earth's highest peak at 8,849 m, the ultimate challenge on the Nepal-Tibet border",       27.9881,  86.9250, 5],
+
+  ["Leaning Tower of Pisa",        "Medieval marble bell tower celebrated worldwide for its dramatic unintended tilt",         43.7230,  10.3966, 2],
+
+  ["Table Mountain, South Africa", "Iconic flat-topped mountain towering over Cape Town, one of the New 7 Wonders of Nature", -33.9628,  18.4098, 5],
+
+
+  // ── NEW D4 ADDITIONS ─────────────────────────────────────────────────────
+  ["Lofoten Islands, Norway",      "Dramatic Arctic archipelago of jagged peaks, colourful fishing villages and northern lights", 68.1596,  14.0100, 20],
+
+  ["Geirangerfjord, Norway",       "UNESCO-listed serpentine fjord flanked by dramatic waterfalls and abandoned cliffside farms", 62.1000,   7.2000, 10],
+
+  ["Mount Bromo, Indonesia",       "Active volcano rising from a vast ash caldera, its crater rim a pilgrimage at sunrise",   -7.9425, 112.9530, 5],
+
+  ["Sundarbans, Bangladesh",       "World's largest mangrove forest, a tidal labyrinth and last stronghold of Bengal tigers",  22.0000,  89.1500, 30],
+
+  ["Colca Canyon, Peru",           "One of Earth's deepest canyons, where Andean condors soar on thermals at sunrise",        -15.6533, -71.9675, 15],
+
+
+  // ── NEW D5 ADDITIONS ─────────────────────────────────────────────────────
+  ["Kerguelen Islands",            "France's sub-Antarctic territory — one of the most remote and wind-battered places on Earth", -49.2500,  69.5833, 50],
+
+  ["Pitcairn Island",              "Tiny volcanic dot in the South Pacific, settled by the HMS Bounty mutineers in 1790",     -25.0660,-130.1006, 10],
+
+  ["Bouvet Island",                "Norway's uninhabited sub-Antarctic island — possibly the single most remote place on Earth", -54.4208,   3.3464, 20],
+
+  ["Magadan, Russia",              "Remote Siberian city at the end of the Road of Bones, gateway to the former Gulag camps",  59.5613, 150.8121, 10],
+
 ];
 
 const ROUNDS_PER_GAME = 5;
@@ -504,8 +552,11 @@ const DIFFICULTY_MAP = {
   'Lima, Peru':1,'Bogotá, Colombia':1,'Santiago, Chile':1,
   'Los Angeles, USA':1,'Chicago, USA':1,'Toronto, Canada':1,
   'Guadalajara, Mexico':1,'Medellín, Colombia':1,'Melbourne, Australia':1,
+  // Previously missing iconic cities — now added to D1
+  'Paris, France':1,'London, UK':1,'New York, USA':1,'Sydney, Australia':1,
+  'Dubai, UAE':1,'Rome, Italy':1,'Istanbul, Turkey':1,'Rio de Janeiro, Brazil':1,
 
-  // ── D2: World-famous landmarks ────────────────────────────────────────────
+  // ── D2: World-famous landmarks & iconic destinations ──────────────────────
   'Eiffel Tower, Paris':2,'Colosseum, Rome':2,'Sagrada Família, Barcelona':2,
   'Acropolis, Athens':2,'Stonehenge, England':2,'Big Ben, London':2,
   'Hagia Sophia, Istanbul':2,'Mont Saint-Michel, France':2,
@@ -520,6 +571,14 @@ const DIFFICULTY_MAP = {
   'Easter Island, Chile':2,'Niagara Falls, Canada':2,
   'Sydney Opera House':2,'Uluru, Australia':2,
   'Kinkaku-ji, Kyoto':2,'Varanasi Ghats, India':2,
+  // D3 → D2 promotions (globally iconic, universally recognised)
+  'Santorini Caldera, Greece':2,'Halong Bay, Vietnam':2,
+  'Galápagos Islands, Ecuador':2,'Yellowstone, USA':2,
+  'Serengeti, Tanzania':2,'Bora Bora, French Polynesia':2,
+  'Maldives Atolls':2,'Dead Sea, Jordan':2,'Pompeii, Italy':2,
+  'Cappadocia, Turkey':2,'Pamukkale, Turkey':2,'Great Barrier Reef, Australia':2,
+  // New D2 landmark additions
+  'Mount Everest, Nepal':2,'Leaning Tower of Pisa':2,'Table Mountain, South Africa':2,
 
   // ── D4: Hard — needs real geographic knowledge ────────────────────────────
   'Jiuzhaigou Valley, China':4,'Bagan, Myanmar':4,'Ha Giang Loop, Vietnam':4,
@@ -542,10 +601,25 @@ const DIFFICULTY_MAP = {
   'Bioluminescent Bay, Menorca':4,'Dominica':4,
   'Hsipaw, Myanmar':4,'Timbuktu, Mali':4,'Al-Ula, Saudi Arabia':4,
   'Choquequirao, Peru':4,'Tsingy de Bemaraha, Madagascar':4,
+  // D3 → D4 demotions (requires real geographic knowledge to locate)
+  'Svalbard, Norway':4,'Kirkjufell, Iceland':4,'Ronda, Spain':4,
+  'Český Krumlov, Czechia':4,'Gdańsk, Poland':4,'Guanajuato, Mexico':4,
+  'Oaxaca, Mexico':4,'Florianópolis, Brazil':4,'Atacama Desert, Chile':4,
+  'Amazon River Delta, Brazil':4,'Patagonia, Argentina':4,
+  'Okavango Delta, Botswana':4,'Sossusvlei, Namibia':4,
+  'Sahara Desert, Algeria':4,'Quebrada de Humahuaca, Argentina':4,
+  'Dakar, Senegal':4,'Carnaval, Rio de Janeiro':4,'Chernobyl, Ukraine':4,
+  'Palau, Micronesia':4,'Tonga':4,'Samoa':4,'Kakadu, Australia':4,
+  'Samarkand, Uzbekistan':4,'Ngorongoro Crater, Tanzania':4,
+  // New D4 additions
+  'Lofoten Islands, Norway':4,'Geirangerfjord, Norway':4,
+  'Mount Bromo, Indonesia':4,'Sundarbans, Bangladesh':4,'Colca Canyon, Peru':4,
 
-  // ── D5: Very hard — obscure or very remote ────────────────────────────────
+  // ── D5: Very hard — obscure or very remote (used sparingly in Round 5) ───
   'Surtsey, Iceland':5,'Tristan da Cunha':5,'Oymyakon, Russia':5,
   'Inaccessible Island':5,'Saharan Tuareg Camps, Niger':5,'Nauru':5,
+  // New D5 additions
+  'Kerguelen Islands':5,'Pitcairn Island':5,'Bouvet Island':5,'Magadan, Russia':5,
 };
 
 // Difficulty: 1=major city  2=famous landmark  3=medium (default)  4=hard  5=very hard
