@@ -198,9 +198,12 @@ window.addEventListener('DOMContentLoaded', function() {
 /* ── Auth ── */
 async function doLogin(e) {
   e.preventDefault();
-  var pw = document.getElementById('pw-input').value;
+  var pw = document.getElementById('pw-input').value.trim();
   var errEl = document.getElementById('login-err');
-  errEl.hidden = true;
+  var btn   = document.querySelector('#form-login button[type=submit]');
+  errEl.setAttribute('hidden', '');
+  btn.disabled = true;
+  btn.textContent = 'Checking…';
   try {
     var res = await fetch('/api/admin?action=auth', {
       method: 'POST',
@@ -208,8 +211,13 @@ async function doLogin(e) {
       body: JSON.stringify({password: pw})
     });
     if (!res.ok) {
-      errEl.textContent = 'Incorrect password';
-      errEl.hidden = false;
+      var msg = 'Incorrect password';
+      try {
+        var d = await res.json();
+        if (d.error) msg = d.error;
+      } catch {}
+      errEl.textContent = msg;
+      errEl.removeAttribute('hidden');
       return;
     }
     var d = await res.json();
@@ -217,8 +225,11 @@ async function doLogin(e) {
     localStorage.setItem('pd-admin-token', TOKEN);
     showDashboard();
   } catch(err) {
-    errEl.textContent = 'Network error — try again';
-    errEl.hidden = false;
+    errEl.textContent = 'Network error — ' + err.message;
+    errEl.removeAttribute('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Enter Dashboard';
   }
 }
 

@@ -15,7 +15,7 @@ const {
 
 // ── Auth helpers ─────────────────────────────────────────────────────────────
 function getExpectedToken() {
-  const pw = process.env.ADMIN_PASSWORD || '';
+  const pw = (process.env.ADMIN_PASSWORD || '').trim();
   return crypto.createHash('sha256').update(pw + ':pindrop-admin').digest('hex');
 }
 function isAuthorized(req) {
@@ -23,6 +23,24 @@ function isAuthorized(req) {
   const auth  = (req.headers['authorization'] || '').replace('Bearer ', '').trim();
   const query = (req.query && req.query.token) || '';
   return (auth || query) === getExpectedToken();
+}
+
+// ── Body parser (handles Vercel auto-parsed object, Buffer, or raw stream) ───
+async function parseJsonBody(req) {
+  if (req.body !== undefined) {
+    if (Buffer.isBuffer(req.body)) {
+      try { return JSON.parse(req.body.toString()); } catch { return {}; }
+    }
+    if (typeof req.body === 'string') {
+      try { return JSON.parse(req.body); } catch { return {}; }
+    }
+    return req.body || {};
+  }
+  return new Promise((resolve) => {
+    let data = '';
+    req.on('data', chunk => { data += chunk.toString(); });
+    req.on('end', () => { try { resolve(JSON.parse(data)); } catch { resolve({}); } });
+  });
 }
 
 // ── Upcoming challenges ──────────────────────────────────────────────────────
@@ -119,9 +137,10 @@ module.exports = async function handler(req, res) {
 
   // ── POST /api/admin?action=auth ──────────────────────────────────────────
   if (action === 'auth' && req.method === 'POST') {
-    const adminPw = process.env.ADMIN_PASSWORD;
-    if (!adminPw) return res.status(503).json({ error: 'ADMIN_PASSWORD env var not set' });
-    const pw = (req.body && req.body.password) || '';
+    const adminPw = (process.env.ADMIN_PASSWORD || '').trim();
+    if (!adminPw) return res.status(503).json({ error: 'ADMIN_PASSWORD env var not set on server' });
+    const body = await parseJsonBody(req);
+    const pw = (body && body.password) || '';
     if (pw !== adminPw) return res.status(401).json({ error: 'Incorrect password' });
     return res.status(200).json({ token: getExpectedToken() });
   }
