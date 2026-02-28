@@ -627,33 +627,79 @@ function getLocDifficulty(loc) {
 }
 
 function getTodayLocations(dateStr) {
-  const rand = seededRand(getDailySeed(dateStr));
-
-  // Bucket locations by difficulty
-  const pools = { 1: [], 2: [], 3: [], 4: [], 5: [] };
+  // ── Build full difficulty pools ───────────────────────────────────────────
+  const allPools = { 1: [], 2: [], 3: [], 4: [], 5: [] };
   LOCATIONS.forEach(loc => {
     const d = getLocDifficulty(loc);
-    if (pools[d]) pools[d].push(loc);
+    if (allPools[d]) allPools[d].push(loc);
   });
 
-  const used = new Set();
-  function pick(pool) {
-    const avail = pool.filter(l => !used.has(l));
-    const src   = avail.length ? avail : pool; // fallback if pool exhausted
-    const loc   = src[Math.floor(rand() * src.length)];
-    used.add(loc);
-    return loc;
+  // ── Pick 5 locations from (possibly cooldown-filtered) pools ─────────────
+  // Uses loc[0] (name string) for dedup so same-day picks never repeat.
+  function pickForPools(pools, rand) {
+    const usedToday = new Set();
+    function pick(pool) {
+      const avail = pool.filter(l => !usedToday.has(l[0]));
+      const src   = avail.length ? avail : pool; // safety fallback
+      const loc   = src[Math.floor(rand() * src.length)];
+      usedToday.add(loc[0]);
+      return loc;
+    }
+    return [
+      pick(pools[1]),                       // R1: major world city
+      pick(pools[1]),                       // R2: different major city
+      pick(pools[2]),                       // R3: world-famous landmark
+      pick([...pools[3], ...pools[4]]),     // R4: medium or hard
+      pick([...pools[4], ...pools[5]]),     // R5: hard or very hard
+    ];
   }
 
-  // Guaranteed difficulty ramp every day:
-  // R1 city → R2 city → R3 famous landmark → R4 medium/hard → R5 hard/very hard
-  return [
-    pick(pools[1]),                          // Round 1: major world city
-    pick(pools[1]),                          // Round 2: different major city
-    pick(pools[2]),                          // Round 3: world-famous landmark
-    pick([...pools[3], ...pools[4]]),        // Round 4: medium or hard
-    pick([...pools[4], ...pools[5]]),        // Round 5: hard or very hard
-  ];
+  // ── 28-day cooldown via iterative forward computation ────────────────────
+  // We iterate from the first ever game day up to dateStr.  Each day sees
+  // what the previous 27 days picked and excludes those locations from its
+  // own pools.  This is fully deterministic: same dateStr always yields the
+  // same result regardless of when the function is called.
+  const FIRST_DAY_MS = Date.UTC(2026, 1, 28); // 2026-02-28 — soft-launch day
+  const [ty, tm, td] = dateStr.split('-').map(Number);
+  const targetMs = Date.UTC(ty, tm - 1, td);
+
+  // Dates before the game existed: pick with no cooldown (no history yet)
+  if (targetMs < FIRST_DAY_MS) {
+    return pickForPools(allPools, seededRand(getDailySeed(dateStr)));
+  }
+
+  const history = {}; // "YYYY-MM-DD" → [loc, loc, loc, loc, loc]
+
+  for (let ms = FIRST_DAY_MS; ms <= targetMs; ms += 86400000) {
+    const dt = new Date(ms);
+    const ds = dt.getUTCFullYear() + '-'
+             + String(dt.getUTCMonth() + 1).padStart(2, '0') + '-'
+             + String(dt.getUTCDate()).padStart(2, '0');
+
+    // Collect every location name used in the previous 27 days
+    const excluded = new Set();
+    for (let i = 1; i <= 27; i++) {
+      const pMs = ms - i * 86400000;
+      if (pMs < FIRST_DAY_MS) break; // nothing before day-1 to exclude
+      const pd  = new Date(pMs);
+      const pds = pd.getUTCFullYear() + '-'
+                + String(pd.getUTCMonth() + 1).padStart(2, '0') + '-'
+                + String(pd.getUTCDate()).padStart(2, '0');
+      if (history[pds]) history[pds].forEach(l => excluded.add(l[0]));
+    }
+
+    // Filter each difficulty tier; fall back to full tier if cooldown
+    // would empty it entirely (safety net, shouldn't occur in practice)
+    const pools = {};
+    for (const k in allPools) {
+      const filtered = allPools[k].filter(l => !excluded.has(l[0]));
+      pools[k] = filtered.length > 0 ? filtered : allPools[k];
+    }
+
+    history[ds] = pickForPools(pools, seededRand(getDailySeed(ds)));
+  }
+
+  return history[dateStr];
 }
 
 // ── Scoring ────────────────────────────────────────────────────────────────
