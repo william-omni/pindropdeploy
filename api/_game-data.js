@@ -510,8 +510,7 @@ function getDailySeed(dateStr) {
 }
 
 function getDayNumber(dateStr) {
-  // 2025-01-01 00:00:00 UTC
-  const epoch = 1740614400000; // 2026-02-27 00:00:00 UTC — App launch day
+  const epoch = 1741046400000; // 2026-03-04 00:00:00 UTC — Official launch day (Day 1)
   let nowMs;
   if (dateStr) {
     const [y, m, d] = dateStr.split('-').map(Number);
