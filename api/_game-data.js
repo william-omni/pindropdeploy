@@ -484,6 +484,16 @@ const LOCATIONS = [
 
   ["Magadan, Russia",              "Remote Siberian city at the end of the Road of Bones, gateway to the former Gulag camps",  59.5613, 150.8121, 10],
 
+
+  // ── SPECIAL / ANNIVERSARY LOCATIONS ─────────────────────────────────────
+  ["Detroit, Michigan",            "Motor City on the Detroit River — birthplace of Motown, the assembly line and American rock", 42.3314, -83.0458, 1],
+
+  ["Mount Mitchell, North Carolina","Highest peak east of the Mississippi at 6,684 ft, deep in the Black Mountains of Appalachia", 35.7648, -82.2650, 5],
+
+  ["The Matterhorn, Switzerland",  "The iconic pyramid-shaped Alpine peak straddling the Swiss-Italian border above Zermatt",    45.9766,   7.6586, 5],
+
+  ["Salisbury Cathedral",          "Medieval English Gothic cathedral housing the world's best-preserved copy of Magna Carta",   51.0648,  -1.7985, 2],
+
 ];
 
 const ROUNDS_PER_GAME = 5;
@@ -619,6 +629,12 @@ const DIFFICULTY_MAP = {
   'Inaccessible Island':5,'Saharan Tuareg Camps, Niger':5,'Nauru':5,
   // New D5 additions
   'Kerguelen Islands':5,'Pitcairn Island':5,'Bouvet Island':5,'Magadan, Russia':5,
+
+  // ── Special / anniversary locations ───────────────────────────────────────
+  'Detroit, Michigan':1,
+  'Mount Mitchell, North Carolina':3,
+  'The Matterhorn, Switzerland':2,
+  'Salisbury Cathedral':3,
 };
 
 // Difficulty: 1=major city  2=famous landmark  3=medium (default)  4=hard  5=very hard
@@ -668,6 +684,19 @@ function getTodayLocations(dateStr) {
     return pickForPools(allPools, seededRand(getDailySeed(dateStr)));
   }
 
+  // ── Special date overrides — pinned locations for specific days ──────────
+  // These bypass the seeded RNG entirely for that date.  The pinned locations
+  // still participate in the 28-day cooldown (future days exclude them).
+  const DATE_OVERRIDES = {
+    '2026-03-04': [                          // Launch day — parents' anniversary
+      'Detroit, Michigan',
+      'Mount Mitchell, North Carolina',
+      'Mont Saint-Michel, France',
+      'The Matterhorn, Switzerland',
+      'Salisbury Cathedral',
+    ],
+  };
+
   const history = {}; // "YYYY-MM-DD" → [loc, loc, loc, loc, loc]
 
   for (let ms = FIRST_DAY_MS; ms <= targetMs; ms += 86400000) {
@@ -675,6 +704,12 @@ function getTodayLocations(dateStr) {
     const ds = dt.getUTCFullYear() + '-'
              + String(dt.getUTCMonth() + 1).padStart(2, '0') + '-'
              + String(dt.getUTCDate()).padStart(2, '0');
+
+    // If this date has a pinned override, use it directly and skip RNG
+    if (DATE_OVERRIDES[ds]) {
+      history[ds] = DATE_OVERRIDES[ds].map(name => LOCATIONS.find(l => l[0] === name));
+      continue;
+    }
 
     // Collect every location name used in the previous 27 days
     const excluded = new Set();
@@ -686,6 +721,16 @@ function getTodayLocations(dateStr) {
                 + String(pd.getUTCMonth() + 1).padStart(2, '0') + '-'
                 + String(pd.getUTCDate()).padStart(2, '0');
       if (history[pds]) history[pds].forEach(l => excluded.add(l[0]));
+    }
+
+    // Also pre-exclude any override locations whose special day falls within
+    // the next 1–27 days — so pinned locations can't appear randomly just
+    // before their anniversary date.
+    for (const [overrideDate, overrideNames] of Object.entries(DATE_OVERRIDES)) {
+      const daysUntil = Math.round((new Date(overrideDate).getTime() - ms) / 86400000);
+      if (daysUntil > 0 && daysUntil <= 27) {
+        overrideNames.forEach(name => excluded.add(name));
+      }
     }
 
     // Filter each difficulty tier; fall back to full tier if cooldown
