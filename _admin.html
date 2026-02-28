@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PinDrop Admin</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0d0f14;--s1:#161a22;--s2:#1e2330;--s3:#262c3a;
+      --accent:#47c8ff;--text:#e8eaf0;--muted:#6b7a94;--border:rgba(255,255,255,.07);
+      --d1:#4ade80;--d2:#a3e635;--d3:#fbbf24;--d4:#fb923c;--d5:#f87171;
+      --red:#f87171;--green:#4ade80;
+    }
+    html,body{height:100%;background:var(--bg);color:var(--text);
+      font-family:system-ui,-apple-system,sans-serif;font-size:15px}
+
+    /* ── LOGIN ── */
+    #login-screen{display:flex;align-items:center;justify-content:center;
+      min-height:100vh;padding:24px}
+    .login-card{background:var(--s1);border:1px solid var(--border);border-radius:20px;
+      padding:40px 36px;width:100%;max-width:380px;text-align:center}
+    .login-logo{font-size:52px;margin-bottom:14px}
+    .login-card h1{font-size:26px;font-weight:800;color:var(--accent);margin-bottom:4px}
+    .login-card p{color:var(--muted);font-size:13px;margin-bottom:28px}
+    .login-card input{width:100%;padding:13px 16px;background:var(--s2);
+      border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--text);
+      font-size:16px;margin-bottom:12px;outline:none;transition:border .2s}
+    .login-card input:focus{border-color:var(--accent)}
+    .login-card button[type=submit]{width:100%;padding:14px;background:var(--accent);
+      color:#0a0a0f;font-weight:700;font-size:16px;border:none;border-radius:10px;
+      cursor:pointer;transition:opacity .2s}
+    .login-card button[type=submit]:hover{opacity:.9}
+    #login-err{color:var(--red);font-size:13px;margin-top:12px}
+
+    /* ── LAYOUT ── */
+    #dashboard{display:flex;flex-direction:column;min-height:100vh}
+    nav{display:flex;align-items:center;gap:8px;padding:12px 24px;
+      background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0}
+    .nav-brand{font-weight:800;font-size:17px;color:var(--accent);margin-right:12px}
+    .nav-tab{padding:8px 16px;border-radius:8px;border:none;background:transparent;
+      color:var(--muted);font-size:14px;font-weight:600;cursor:pointer;transition:all .2s}
+    .nav-tab.active{background:var(--accent);color:#0a0a0f}
+    .nav-tab:not(.active):hover{background:var(--s2);color:var(--text)}
+    #btn-logout{margin-left:auto;padding:7px 14px;border:1px solid rgba(255,255,255,.12);
+      border-radius:8px;background:transparent;color:var(--muted);font-size:13px;cursor:pointer;
+      transition:all .2s}
+    #btn-logout:hover{border-color:var(--red);color:var(--red)}
+    main{flex:1;padding:24px;max-width:1100px;margin:0 auto;width:100%;overflow-y:auto}
+
+    /* ── TAB PANES ── */
+    .tab-pane{display:block}
+    .tab-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+    .tab-header h2{font-size:20px;font-weight:700;flex:1}
+    .tab-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .tab-controls label{color:var(--muted);font-size:14px;display:flex;align-items:center;gap:6px}
+    .tab-controls input[type=number]{background:var(--s2);border:1px solid rgba(255,255,255,.1);
+      border-radius:8px;color:var(--text);padding:7px 10px;font-size:14px;width:72px;outline:none}
+    .btn{padding:9px 18px;border-radius:8px;border:none;cursor:pointer;font-size:14px;
+      font-weight:600;transition:opacity .2s}
+    .btn:hover{opacity:.85}
+    .btn-primary{background:var(--accent);color:#0a0a0f}
+    .btn-ghost{background:var(--s2);color:var(--text);border:1px solid rgba(255,255,255,.1)}
+
+    /* ── DAY CARDS ── */
+    .days-grid{display:flex;flex-direction:column;gap:14px}
+    .day-card{background:var(--s1);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+    .day-card-header{display:flex;align-items:center;gap:10px;padding:12px 18px;
+      background:var(--s2);border-bottom:1px solid var(--border);flex-wrap:wrap}
+    .day-num{background:var(--accent);color:#0a0a0f;font-weight:800;font-size:12px;
+      padding:3px 10px;border-radius:20px;white-space:nowrap}
+    .day-date{font-weight:700;font-size:15px}
+    .day-avg{margin-left:auto;font-size:13px;color:var(--muted)}
+    .day-avg span{font-weight:700}
+    .prox-badge{background:rgba(248,113,113,.15);color:var(--red);
+      border:1px solid rgba(248,113,113,.3);border-radius:6px;
+      padding:2px 9px;font-size:11px;font-weight:700}
+
+    .loc-rows{padding:2px 0}
+    .loc-row{display:flex;align-items:flex-start;gap:12px;padding:10px 18px;
+      border-bottom:1px solid rgba(255,255,255,.04)}
+    .loc-row:last-child{border-bottom:none}
+    .diff-badge{flex-shrink:0;width:22px;height:22px;border-radius:6px;display:flex;
+      align-items:center;justify-content:center;font-size:11px;font-weight:800;margin-top:2px}
+    .diff-1{background:rgba(74,222,128,.2);color:var(--d1)}
+    .diff-2{background:rgba(163,230,53,.2);color:var(--d2)}
+    .diff-3{background:rgba(251,191,36,.2);color:var(--d3)}
+    .diff-4{background:rgba(251,146,60,.2);color:var(--d4)}
+    .diff-5{background:rgba(248,113,113,.2);color:var(--d5)}
+    .loc-info{flex:1;min-width:0}
+    .loc-name{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .loc-desc{font-size:12px;color:var(--muted);margin-top:2px;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .loc-meta{flex-shrink:0;text-align:right}
+    .loc-coords{font-family:monospace;font-size:11px;color:var(--muted)}
+    .loc-radius{font-size:11px;color:rgba(71,200,255,.6);margin-top:2px}
+
+    .prox-warn-row{padding:6px 18px 10px}
+    .prox-warn{display:inline-flex;align-items:center;gap:6px;
+      background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);
+      border-radius:8px;padding:6px 12px;font-size:12px;color:#fca5a5;margin:3px 0}
+    .prox-warn strong{color:var(--red)}
+
+    /* ── ANALYTICS ── */
+    .stat-cards{display:flex;gap:14px;margin-bottom:22px;flex-wrap:wrap}
+    .stat-card{background:var(--s1);border:1px solid var(--border);border-radius:12px;
+      padding:16px 20px;flex:1;min-width:130px}
+    .stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;
+      letter-spacing:.06em;margin-bottom:6px}
+    .stat-val{font-size:26px;font-weight:800;color:var(--accent)}
+    .tbl-wrap{overflow-x:auto;background:var(--s1);border:1px solid var(--border);border-radius:12px}
+    table{width:100%;border-collapse:collapse;font-size:14px}
+    th{text-align:left;padding:10px 16px;color:var(--muted);font-size:11px;
+      text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)}
+    td{padding:11px 16px;border-bottom:1px solid rgba(255,255,255,.04)}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:var(--s2)}
+    .score-wrap{display:flex;align-items:center;gap:10px}
+    .score-bar-bg{height:5px;background:var(--s3);border-radius:3px;width:80px;flex-shrink:0}
+    .score-bar-fg{height:100%;border-radius:3px;background:var(--accent);transition:width .4s}
+    .no-data,.loading{text-align:center;padding:64px 24px;color:var(--muted)}
+    .no-data h3{font-size:18px;font-weight:700;color:var(--text);margin-bottom:10px}
+    .no-data p{margin-bottom:10px;line-height:1.6}
+    .no-data ol{text-align:left;max-width:480px;margin:16px auto 0;line-height:2.2;color:var(--muted)}
+    .no-data code{background:var(--s2);padding:2px 7px;border-radius:4px;font-size:13px;color:var(--accent)}
+    .spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);
+      border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin-right:8px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .sort-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;
+      text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:4px}
+    .sort-btn:hover{color:var(--text)}
+    .sort-btn.active{color:var(--accent)}
+  </style>
+</head>
+<body>
+
+<!-- ── LOGIN ── -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">&#128205;</div>
+    <h1>PinDrop Admin</h1>
+    <p>Internal dashboard &mdash; authorised access only</p>
+    <form id="form-login" onsubmit="doLogin(event)">
+      <input type="password" id="pw-input" placeholder="Admin password"
+             autocomplete="current-password" required>
+      <button type="submit">Enter Dashboard</button>
+      <p id="login-err" hidden></p>
+    </form>
+  </div>
+</div>
+
+<!-- ── DASHBOARD ── -->
+<div id="dashboard" hidden>
+  <nav>
+    <div class="nav-brand">&#128205; PinDrop Admin</div>
+    <button class="nav-tab active" onclick="switchTab('upcoming',this)">Upcoming Challenges</button>
+    <button class="nav-tab"        onclick="switchTab('analytics',this)">Analytics</button>
+    <button id="btn-logout" onclick="logout()">Logout</button>
+  </nav>
+
+  <main>
+    <!-- UPCOMING -->
+    <div id="tab-upcoming" class="tab-pane">
+      <div class="tab-header">
+        <h2>Upcoming Challenges</h2>
+        <div class="tab-controls">
+          <label>Days ahead
+            <input type="number" id="num-days" value="14" min="1" max="60">
+          </label>
+          <button class="btn btn-primary" onclick="loadUpcoming()">Load</button>
+        </div>
+      </div>
+      <div id="upcoming-grid"><div class="loading"><span class="spinner"></span>Loading&hellip;</div></div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div id="tab-analytics" class="tab-pane" hidden>
+      <div class="tab-header">
+        <h2>Location Analytics</h2>
+        <button class="btn btn-ghost" onclick="loadAnalytics(true)">&#8635; Refresh</button>
+      </div>
+      <div id="analytics-content"><div class="loading"><span class="spinner"></span>Loading&hellip;</div></div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ── State ── */
+let TOKEN = localStorage.getItem('pd-admin-token') || '';
+let analyticsData = null;
+let sortKey = 'plays', sortAsc = false;
+
+/* ── Bootstrap ── */
+window.addEventListener('DOMContentLoaded', function() {
+  if (TOKEN) showDashboard();
+});
+
+/* ── Auth ── */
+async function doLogin(e) {
+  e.preventDefault();
+  var pw = document.getElementById('pw-input').value;
+  var errEl = document.getElementById('login-err');
+  errEl.hidden = true;
+  try {
+    var res = await fetch('/api/admin?action=auth', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({password: pw})
+    });
+    if (!res.ok) {
+      errEl.textContent = 'Incorrect password';
+      errEl.hidden = false;
+      return;
+    }
+    var d = await res.json();
+    TOKEN = d.token;
+    localStorage.setItem('pd-admin-token', TOKEN);
+    showDashboard();
+  } catch(err) {
+    errEl.textContent = 'Network error — try again';
+    errEl.hidden = false;
+  }
+}
+
+function logout() {
+  TOKEN = '';
+  localStorage.removeItem('pd-admin-token');
+  document.getElementById('dashboard').hidden = true;
+  document.getElementById('login-screen').hidden = false;
+}
+
+function showDashboard() {
+  document.getElementById('login-screen').hidden = true;
+  document.getElementById('dashboard').hidden = false;
+  loadUpcoming();
+}
+
+/* ── Tabs ── */
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-pane').forEach(function(p){ p.hidden = true; });
+  document.querySelectorAll('.nav-tab').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('tab-' + name).hidden = false;
+  btn.classList.add('active');
+  if (name === 'analytics' && !analyticsData) loadAnalytics(false);
+}
+
+/* ── Upcoming ── */
+async function loadUpcoming() {
+  var days = document.getElementById('num-days').value || 14;
+  var grid = document.getElementById('upcoming-grid');
+  grid.innerHTML = '<div class="loading"><span class="spinner"></span>Loading&hellip;</div>';
+  try {
+    var res = await fetch('/api/admin?action=upcoming&days=' + days, {
+      headers: {'Authorization': 'Bearer ' + TOKEN}
+    });
+    if (res.status === 401) { logout(); return; }
+    var data = await res.json();
+    renderUpcoming(data, grid);
+  } catch(err) {
+    grid.innerHTML = '<div class="loading">Error loading — check connection</div>';
+  }
+}
+
+var DIFF_LABEL = ['','Very Easy','Easy','Medium','Hard','Very Hard'];
+var DIFF_DESC  = ['','Major world city','Famous landmark','Default','Obscure location','Remote / niche'];
+
+function renderUpcoming(days, container) {
+  if (!days.length) { container.innerHTML = '<div class="loading">No data</div>'; return; }
+  var html = days.map(function(day) {
+    var warnHtml = day.proximityWarnings.map(function(w) {
+      return '<div class="prox-warn">&#9888; <strong>' + w.a + '</strong> &amp; <strong>' +
+             w.b + '</strong> are only ' + w.dist.toLocaleString() + ' km apart</div>';
+    }).join('');
+
+    var locRows = day.locations.map(function(loc) {
+      return '<div class="loc-row">' +
+        '<div class="diff-badge diff-' + loc.difficulty + '" title="' + DIFF_LABEL[loc.difficulty] + ' — ' + DIFF_DESC[loc.difficulty] + '">' + loc.difficulty + '</div>' +
+        '<div class="loc-info">' +
+          '<div class="loc-name">' + loc.name + '</div>' +
+          '<div class="loc-desc">' + (loc.description || '') + '</div>' +
+        '</div>' +
+        '<div class="loc-meta">' +
+          '<div class="loc-coords">' + loc.lat.toFixed(3) + ', ' + loc.lng.toFixed(3) + '</div>' +
+          (loc.perfectRadius !== 5 ? '<div class="loc-radius">&#9679; ' + loc.perfectRadius + ' km radius</div>' : '') +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    var diffColor = day.avgDiff <= 2 ? 'var(--d1)' : day.avgDiff <= 3.5 ? 'var(--d3)' : 'var(--d5)';
+    var hasWarn = day.proximityWarnings.length > 0;
+
+    return '<div class="day-card">' +
+      '<div class="day-card-header">' +
+        '<div class="day-num">Day #' + day.dayNum + '</div>' +
+        '<div class="day-date">' + day.dateStr + '</div>' +
+        '<div class="day-avg">avg difficulty <span style="color:' + diffColor + '">' + day.avgDiff + '</span></div>' +
+        (hasWarn ? '<div class="prox-badge">&#9888; ' + day.proximityWarnings.length + ' proximity issue' + (day.proximityWarnings.length > 1 ? 's' : '') + '</div>' : '') +
+      '</div>' +
+      '<div class="loc-rows">' + locRows + '</div>' +
+      (warnHtml ? '<div class="prox-warn-row">' + warnHtml + '</div>' : '') +
+    '</div>';
+  }).join('');
+  container.innerHTML = '<div class="days-grid">' + html + '</div>';
+}
+
+/* ── Analytics ── */
+async function loadAnalytics(forceRefresh) {
+  if (analyticsData && !forceRefresh) { renderAnalytics(analyticsData); return; }
+  var content = document.getElementById('analytics-content');
+  content.innerHTML = '<div class="loading"><span class="spinner"></span>Loading&hellip;</div>';
+  try {
+    var res = await fetch('/api/admin?action=analytics', {
+      headers: {'Authorization': 'Bearer ' + TOKEN}
+    });
+    if (res.status === 401) { logout(); return; }
+    var json = await res.json();
+    analyticsData = json;
+    renderAnalytics(json);
+  } catch(err) {
+    content.innerHTML = '<div class="loading">Error loading analytics</div>';
+  }
+}
+
+function renderAnalytics(json) {
+  var content = document.getElementById('analytics-content');
+  if (!json.configured) {
+    content.innerHTML =
+      '<div class="no-data">' +
+        '<h3>Analytics not yet configured</h3>' +
+        '<p>Connect a Vercel KV (Redis) store to start tracking play data:</p>' +
+        '<ol>' +
+          '<li>In your <strong>Vercel</strong> project, go to the <strong>Storage</strong> tab</li>' +
+          '<li>Click <strong>Create Database</strong> and choose <strong>KV (Redis)</strong></li>' +
+          '<li>Connect it to this project &mdash; env vars are added automatically</li>' +
+          '<li>Redeploy the project</li>' +
+          '<li>Play stats will appear here as users complete rounds</li>' +
+        '</ol>' +
+      '</div>';
+    return;
+  }
+  var data = json.data;
+  if (!data || data.length === 0) {
+    content.innerHTML = '<div class="no-data"><h3>No plays recorded yet</h3><p>Analytics will appear once players complete rounds.</p></div>';
+    return;
+  }
+  var totalPlays = data.reduce(function(s,r){ return s + r.plays; }, 0);
+  var totalWgtScore = data.reduce(function(s,r){ return s + r.avgScore * r.plays; }, 0);
+  var overallAvg = totalPlays ? Math.round(totalWgtScore / totalPlays) : 0;
+
+  // Sort
+  var sorted = data.slice().sort(function(a,b){
+    return sortAsc ? a[sortKey] - b[sortKey] : b[sortKey] - a[sortKey];
+  });
+
+  function sortHeader(label, key) {
+    var active = sortKey === key ? ' active' : '';
+    var arrow  = sortKey === key ? (sortAsc ? ' &#9650;' : ' &#9660;') : '';
+    return '<button class="sort-btn' + active + '" onclick="setSort('' + key + '')">' + label + arrow + '</button>';
+  }
+
+  var rows = sorted.map(function(r) {
+    var pct = Math.round((r.avgScore / 200) * 100);
+    var barColor = pct >= 85 ? 'var(--d1)' : pct >= 65 ? 'var(--accent)' : pct >= 40 ? 'var(--d3)' : 'var(--d5)';
+    var distStr = r.avgDist >= 1000 ? (r.avgDist/1000).toFixed(1) + 'k km' : r.avgDist + ' km';
+    return '<tr>' +
+      '<td>' + r.name + '</td>' +
+      '<td>' + r.plays.toLocaleString() + '</td>' +
+      '<td><div class="score-wrap">' +
+        '<span>' + r.avgScore + '</span>' +
+        '<div class="score-bar-bg"><div class="score-bar-fg" style="width:' + pct + '%;background:' + barColor + '"></div></div>' +
+      '</div></td>' +
+      '<td>' + distStr + '</td>' +
+    '</tr>';
+  }).join('');
+
+  content.innerHTML =
+    '<div class="stat-cards">' +
+      '<div class="stat-card"><div class="stat-label">Total Plays</div><div class="stat-val">' + totalPlays.toLocaleString() + '</div></div>' +
+      '<div class="stat-card"><div class="stat-label">Locations Played</div><div class="stat-val">' + data.length + '</div></div>' +
+      '<div class="stat-card"><div class="stat-label">Overall Avg Score</div><div class="stat-val">' + overallAvg + '</div></div>' +
+    '</div>' +
+    '<div class="tbl-wrap"><table>' +
+      '<thead><tr>' +
+        '<th>Location</th>' +
+        '<th>' + sortHeader('Plays','plays') + '</th>' +
+        '<th>' + sortHeader('Avg Score / 200','avgScore') + '</th>' +
+        '<th>' + sortHeader('Avg Distance','avgDist') + '</th>' +
+      '</tr></thead>' +
+      '<tbody>' + rows + '</tbody>' +
+    '</table></div>';
+}
+
+function setSort(key) {
+  if (sortKey === key) sortAsc = !sortAsc;
+  else { sortKey = key; sortAsc = false; }
+  if (analyticsData) renderAnalytics(analyticsData);
+}
+</script>
+</body>
+</html>
