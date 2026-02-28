@@ -474,20 +474,113 @@ function getDayNumber(dateStr) {
   return Math.floor((nowMs - epoch) / 86400000) + 1;
 }
 
-// Difficulty: 1=very easy, 2=easy famous, 3=medium (default), 4=hard, 5=very hard
+// ── Difficulty map ────────────────────────────────────────────────────────────
+// Override difficulty per location name. Anything not listed → 3 (medium).
+// 1 = Major world city   2 = World-famous landmark
+// 3 = Well-known dest.   4 = Needs real geo knowledge   5 = Obscure / remote
+const DIFFICULTY_MAP = {
+  // ── D1: Major world cities ────────────────────────────────────────────────
+  'Tokyo, Japan':1,'Seoul, South Korea':1,'Shanghai, China':1,'Beijing, China':1,
+  'Osaka, Japan':1,'Guangzhou, China':1,'Shenzhen, China':1,'Chongqing, China':1,
+  'Tianjin, China':1,'Wuhan, China':1,'Chengdu, China':1,"Xi'an, China":1,
+  'Hong Kong':1,'Taipei, Taiwan':1,'Bangkok, Thailand':1,
+  'Ho Chi Minh City, Vietnam':1,'Hanoi, Vietnam':1,'Jakarta, Indonesia':1,
+  'Manila, Philippines':1,'Singapore':1,'Kuala Lumpur, Malaysia':1,
+  'Yangon, Myanmar':1,'Delhi, India':1,'Mumbai, India':1,'Kolkata, India':1,
+  'Bangalore, India':1,'Hyderabad, India':1,'Ahmedabad, India':1,
+  'Chennai, India':1,'Dhaka, Bangladesh':1,'Karachi, Pakistan':1,
+  'Lahore, Pakistan':1,'Kabul, Afghanistan':1,'Tehran, Iran':1,
+  'Baghdad, Iraq':1,'Riyadh, Saudi Arabia':1,'Cairo, Egypt':1,
+  'Lagos, Nigeria':1,'Kinshasa, DRC':1,'Khartoum, Sudan':1,
+  'Luanda, Angola':1,'Dar es Salaam, Tanzania':1,'Nairobi, Kenya':1,
+  'Addis Ababa, Ethiopia':1,'Abidjan, Ivory Coast':1,'Accra, Ghana':1,
+  'Casablanca, Morocco':1,'Alexandria, Egypt':1,
+  'Johannesburg, South Africa':1,'Cape Town, South Africa':1,
+  'Moscow, Russia':1,'Saint Petersburg, Russia':1,'Madrid, Spain':1,
+  'Berlin, Germany':1,'Barcelona, Spain':1,'Vienna, Austria':1,
+  'Warsaw, Poland':1,'Kyiv, Ukraine':1,'Athens, Greece':1,
+  'Amsterdam, Netherlands':1,'Bucharest, Romania':1,
+  'São Paulo, Brazil':1,'Mexico City, Mexico':1,'Buenos Aires, Argentina':1,
+  'Lima, Peru':1,'Bogotá, Colombia':1,'Santiago, Chile':1,
+  'Los Angeles, USA':1,'Chicago, USA':1,'Toronto, Canada':1,
+  'Guadalajara, Mexico':1,'Medellín, Colombia':1,'Melbourne, Australia':1,
+
+  // ── D2: World-famous landmarks ────────────────────────────────────────────
+  'Eiffel Tower, Paris':2,'Colosseum, Rome':2,'Sagrada Família, Barcelona':2,
+  'Acropolis, Athens':2,'Stonehenge, England':2,'Big Ben, London':2,
+  'Hagia Sophia, Istanbul':2,'Mont Saint-Michel, France':2,
+  'Dubrovnik Old City, Croatia':2,'Vatican City':2,
+  'Mount Fuji, Japan':2,'Taj Mahal, Agra':2,'Angkor Wat, Cambodia':2,
+  'Great Wall of China':2,'Petra, Jordan':2,'Burj Khalifa, Dubai':2,
+  'Great Pyramid of Giza':2,'Victoria Falls, Zambia':2,
+  'Mount Kilimanjaro, Tanzania':2,'Machu Picchu, Peru':2,
+  'Grand Canyon, USA':2,'Iguazu Falls, Argentina':2,
+  'Chichén Itzá, Mexico':2,'Statue of Liberty, New York':2,
+  'Golden Gate Bridge':2,'Christ the Redeemer, Rio':2,
+  'Easter Island, Chile':2,'Niagara Falls, Canada':2,
+  'Sydney Opera House':2,'Uluru, Australia':2,
+  'Kinkaku-ji, Kyoto':2,'Varanasi Ghats, India':2,
+
+  // ── D4: Hard — needs real geographic knowledge ────────────────────────────
+  'Jiuzhaigou Valley, China':4,'Bagan, Myanmar':4,'Ha Giang Loop, Vietnam':4,
+  'Preah Vihear, Cambodia':4,'Hitachi Seaside Park, Japan':4,
+  'Hampi, India':4,'Ellora Caves, India':4,'Nubra Valley, India':4,
+  'Tian Shan, Kazakhstan':4,'Wadi Halfa, Sudan':4,'Mount Nyiragongo, DRC':4,
+  'Lamu Old Town, Kenya':4,'Danakil Depression, Ethiopia':4,'Dallol, Ethiopia':4,
+  'Bwindi Forest, Uganda':4,'Fish River Canyon, Namibia':4,'Omo Valley, Ethiopia':4,
+  'Bazaruto Archipelago, Mozambique':4,'Rwenzori Mountains, Uganda':4,
+  'Simien Mountains, Ethiopia':4,'Skeleton Coast, Namibia':4,
+  'Kamchatka Peninsula, Russia':4,'Lavaux Vineyards, Switzerland':4,
+  'Rila Monastery, Bulgaria':4,'Bran Castle, Romania':4,
+  'Mostar Bridge, Bosnia':4,'Hashima Island, Japan':4,
+  'Mergui Archipelago, Myanmar':4,'Wadi Draa, Morocco':4,
+  'Socotra Island, Yemen':4,'Coron Island, Philippines':4,
+  'Chocolate Hills, Philippines':4,'Pantanal, Brazil':4,
+  'Canaima, Venezuela':4,'Chiloé Island, Chile':4,
+  'Copper Canyon, Mexico':4,'Lord Howe Island, Australia':4,
+  'Raja Ampat, Indonesia':4,'Svalbard Global Seed Vault':4,
+  'Bioluminescent Bay, Menorca':4,'Dominica':4,
+  'Hsipaw, Myanmar':4,'Timbuktu, Mali':4,'Al-Ula, Saudi Arabia':4,
+  'Choquequirao, Peru':4,'Tsingy de Bemaraha, Madagascar':4,
+
+  // ── D5: Very hard — obscure or very remote ────────────────────────────────
+  'Surtsey, Iceland':5,'Tristan da Cunha':5,'Oymyakon, Russia':5,
+  'Inaccessible Island':5,'Saharan Tuareg Camps, Niger':5,'Nauru':5,
+};
+
+// Difficulty: 1=major city  2=famous landmark  3=medium (default)  4=hard  5=very hard
 function getLocDifficulty(loc) {
-  return loc[5] !== undefined ? loc[5] : 3;
+  return DIFFICULTY_MAP[loc[0]] !== undefined ? DIFFICULTY_MAP[loc[0]] : 3;
 }
 
 function getTodayLocations(dateStr) {
   const rand = seededRand(getDailySeed(dateStr));
-  const pool = [...Array(LOCATIONS.length).keys()];
-  const chosen = [];
-  for (let i = 0; i < ROUNDS_PER_GAME; i++) {
-    const idx = Math.floor(rand() * pool.length);
-    chosen.push(LOCATIONS[pool.splice(idx, 1)[0]]);
+
+  // Bucket locations by difficulty
+  const pools = { 1: [], 2: [], 3: [], 4: [], 5: [] };
+  LOCATIONS.forEach(loc => {
+    const d = getLocDifficulty(loc);
+    if (pools[d]) pools[d].push(loc);
+  });
+
+  const used = new Set();
+  function pick(pool) {
+    const avail = pool.filter(l => !used.has(l));
+    const src   = avail.length ? avail : pool; // fallback if pool exhausted
+    const loc   = src[Math.floor(rand() * src.length)];
+    used.add(loc);
+    return loc;
   }
-  return chosen.sort((a, b) => getLocDifficulty(a) - getLocDifficulty(b));
+
+  // Guaranteed difficulty ramp every day:
+  // R1 city → R2 city → R3 famous landmark → R4 medium/hard → R5 hard/very hard
+  return [
+    pick(pools[1]),                          // Round 1: major world city
+    pick(pools[1]),                          // Round 2: different major city
+    pick(pools[2]),                          // Round 3: world-famous landmark
+    pick([...pools[3], ...pools[4]]),        // Round 4: medium or hard
+    pick([...pools[4], ...pools[5]]),        // Round 5: hard or very hard
+  ];
 }
 
 // ── Scoring ────────────────────────────────────────────────────────────────
