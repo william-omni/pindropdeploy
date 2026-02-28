@@ -449,14 +449,29 @@ function seededRand(seed) {
   };
 }
 
-function getDailySeed() {
+function getDailySeed(dateStr) {
+  // Use client-supplied local date (YYYY-MM-DD) so daily reset follows the
+  // user's timezone, not the server's UTC clock.
+  if (dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return y * 10000 + m * 100 + d;
+  }
+  // Fallback: server UTC date
   const d = new Date();
-  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
 }
 
-function getDayNumber() {
-  const epoch = new Date('2025-01-01');
-  return Math.floor((new Date() - epoch) / 86400000) + 1;
+function getDayNumber(dateStr) {
+  // 2025-01-01 00:00:00 UTC
+  const epoch = 1735689600000;
+  let nowMs;
+  if (dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    nowMs = Date.UTC(y, m - 1, d);
+  } else {
+    nowMs = Date.now();
+  }
+  return Math.floor((nowMs - epoch) / 86400000) + 1;
 }
 
 // Difficulty: 1=very easy, 2=easy famous, 3=medium (default), 4=hard, 5=very hard
@@ -464,8 +479,8 @@ function getLocDifficulty(loc) {
   return loc[5] !== undefined ? loc[5] : 3;
 }
 
-function getTodayLocations() {
-  const rand = seededRand(getDailySeed());
+function getTodayLocations(dateStr) {
+  const rand = seededRand(getDailySeed(dateStr));
   const pool = [...Array(LOCATIONS.length).keys()];
   const chosen = [];
   for (let i = 0; i < ROUNDS_PER_GAME; i++) {
@@ -505,7 +520,9 @@ module.exports = function handler(req, res) {
     return res.status(200).end();
   }
 
-  const locs = getTodayLocations();
+  // Read client's local date (YYYY-MM-DD) so daily seed matches user timezone
+  const clientDate = (req.method === 'GET' ? req.query.date : req.body && req.body.date) || null;
+  const locs = getTodayLocations(clientDate);
 
   // ── GET /api/game?action=clue&round=N  (returns only the display name)
   if (req.method === 'GET') {
@@ -515,7 +532,7 @@ module.exports = function handler(req, res) {
       return res.status(200).json({
         name: locs[r][0],
         totalRounds: locs.length,
-        dayNumber: getDayNumber(),
+        dayNumber: getDayNumber(clientDate),
       });
     }
     return res.status(400).json({ error: 'Bad request' });

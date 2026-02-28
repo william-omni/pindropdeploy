@@ -1114,6 +1114,14 @@ function getDayNumber() {
   const epoch = new Date('2025-01-01');
   return Math.floor((new Date() - epoch) / 86400000) + 1;
 }
+
+// Returns the user's LOCAL date as "YYYY-MM-DD" (used to sync daily seed with server)
+function getLocalDateStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
 function formatDist(km) {
   if (km < 1) return `${Math.round(km * 1000)}m`;
   if (km >= 1000) return `${(km/1000).toFixed(1)}k km`;
@@ -1139,12 +1147,14 @@ function scoreToLabel(pts) {
 }
 
 function scoreToColor(pts) {
-  if (pts >= 190) return '#47ffff';
-  if (pts >= 150) return '#47ff9e';
-  if (pts >= 100) return '#e8ff47';
-  if (pts >= 50)  return '#ffaa47';
-  if (pts >= 20)  return '#ff8c47';
-  return '#ff5c5c';
+  // Use darker, higher-contrast colours in light mode
+  const light = document.documentElement.classList.contains('light-mode');
+  if (pts >= 190) return light ? '#0891b2' : '#47ffff';  // cyan   / teal
+  if (pts >= 150) return light ? '#059669' : '#47ff9e';  // green  / emerald
+  if (pts >= 100) return light ? '#ca8a04' : '#e8ff47';  // yellow / amber
+  if (pts >= 50)  return light ? '#ea580c' : '#ffaa47';  // orange
+  if (pts >= 20)  return light ? '#dc2626' : '#ff8c47';  // red-orange / red
+  return light ? '#b91c1c' : '#ff5c5c';                  // dark red
 }
 
 function showToast(msg, duration = 2000) {
@@ -1460,7 +1470,7 @@ async function lockPin() {
     const res = await fetch('/api/game', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'score', round: state.round, guessLat: lat, guessLng: lng }),
+      body: JSON.stringify({ action: 'score', round: state.round, guessLat: lat, guessLng: lng, date: getLocalDateStr() }),
     });
     if (!res.ok) throw new Error('Network error');
     ({ name, description, targetLat, targetLng, distKm, pts } = await res.json());
@@ -1585,7 +1595,7 @@ function nextRound() {
 async function loadRound() {
   // Fetch today's clue for this round from the server (no coordinates exposed)
   try {
-    const res = await fetch(`/api/game?action=clue&round=${state.round}`);
+    const res = await fetch(`/api/game?action=clue&round=${state.round}&date=${getLocalDateStr()}`);
     if (!res.ok) throw new Error('Network error');
     const data = await res.json();
     state.currentClue = data.name;
