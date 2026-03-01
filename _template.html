@@ -693,6 +693,61 @@
     }
     .btn-view-map:active { transform: scale(0.97); }
 
+    /* ─── Preview Mode Banner ──────────────────────────────── */
+    #preview-banner {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 200;
+      background: rgba(232,255,71,0.12);
+      border-bottom: 1px solid rgba(232,255,71,0.3);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      height: 44px;
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--accent);
+    }
+    #preview-banner .preview-badge {
+      background: rgba(232,255,71,0.15);
+      border: 1px solid rgba(232,255,71,0.35);
+      border-radius: 6px;
+      padding: 2px 7px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    #preview-date-input {
+      background: rgba(232,255,71,0.08);
+      border: 1px solid rgba(232,255,71,0.25);
+      border-radius: 8px;
+      color: var(--accent);
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      padding: 4px 8px;
+      outline: none;
+      flex: 1;
+      min-width: 0;
+      max-width: 130px;
+    }
+    #preview-date-input::-webkit-calendar-picker-indicator { filter: invert(1) sepia(1) saturate(3) hue-rotate(20deg); }
+    #btn-preview-play {
+      background: var(--accent);
+      color: #0a0a0f;
+      border: none;
+      border-radius: 8px;
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 5px 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    body.preview-mode { padding-top: 44px; }
+
     /* ─── Toast ────────────────────────────────────────────── */
     #toast {
       position: fixed;
@@ -897,6 +952,13 @@
   </style>
 </head>
 <body>
+
+<!-- ─── PREVIEW BANNER (only shown in ?preview mode) ─────── -->
+<div id="preview-banner" style="display:none">
+  <span class="preview-badge">🧪 Preview</span>
+  <input type="date" id="preview-date-input" />
+  <button id="btn-preview-play">↺ New Game</button>
+</div>
 
 <!-- ─── HOME ──────────────────────────────────────────────── -->
 <div id="home" class="screen">
@@ -1161,8 +1223,36 @@ function getDayNumber() {
   return Math.floor((new Date() - epoch) / 86400000) + 1;
 }
 
+// ─────────────────────────────────────────────────────────
+// PREVIEW MODE  (?preview or ?preview&date=YYYY-MM-DD)
+// Allows unlimited replays of any day without affecting
+// real stats or writing to MotherDuck analytics.
+// ─────────────────────────────────────────────────────────
+const _urlParams     = new URLSearchParams(window.location.search);
+const PREVIEW_MODE   = _urlParams.has('preview');
+let   previewDate    = _urlParams.get('date') || (() => {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+})();
+
+if (PREVIEW_MODE) {
+  document.body.classList.add('preview-mode');
+  const banner = document.getElementById('preview-banner');
+  const dateInput = document.getElementById('preview-date-input');
+  banner.style.display = 'flex';
+  dateInput.value = previewDate;
+
+  document.getElementById('btn-preview-play').addEventListener('click', () => {
+    previewDate = dateInput.value || previewDate;
+    // Reset any in-progress game and go straight to home so player can hit Play
+    initHome();
+    showScreen('home');
+  });
+}
+
 // Returns the user's LOCAL date as "YYYY-MM-DD" (used to sync daily seed with server)
 function getLocalDateStr() {
+  if (PREVIEW_MODE) return previewDate;
   const d = new Date();
   return d.getFullYear() + '-' +
     String(d.getMonth() + 1).padStart(2, '0') + '-' +
@@ -1247,6 +1337,7 @@ function getTodayKey() {
 }
 
 function updateStats(finalScore) {
+  if (PREVIEW_MODE) return; // don't touch real stats during preview
   const store = loadStorage();
   const today = getTodayKey();
   store.played = (store.played || 0) + 1;
@@ -1266,6 +1357,7 @@ function updateStats(finalScore) {
 }
 
 function hasPlayedToday() {
+  if (PREVIEW_MODE) return false; // always allow replays in preview
   const store = loadStorage();
   return store.lastPlayedDay === getTodayKey();
 }
@@ -1527,7 +1619,7 @@ async function lockPin() {
     const res = await fetch('/api/game', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'score', round: state.round, guessLat: lat, guessLng: lng, date: getLocalDateStr(), playerId: getPlayerId(), timeToGuess: roundStartTime ? Math.round((Date.now() - roundStartTime) / 1000) : null }),
+      body: JSON.stringify({ action: 'score', round: state.round, guessLat: lat, guessLng: lng, date: getLocalDateStr(), playerId: getPlayerId(), timeToGuess: roundStartTime ? Math.round((Date.now() - roundStartTime) / 1000) : null, preview: PREVIEW_MODE || undefined }),
     });
     if (!res.ok) throw new Error('Network error');
     ({ name, description, targetLat, targetLng, distKm, pts } = await res.json());
@@ -1705,6 +1797,7 @@ function finishGame() {
       gamesPlayedLifetime:  store.played || 0,
       deviceType:           getDeviceType(),
       darkMode:             window.matchMedia('(prefers-color-scheme: dark)').matches,
+      preview:              PREVIEW_MODE || undefined,
     }),
   }).catch(() => {}); // non-blocking — never delay the screen transition
 
@@ -1792,6 +1885,7 @@ async function shareScore() {
       date:     getLocalDateStr(),
       playerId: getPlayerId(),
       method,
+      preview:  PREVIEW_MODE || undefined,
     }),
   }).catch(() => {});
 }

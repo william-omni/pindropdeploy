@@ -40,7 +40,8 @@ module.exports = async function handler(req, res) {
 
   // ── POST /api/game ──────────────────────────────────────────────────────
   if (req.method === 'POST') {
-    const { action, playerId } = req.body || {};
+    const { action, playerId, preview } = req.body || {};
+    const isPreview = preview === true; // skip all analytics for test plays
     const gameDate = clientDate || new Date().toISOString().slice(0, 10);
     const dayNumber = getDayNumber(clientDate);
 
@@ -55,7 +56,7 @@ module.exports = async function handler(req, res) {
         const distKm = haversineKm(guessLat, guessLng, targetLat, targetLng);
         const pts    = scoreFromDistance(distKm, perfectRadius);
 
-        await trackPlay({
+        if (!isPreview) await trackPlay({
           gameDate,
           dayNumber,
           round:                r + 1,   // store 1-indexed
@@ -81,7 +82,7 @@ module.exports = async function handler(req, res) {
         gamesPlayedLifetime, deviceType, darkMode,
       } = req.body;
 
-      await trackGame({
+      if (!isPreview) await trackGame({
         gameDate,
         dayNumber,
         playerId:             playerId ?? null,
@@ -100,7 +101,7 @@ module.exports = async function handler(req, res) {
     if (action === 'share') {
       const { method } = req.body;
 
-      await trackShare({
+      if (!isPreview) await trackShare({
         gameDate,
         playerId: playerId ?? null,
         method:   typeof method === 'string' ? method : null,
