@@ -1,0 +1,8 @@
+{
+  "name": "pindrop",
+  "version": "1.0.0",
+  "description": "Daily geography challenge",
+  "dependencies": {
+    "@duckdb/node-api": "^1.4.4-r.2"
+  }
+}

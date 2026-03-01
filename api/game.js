@@ -7,25 +7,7 @@ const {
   scoreFromDistance,
 } = require('./_game-data');
 
-// ── Optional Vercel KV analytics (gracefully skipped if not configured) ─────
-async function trackPlay(name, pts, distKm) {
-  const url = process.env.KV_REST_API_URL;
-  const tok = process.env.KV_REST_API_TOKEN;
-  if (!url || !tok) return;
-  const key = 'stats:' + name;
-  try {
-    await fetch(url + '/pipeline', {
-      method:  'POST',
-      headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' },
-      body: JSON.stringify([
-        ['HINCRBY',      key, 'plays',     1],
-        ['HINCRBYFLOAT', key, 'totalPts',  pts],
-        ['HINCRBYFLOAT', key, 'totalDist', distKm],
-        ['SADD', 'tracked_locations', name],
-      ]),
-    });
-  } catch (e) { /* non-critical — don't break the game */ }
-}
+const { trackPlay } = require('./_motherduck');
 
 // ── Handler ─────────────────────────────────────────────────────────────────
 module.exports = async function handler(req, res) {
@@ -66,8 +48,17 @@ module.exports = async function handler(req, res) {
       const distKm = haversineKm(guessLat, guessLng, targetLat, targetLng);
       const pts    = scoreFromDistance(distKm, perfectRadius);
 
-      // Fire-and-forget analytics (non-blocking)
-      trackPlay(name, pts, distKm).catch(() => {});
+      // Fire-and-forget — never block the response waiting for analytics
+      trackPlay({
+        gameDate:  clientDate || new Date().toISOString().slice(0, 10),
+        dayNumber: getDayNumber(clientDate),
+        round:     r + 1,        // store as 1-indexed (Round 1–5)
+        location:  name,
+        guessLat,
+        guessLng,
+        distKm,
+        points:    pts,
+      }).catch(() => {});
 
       return res.status(200).json({ name, description, targetLat, targetLng, distKm, pts });
     }
