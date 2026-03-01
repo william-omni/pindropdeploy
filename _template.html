@@ -410,25 +410,80 @@
       transition: opacity 0.3s;
     }
     .result-overlay.visible { opacity: 1; pointer-events: auto; }
+    /* When peeked: transparent so map is fully visible behind the strip */
+    .result-overlay.peeked {
+      background: transparent;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
 
     .result-sheet {
       width: 100%;
       background: var(--surface);
       border-top: 1px solid var(--border);
       border-radius: 24px 24px 0 0;
-      padding: 20px 24px calc(var(--safe-bot) + 20px);
+      display: flex;
+      flex-direction: column;
       transform: translateY(100%);
       transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      will-change: transform;
+      overflow: hidden;
     }
     .result-overlay.visible .result-sheet {
       transform: translateY(0);
     }
 
+    /* Full details body — all the score info */
+    .result-full-body {
+      padding: 20px 24px 12px;
+    }
+
+    /* Peek strip — always pinned at the sheet bottom; visible in both states */
+    .result-peek-strip {
+      border-top: 1px solid var(--border);
+      padding: 0 24px calc(var(--safe-bot) + 14px);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
     .result-handle {
       width: 40px; height: 4px;
       background: var(--surface2);
       border-radius: 2px;
-      margin: 0 auto 20px;
+      margin: 12px auto 12px;
+      cursor: grab;
+      touch-action: none;
+    }
+    .result-compact-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    /* Compact name/pts line — hidden in full state, shown when peeked */
+    .result-compact-info {
+      flex: 1;
+      min-width: 0;
+      display: none;
+    }
+    .result-overlay.peeked .result-compact-info {
+      display: block;
+    }
+    .result-compact-name {
+      display: block;
+      font-family: 'Syne', sans-serif;
+      font-size: 14px; font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.2;
+      margin-bottom: 2px;
+    }
+    .result-compact-sub {
+      display: block;
+      font-size: 12px;
+      color: var(--accent);
+      font-weight: 600;
+      white-space: nowrap;
     }
 
     .result-round-label {
@@ -501,16 +556,22 @@
       color: var(--accent);
     }
 
+    /* Next button: full-width by default; auto-width when peeked (shares row) */
     .btn-next {
-      width: 100%; height: 52px;
+      height: 48px;
       background: var(--accent);
       color: var(--btn-text);
       font-family: 'Syne', sans-serif;
-      font-size: 16px; font-weight: 700;
-      border: none; border-radius: 14px;
+      font-size: 15px; font-weight: 700;
+      border: none; border-radius: 12px;
       cursor: pointer;
+      white-space: nowrap;
+      padding: 0 20px;
+      width: 100%;
+      flex-shrink: 0;
       transition: transform 0.15s;
     }
+    .result-overlay.peeked .btn-next { width: auto; }
     .btn-next:active { transform: scale(0.97); }
 
     /* ─── SUMMARY SCREEN ──────────────────────────────────── */
@@ -1035,55 +1096,70 @@
     <div class="tap-hint" id="tap-hint">Tap the map to drop your pin</div>
   </div>
 
-  <!-- Round result overlay -->
+  <!-- Round result overlay — drag handle down to peek at map -->
   <div class="result-overlay" id="result-overlay">
-    <div class="result-sheet">
-      <div class="result-handle"></div>
-      <div class="result-round-label" id="result-round-label">Round 1 of 5</div>
-      <div class="result-location" id="result-location">—</div>
-      <div class="result-quality" id="result-quality" style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin:-4px 0 12px;"></div>
+    <div class="result-sheet" id="result-sheet">
 
-      <div class="result-stats">
-        <div class="result-stat">
-          <div class="result-stat-val" id="result-dist">—</div>
-          <div class="result-stat-lbl">Away</div>
+      <!-- Full details body (visible in expanded state) -->
+      <div class="result-full-body">
+        <div class="result-round-label" id="result-round-label">Round 1 of 5</div>
+        <div class="result-location" id="result-location">—</div>
+        <div class="result-quality" id="result-quality" style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin:-4px 0 12px;"></div>
+
+        <div class="result-stats">
+          <div class="result-stat">
+            <div class="result-stat-val" id="result-dist">—</div>
+            <div class="result-stat-lbl">Away</div>
+          </div>
+          <div class="result-stat">
+            <div class="result-stat-val" id="result-pts">—</div>
+            <div class="result-stat-lbl">Points</div>
+          </div>
+          <div class="result-stat">
+            <div class="result-stat-val" id="result-total">—</div>
+            <div class="result-stat-lbl">Total</div>
+          </div>
         </div>
-        <div class="result-stat">
-          <div class="result-stat-val" id="result-pts">—</div>
-          <div class="result-stat-lbl">Points</div>
+
+        <div class="score-bar-wrap">
+          <div class="score-bar-track">
+            <div class="score-bar-fill" id="score-bar-fill"></div>
+          </div>
+          <div class="score-bar-labels">
+            <span class="score-bar-lbl">0</span>
+            <span class="score-bar-lbl right" id="score-bar-pct">—</span>
+            <span class="score-bar-lbl">200</span>
+          </div>
         </div>
-        <div class="result-stat">
-          <div class="result-stat-val" id="result-total">—</div>
-          <div class="result-stat-lbl">Total</div>
+
+        <div id="result-description" style="
+          font-size: 13px;
+          line-height: 1.55;
+          color: rgba(240,240,245,0.55);
+          font-family: 'DM Mono', monospace;
+          font-weight: 300;
+          margin: -8px 0 4px;
+          padding: 10px 14px;
+          background: rgba(255,255,255,0.04);
+          border-radius: 10px;
+          border-left: 2px solid rgba(255,255,255,0.12);
+          text-align: left;
+        "></div>
+      </div>
+
+      <!-- Peek strip — drag handle + compact info + Next button; always visible -->
+      <div class="result-peek-strip" id="result-peek-strip">
+        <div class="result-handle" id="result-handle"></div>
+        <div class="result-compact-row">
+          <!-- Compact info: location + score, shown only when peeked -->
+          <div class="result-compact-info">
+            <span class="result-compact-name" id="result-compact-name">—</span>
+            <span class="result-compact-sub"  id="result-compact-sub">—</span>
+          </div>
+          <button class="btn-next" id="btn-next">Next Round →</button>
         </div>
       </div>
 
-      <div class="score-bar-wrap">
-        <div class="score-bar-track">
-          <div class="score-bar-fill" id="score-bar-fill"></div>
-        </div>
-        <div class="score-bar-labels">
-          <span class="score-bar-lbl">0</span>
-          <span class="score-bar-lbl right" id="score-bar-pct">—</span>
-          <span class="score-bar-lbl">200</span>
-        </div>
-      </div>
-
-      <div id="result-description" style="
-        font-size: 13px;
-        line-height: 1.55;
-        color: rgba(240,240,245,0.55);
-        font-family: 'DM Mono', monospace;
-        font-weight: 300;
-        margin: -8px 0 18px;
-        padding: 10px 14px;
-        background: rgba(255,255,255,0.04);
-        border-radius: 10px;
-        border-left: 2px solid rgba(255,255,255,0.12);
-        text-align: left;
-      "></div>
-
-      <button class="btn-next" id="btn-next">Next Round →</button>
     </div>
   </div>
 </div>
@@ -1687,6 +1763,17 @@ async function lockPin() {
 }
 
 function showRoundResult(name, description, distKm, pts) {
+  // Reset any peek/drag state from the previous round so the sheet
+  // slides in cleanly from the bottom again
+  const overlayEl = document.getElementById('result-overlay');
+  const sheetEl   = document.getElementById('result-sheet');
+  overlayEl.classList.remove('peeked');
+  overlayEl.style.background           = '';
+  overlayEl.style.backdropFilter        = '';
+  overlayEl.style.webkitBackdropFilter  = '';
+  sheetEl.style.transition = '';
+  sheetEl.style.transform  = '';
+
   document.getElementById('result-round-label').textContent =
     `Round ${state.round + 1} of ${ROUNDS_PER_GAME}`;
   document.getElementById('result-location').textContent = name;
@@ -1698,6 +1785,11 @@ function showRoundResult(name, description, distKm, pts) {
   document.getElementById('result-pts').textContent = pts;
   document.getElementById('result-total').textContent = state.totalScore;
   document.getElementById('hud-score').textContent = state.totalScore;
+
+  // Populate compact peek strip info (shown when dragged down)
+  document.getElementById('result-compact-name').textContent = name;
+  document.getElementById('result-compact-sub').textContent  =
+    `${pts} pts · ${formatDist(distKm)}`;
 
   const pct = pts / MAX_SCORE_PER_ROUND * 100;
   document.getElementById('score-bar-pct').textContent = `${pts} pts`;
@@ -1724,7 +1816,17 @@ function nextRound() {
     map.removeSource('answer-line');
   }
 
-  document.getElementById('result-overlay').classList.remove('visible');
+  // Hide result overlay and reset any peek/drag state
+  const overlayEl = document.getElementById('result-overlay');
+  overlayEl.classList.remove('visible');
+  overlayEl.classList.remove('peeked');
+  overlayEl.style.background           = '';
+  overlayEl.style.backdropFilter        = '';
+  overlayEl.style.webkitBackdropFilter  = '';
+  const sheetEl = document.getElementById('result-sheet');
+  sheetEl.style.transition = '';
+  sheetEl.style.transform  = '';
+
   document.getElementById('pin-confirm').classList.remove('visible');
   document.getElementById('tap-hint').classList.remove('hidden-hint');
   document.getElementById('score-bar-fill').style.width = '0%';
@@ -1740,6 +1842,117 @@ function nextRound() {
   state.round++;
   loadRound();
 }
+
+// ── Result sheet: drag the handle down to peek at the map ─────────────────
+(function initResultDrag() {
+  const overlay    = document.getElementById('result-overlay');
+  const sheet      = document.getElementById('result-sheet');
+  const peekStrip  = document.getElementById('result-peek-strip');
+
+  let isDragging    = false;
+  let startY        = 0;
+  let startTranslate = 0;
+  let maxTranslate  = 0;
+  let dragStartTime = 0;
+  let hasMoved      = false;
+
+  // Treat the overlay class as source of truth for peeked state
+  function isPeeked() { return overlay.classList.contains('peeked'); }
+
+  // Snap the sheet to full (0) or peeked (maxTranslate) position with animation
+  function snapTo(peeked) {
+    overlay.classList.toggle('peeked', peeked);
+    sheet.style.transition = 'transform 0.38s cubic-bezier(0.34, 1.2, 0.64, 1)';
+    sheet.style.transform  = peeked ? `translateY(${maxTranslate}px)` : 'translateY(0)';
+    if (peeked) {
+      // Lock backdrop to transparent immediately
+      overlay.style.background           = 'transparent';
+      overlay.style.backdropFilter        = 'none';
+      overlay.style.webkitBackdropFilter  = 'none';
+    } else {
+      // Restore CSS-controlled backdrop once animation finishes
+      setTimeout(() => {
+        if (!isDragging) {
+          overlay.style.background           = '';
+          overlay.style.backdropFilter        = '';
+          overlay.style.webkitBackdropFilter  = '';
+          sheet.style.transition = '';
+          sheet.style.transform  = '';
+        }
+      }, 420);
+    }
+  }
+
+  function onDragStart(e) {
+    if (!overlay.classList.contains('visible')) return;
+    if (e.target.closest('#btn-next')) return; // let button handle its tap
+    const clientY  = e.touches ? e.touches[0].clientY : e.clientY;
+    isDragging     = true;
+    hasMoved       = false;
+    dragStartTime  = Date.now();
+    startY         = clientY;
+    // Measure how far the sheet can travel: sheet height minus the always-visible strip
+    maxTranslate   = sheet.offsetHeight - peekStrip.offsetHeight;
+    startTranslate = isPeeked() ? maxTranslate : 0;
+    sheet.style.transition = 'none'; // disable CSS transition while dragging
+    e.preventDefault();
+  }
+
+  function onDragMove(e) {
+    if (!isDragging) return;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const delta   = clientY - startY;
+    if (Math.abs(delta) > 4) hasMoved = true;
+    const newY    = Math.max(0, Math.min(maxTranslate, startTranslate + delta));
+    sheet.style.transform = `translateY(${newY}px)`;
+    // Fade the backdrop proportionally as the sheet slides down
+    const progress = maxTranslate > 0 ? newY / maxTranslate : 0;
+    overlay.style.background = `rgba(var(--bg-rgb),${(0.7 * (1 - progress)).toFixed(3)})`;
+    const blurPx = Math.max(0, 4 * (1 - progress * 2)).toFixed(1);
+    overlay.style.backdropFilter       = progress < 0.5 ? `blur(${blurPx}px)` : 'none';
+    overlay.style.webkitBackdropFilter = overlay.style.backdropFilter;
+  }
+
+  function onDragEnd(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    if (!hasMoved) {
+      // Tap on strip (no drag movement) — toggle peek state
+      snapTo(!isPeeked());
+      return;
+    }
+    const clientY   = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+    const delta     = clientY - startY;
+    const elapsed   = Math.max(1, Date.now() - dragStartTime);
+    const velocity  = delta / elapsed; // px/ms; positive = dragging downward
+    const currentY  = startTranslate + delta;
+    const threshold = maxTranslate * 0.4;
+    // Flick down (v>0.3) OR dragged past 40% → peek; otherwise expand
+    snapTo(velocity > 0.3 || (velocity > -0.3 && currentY > threshold));
+  }
+
+  // Touch: attach to whole peek strip so the handle + compact area are all draggable
+  peekStrip.addEventListener('touchstart',  onDragStart, { passive: false });
+  document.addEventListener('touchmove', function(e) {
+    if (isDragging) { onDragMove(e); e.preventDefault(); }
+  }, { passive: false });
+  document.addEventListener('touchend',    onDragEnd);
+  document.addEventListener('touchcancel', function() { isDragging = false; });
+
+  // Mouse: attach to peek strip for desktop usability
+  peekStrip.addEventListener('mousedown', function(e) {
+    if (e.target.closest('#btn-next')) return;
+    onDragStart(e);
+    const onMove = function(ev) { onDragMove(ev); };
+    const onUp   = function(ev) {
+      onDragEnd(ev);
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup',   onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup',   onUp);
+  });
+})();
 
 async function loadRound() {
   roundStartTime = Date.now(); // stamp when player sees the clue
