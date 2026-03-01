@@ -60,7 +60,7 @@ async function ensureTable(conn) {
  * @param {number} p.distKm
  * @param {number} p.points
  */
-async function trackPlay({ gameDate, dayNumber, round, location, guessLat, guessLng, distKm, points }) {
+async function trackPlay({ gameDate, dayNumber, round, location, guessLat, guessLng, distKm, points, playerId }) {
   try {
     const inst = await getInstance();
     if (!inst) return; // no token — silently skip
@@ -70,9 +70,9 @@ async function trackPlay({ gameDate, dayNumber, round, location, guessLat, guess
       await ensureTable(conn);
       await conn.run(
         `INSERT INTO pindrop.plays
-           (game_date, day_number, round, location, guess_lat, guess_lng, dist_km, points)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [gameDate, dayNumber, round, location, guessLat, guessLng, distKm, points]
+           (game_date, day_number, round, location, guess_lat, guess_lng, dist_km, points, player_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [gameDate, dayNumber, round, location, guessLat, guessLng, distKm, points, playerId ?? null]
       );
     } finally {
       conn.closeSync();

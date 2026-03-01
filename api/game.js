@@ -39,7 +39,7 @@ module.exports = async function handler(req, res) {
 
   // ── POST /api/game  { action, round, guessLat, guessLng, date } ─────────
   if (req.method === 'POST') {
-    const { action, round, guessLat, guessLng } = req.body || {};
+    const { action, round, guessLat, guessLng, playerId } = req.body || {};
     const r = parseInt(round, 10);
     if (action === 'score' && !isNaN(r) && r >= 0 && r < locs.length
         && typeof guessLat === 'number' && typeof guessLng === 'number') {
@@ -60,6 +60,7 @@ module.exports = async function handler(req, res) {
         guessLng,
         distKm,
         points:    pts,
+        playerId:  playerId || null,
       });
 
       return res.status(200).json({ name, description, targetLat, targetLng, distKm, pts });

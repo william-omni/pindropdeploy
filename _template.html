@@ -1200,6 +1200,17 @@ function saveStorage(data) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
 }
 
+// Returns a stable anonymous UUID for this browser/device.
+// Generated once on first visit and persisted in localStorage forever.
+function getPlayerId() {
+  const store = loadStorage();
+  if (!store.playerId) {
+    store.playerId = crypto.randomUUID();
+    saveStorage(store);
+  }
+  return store.playerId;
+}
+
 function getTodayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
@@ -1486,7 +1497,7 @@ async function lockPin() {
     const res = await fetch('/api/game', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'score', round: state.round, guessLat: lat, guessLng: lng, date: getLocalDateStr() }),
+      body: JSON.stringify({ action: 'score', round: state.round, guessLat: lat, guessLng: lng, date: getLocalDateStr(), playerId: getPlayerId() }),
     });
     if (!res.ok) throw new Error('Network error');
     ({ name, description, targetLat, targetLng, distKm, pts } = await res.json());
