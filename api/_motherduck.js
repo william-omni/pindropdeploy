@@ -28,11 +28,11 @@ async function getInstance() {
 async function ensureTable(conn) {
   if (_tableReady) return;
 
-  // Create a dedicated schema inside my_db so PinDrop data stays organised
-  await conn.run(`CREATE SCHEMA IF NOT EXISTS my_db.pindrop`);
+  // Use relative names — we're already connected to my_db
+  await conn.run(`CREATE SCHEMA IF NOT EXISTS pindrop`);
 
   await conn.run(`
-    CREATE TABLE IF NOT EXISTS my_db.pindrop.plays (
+    CREATE TABLE IF NOT EXISTS pindrop.plays (
       played_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
       game_date   DATE        NOT NULL,   -- player's local date (YYYY-MM-DD)
       day_number  INTEGER     NOT NULL,   -- Day #1 = 2026-03-04
@@ -69,7 +69,7 @@ async function trackPlay({ gameDate, dayNumber, round, location, guessLat, guess
     try {
       await ensureTable(conn);
       await conn.run(
-        `INSERT INTO my_db.pindrop.plays
+        `INSERT INTO pindrop.plays
            (game_date, day_number, round, location, guess_lat, guess_lng, dist_km, points)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [gameDate, dayNumber, round, location, guessLat, guessLng, distKm, points]

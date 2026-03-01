@@ -48,8 +48,10 @@ module.exports = async function handler(req, res) {
       const distKm = haversineKm(guessLat, guessLng, targetLat, targetLng);
       const pts    = scoreFromDistance(distKm, perfectRadius);
 
-      // Fire-and-forget — never block the response waiting for analytics
-      trackPlay({
+      // Await analytics before responding — Vercel kills the process
+      // immediately after res.json(), so fire-and-forget never completes.
+      // trackPlay() catches its own errors and never throws.
+      await trackPlay({
         gameDate:  clientDate || new Date().toISOString().slice(0, 10),
         dayNumber: getDayNumber(clientDate),
         round:     r + 1,        // store as 1-indexed (Round 1–5)
@@ -58,7 +60,7 @@ module.exports = async function handler(req, res) {
         guessLng,
         distKm,
         points:    pts,
-      }).catch(() => {});
+      });
 
       return res.status(200).json({ name, description, targetLat, targetLng, distKm, pts });
     }
