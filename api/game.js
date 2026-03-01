@@ -5,9 +5,10 @@ const {
   getTodayLocations,
   haversineKm,
   scoreFromDistance,
+  getLocDifficulty,
 } = require('./_game-data');
 
-const { trackPlay } = require('./_motherduck');
+const { trackPlay, trackGame, trackShare } = require('./_motherduck');
 
 // ── Handler ─────────────────────────────────────────────────────────────────
 module.exports = async function handler(req, res) {
@@ -37,34 +38,77 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'Bad request' });
   }
 
-  // ── POST /api/game  { action, round, guessLat, guessLng, date } ─────────
+  // ── POST /api/game ──────────────────────────────────────────────────────
   if (req.method === 'POST') {
-    const { action, round, guessLat, guessLng, playerId } = req.body || {};
-    const r = parseInt(round, 10);
-    if (action === 'score' && !isNaN(r) && r >= 0 && r < locs.length
-        && typeof guessLat === 'number' && typeof guessLng === 'number') {
-      const loc = locs[r];
-      const [name, description, targetLat, targetLng, perfectRadius = 5] = loc;
-      const distKm = haversineKm(guessLat, guessLng, targetLat, targetLng);
-      const pts    = scoreFromDistance(distKm, perfectRadius);
+    const { action, playerId } = req.body || {};
+    const gameDate = clientDate || new Date().toISOString().slice(0, 10);
+    const dayNumber = getDayNumber(clientDate);
 
-      // Await analytics before responding — Vercel kills the process
-      // immediately after res.json(), so fire-and-forget never completes.
-      // trackPlay() catches its own errors and never throws.
-      await trackPlay({
-        gameDate:  clientDate || new Date().toISOString().slice(0, 10),
-        dayNumber: getDayNumber(clientDate),
-        round:     r + 1,        // store as 1-indexed (Round 1–5)
-        location:  name,
-        guessLat,
-        guessLng,
-        distKm,
-        points:    pts,
-        playerId:  playerId || null,
+    // ── action: score — player submitted a guess ────────────────────────
+    if (action === 'score') {
+      const { round, guessLat, guessLng, timeToGuess } = req.body;
+      const r = parseInt(round, 10);
+      if (!isNaN(r) && r >= 0 && r < locs.length
+          && typeof guessLat === 'number' && typeof guessLng === 'number') {
+        const loc = locs[r];
+        const [name, description, targetLat, targetLng, perfectRadius = 5] = loc;
+        const distKm = haversineKm(guessLat, guessLng, targetLat, targetLng);
+        const pts    = scoreFromDistance(distKm, perfectRadius);
+
+        await trackPlay({
+          gameDate,
+          dayNumber,
+          round:                r + 1,   // store 1-indexed
+          location:             name,
+          guessLat,
+          guessLng,
+          distKm,
+          points:               pts,
+          playerId:             playerId ?? null,
+          timeToGuessSeconds:   Number.isFinite(timeToGuess) ? timeToGuess : null,
+          locationDifficulty:   getLocDifficulty(loc),
+        });
+
+        return res.status(200).json({ name, description, targetLat, targetLng, distKm, pts });
+      }
+      return res.status(400).json({ error: 'Bad request' });
+    }
+
+    // ── action: complete — game finished, record session-level data ─────
+    if (action === 'complete') {
+      const {
+        totalScore, gameDurationSeconds, streakAtTime,
+        gamesPlayedLifetime, deviceType, darkMode,
+      } = req.body;
+
+      await trackGame({
+        gameDate,
+        dayNumber,
+        playerId:             playerId ?? null,
+        totalScore:           typeof totalScore === 'number' ? totalScore : 0,
+        gameDurationSeconds:  Number.isFinite(gameDurationSeconds) ? gameDurationSeconds : null,
+        streakAtTime:         Number.isFinite(streakAtTime) ? streakAtTime : null,
+        gamesPlayedLifetime:  Number.isFinite(gamesPlayedLifetime) ? gamesPlayedLifetime : null,
+        deviceType:           typeof deviceType === 'string' ? deviceType : null,
+        darkMode:             typeof darkMode === 'boolean' ? darkMode : null,
       });
 
-      return res.status(200).json({ name, description, targetLat, targetLng, distKm, pts });
+      return res.status(200).json({ ok: true });
     }
+
+    // ── action: share — player shared their score ────────────────────────
+    if (action === 'share') {
+      const { method } = req.body;
+
+      await trackShare({
+        gameDate,
+        playerId: playerId ?? null,
+        method:   typeof method === 'string' ? method : null,
+      });
+
+      return res.status(200).json({ ok: true });
+    }
+
     return res.status(400).json({ error: 'Bad request' });
   }
 

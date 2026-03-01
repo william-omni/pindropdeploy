@@ -1124,6 +1124,15 @@ let state = {
   currentClue: null,
 };
 
+// Timing trackers — set on game/round start, used for analytics
+let gameStartTime  = null;
+let roundStartTime = null;
+
+// Detects mobile vs desktop for analytics (not shown to user)
+function getDeviceType() {
+  return ('ontouchstart' in window || window.innerWidth < 768) ? 'mobile' : 'desktop';
+}
+
 
 // Day counter for share text (non-sensitive)
 function getDayNumber() {
@@ -1497,7 +1506,7 @@ async function lockPin() {
     const res = await fetch('/api/game', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'score', round: state.round, guessLat: lat, guessLng: lng, date: getLocalDateStr(), playerId: getPlayerId() }),
+      body: JSON.stringify({ action: 'score', round: state.round, guessLat: lat, guessLng: lng, date: getLocalDateStr(), playerId: getPlayerId(), timeToGuess: roundStartTime ? Math.round((Date.now() - roundStartTime) / 1000) : null }),
     });
     if (!res.ok) throw new Error('Network error');
     ({ name, description, targetLat, targetLng, distKm, pts } = await res.json());
@@ -1620,6 +1629,7 @@ function nextRound() {
 }
 
 async function loadRound() {
+  roundStartTime = Date.now(); // stamp when player sees the clue
   // Fetch today's clue for this round from the server (no coordinates exposed)
   try {
     const res = await fetch(`/api/game?action=clue&round=${state.round}&date=${getLocalDateStr()}`);
@@ -1659,6 +1669,23 @@ function finishGame() {
   const store = loadStorage();
   store.lastRoundResults = state.roundResults;
   saveStorage(store);
+
+  // Record game-level analytics (fire-and-forget — safe in client context)
+  fetch('/api/game', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action:               'complete',
+      date:                 getLocalDateStr(),
+      playerId:             getPlayerId(),
+      totalScore:           state.totalScore,
+      gameDurationSeconds:  gameStartTime ? Math.round((Date.now() - gameStartTime) / 1000) : null,
+      streakAtTime:         store.streak || 0,
+      gamesPlayedLifetime:  store.played || 0,
+      deviceType:           getDeviceType(),
+      darkMode:             window.matchMedia('(prefers-color-scheme: dark)').matches,
+    }),
+  }).catch(() => {}); // non-blocking — never delay the screen transition
 
   buildSummary();
   showScreen('summary');
@@ -1721,15 +1748,31 @@ function getShareText() {
 
 async function shareScore() {
   const text = getShareText();
+  let method = 'clipboard';
+
   if (navigator.share) {
     try {
       await navigator.share({ text });
+      method = 'native';
     } catch (e) {
       if (e.name !== 'AbortError') copyToClipboard(text);
+      else return; // user cancelled — don't record a share
     }
   } else {
     copyToClipboard(text);
   }
+
+  // Record share event (fire-and-forget)
+  fetch('/api/game', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action:   'share',
+      date:     getLocalDateStr(),
+      playerId: getPlayerId(),
+      method,
+    }),
+  }).catch(() => {});
 }
 
 function copyToClipboard(text) {
@@ -1942,10 +1985,11 @@ function startGame() {
     pinMarker: null,
     answerMarker: null,
     answerLine: null,
-      gameComplete: false,
+    gameComplete: false,
     lockingPin: false,
     currentClue: null,
   };
+  gameStartTime = Date.now();
 
   showScreen('game');
   initMap();
