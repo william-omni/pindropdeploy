@@ -288,15 +288,15 @@ const LOCATIONS = [
 
   ["Osaka, Japan",                 "Japan's street-food capital, known for takoyaki, okonomiyaki and vibrant nightlife",     34.6937, 135.5023, 1],
 
-  ["Guangzhou, China",             "Southern China's trade hub and gateway city, known as the City of Flowers",              23.1291, 113.2644, 1],
+  ["Guangzhou, China",             "Southern China's trade hub and gateway city, known as the City of Flowers",              23.1291, 113.2644, 3],
 
-  ["Shenzhen, China",              "China's tech boomtown, transformed from fishing village to megacity in one generation",  22.5431, 114.0579, 1],
+  ["Shenzhen, China",              "China's tech boomtown, transformed from fishing village to megacity in one generation",  22.5431, 114.0579, 3],
 
-  ["Chongqing, China",             "Vast inland Chinese megacity built on misty hills where the Yangtze meets the Jialing", 29.4316, 106.9123, 1],
+  ["Chongqing, China",             "Vast inland Chinese megacity built on misty hills where the Yangtze meets the Jialing", 29.4316, 106.9123, 3],
 
-  ["Tianjin, China",               "Major port city near Beijing, blending European colonial architecture with Chinese culture", 39.1042, 117.1442, 1],
+  ["Tianjin, China",               "Major port city near Beijing, blending European colonial architecture with Chinese culture", 39.1042, 117.1442, 3],
 
-  ["Wuhan, China",                 "Sprawling central Chinese city at the confluence of the Yangtze and Han rivers",         30.5928, 114.3055, 1],
+  ["Wuhan, China",                 "Sprawling central Chinese city at the confluence of the Yangtze and Han rivers",         30.5928, 114.3055, 3],
 
   ["Chengdu, China",               "Giant panda capital of China, famous for spicy Sichuan cuisine and laid-back teahouse culture", 30.5728, 104.0668, 1],
 
@@ -332,25 +332,25 @@ const LOCATIONS = [
 
   ["Bangalore, India",             "India's Silicon Valley, a garden city turned global tech hub in the Deccan Plateau",    12.9716,  77.5946, 1],
 
-  ["Hyderabad, India",             "City of Nizams, pearls and biryani, now a major IT and pharmaceutical hub",              17.3850,  78.4867, 1],
+  ["Hyderabad, India",             "City of Nizams, pearls and biryani, now a major IT and pharmaceutical hub",              17.3850,  78.4867, 3],
 
-  ["Ahmedabad, India",             "India's fifth-largest city, a textile and commercial powerhouse on the Sabarmati River", 23.0225,  72.5714, 1],
+  ["Ahmedabad, India",             "India's fifth-largest city, a textile and commercial powerhouse on the Sabarmati River", 23.0225,  72.5714, 3],
 
-  ["Chennai, India",               "Gateway to South India, a coastal metropolis of temples, classical music and filter coffee", 13.0827,  80.2707, 1],
+  ["Chennai, India",               "Gateway to South India, a coastal metropolis of temples, classical music and filter coffee", 13.0827,  80.2707, 3],
 
-  ["Dhaka, Bangladesh",            "One of the world's most densely populated capitals, the Rickshaw Capital of the World",  23.8103,  90.4125, 1],
+  ["Dhaka, Bangladesh",            "One of the world's most densely populated capitals, the Rickshaw Capital of the World",  23.8103,  90.4125, 3],
 
   ["Karachi, Pakistan",            "Pakistan's largest city and economic engine, a port megacity on the Arabian Sea",        24.8607,  67.0011, 1],
 
-  ["Lahore, Pakistan",             "Pakistan's cultural heart, famed for Mughal gardens, the Lahore Fort and street food",   31.5204,  74.3587, 1],
+  ["Lahore, Pakistan",             "Pakistan's cultural heart, famed for Mughal gardens, the Lahore Fort and street food",   31.5204,  74.3587, 3],
 
-  ["Kabul, Afghanistan",           "Afghanistan's mountain capital, one of the world's fastest-growing cities",              34.5553,  69.2075, 1],
+  ["Kabul, Afghanistan",           "Afghanistan's mountain capital, one of the world's fastest-growing cities",              34.5553,  69.2075, 3],
 
 
   // Asia — West/Central
   ["Tehran, Iran",                 "Iran's sprawling capital, set against the Alborz mountains at the edge of a vast plateau", 35.6892,  51.3890, 1],
 
-  ["Baghdad, Iraq",                "Cradle of Islamic civilization, built as a round city by Abbasid caliphs on the Tigris", 33.3152,  44.3661, 1],
+  ["Baghdad, Iraq",                "Cradle of Islamic civilization, built as a round city by Abbasid caliphs on the Tigris", 33.3152,  44.3661, 3],
 
   ["Riyadh, Saudi Arabia",         "Saudi Arabia's ultra-modern capital, a forest of skyscrapers rising from the Nejd plateau", 24.7136,  46.6753, 1],
 
@@ -360,19 +360,19 @@ const LOCATIONS = [
 
   ["Lagos, Nigeria",               "West Africa's megacity, Nigeria's economic powerhouse and cultural capital on the Bight of Benin", 6.5244,   3.3792, 1],
 
-  ["Kinshasa, DRC",                "Africa's second-largest city, a vast, chaotic capital on the Congo River opposite Brazzaville", -4.4419,  15.2663, 1],
+  ["Kinshasa, DRC",                "Africa's second-largest city, a vast, chaotic capital on the Congo River opposite Brazzaville", -4.4419,  15.2663, 3],
 
-  ["Khartoum, Sudan",              "Sudan's capital where the Blue and White Nile converge in a Y-shaped confluence",        15.5007,  32.5599, 1],
+  ["Khartoum, Sudan",              "Sudan's capital where the Blue and White Nile converge in a Y-shaped confluence",        15.5007,  32.5599, 3],
 
-  ["Luanda, Angola",               "Angola's oil-rich capital, a fast-growing city on the Atlantic with Portuguese colonial roots", -8.8390,  13.2894, 1],
+  ["Luanda, Angola",               "Angola's oil-rich capital, a fast-growing city on the Atlantic with Portuguese colonial roots", -8.8390,  13.2894, 3],
 
-  ["Dar es Salaam, Tanzania",      "Tanzania's largest city and main port, a busy commercial hub on the Indian Ocean coast", -6.7924,  39.2083, 1],
+  ["Dar es Salaam, Tanzania",      "Tanzania's largest city and main port, a busy commercial hub on the Indian Ocean coast", -6.7924,  39.2083, 3],
 
   ["Nairobi, Kenya",               "East Africa's hub city, where safari and skyscraper coexist within the same horizon",    -1.2921,  36.8219, 1],
 
   ["Addis Ababa, Ethiopia",        "Ethiopia's mile-high capital, the diplomatic capital of Africa and seat of the African Union", 9.0250,  38.7469, 1],
 
-  ["Abidjan, Ivory Coast",         "West Africa's most cosmopolitan city, the commercial giant of the Ivory Coast",           5.3600,  -4.0083, 1],
+  ["Abidjan, Ivory Coast",         "West Africa's most cosmopolitan city, the commercial giant of the Ivory Coast",           5.3600,  -4.0083, 3],
 
   ["Accra, Ghana",                 "Ghana's welcoming capital on the Gulf of Guinea, a beacon of stability in West Africa",   5.6037,  -0.1870, 1],
 
@@ -493,6 +493,67 @@ const LOCATIONS = [
   ["The Matterhorn, Switzerland",  "The iconic pyramid-shaped Alpine peak straddling the Swiss-Italian border above Zermatt",    45.9766,   7.6586, 5],
 
   ["Salisbury Cathedral",          "Medieval English Gothic cathedral housing the world's best-preserved copy of Magna Carta",   51.0648,  -1.7985, 2],
+
+
+  // ── WESTERN CITIES — D1 ADDITIONS (70/30 rebalance) ─────────────────────────
+
+  // USA (15)
+  ["San Francisco, USA",     "City of fog, hills and the Golden Gate, a compact peninsula jutting into the Pacific",              37.7749, -122.4194, 1],
+  ["Miami, USA",             "Subtropical city of Art Deco beaches, Latin rhythms and neon-lit Ocean Drive on Biscayne Bay",     25.7617,  -80.1918, 1],
+  ["Seattle, USA",           "Pacific Northwest city of coffee, rain and the Space Needle rising above Puget Sound",             47.6062, -122.3321, 1],
+  ["Boston, USA",            "America's cradle of independence — a walkable harbour city of red-brick history and ivy-league universities", 42.3601, -71.0589, 1],
+  ["Houston, USA",           "Space City — America's most diverse metropolis, home to NASA's mission control",                   29.7604,  -95.3698, 1],
+  ["Philadelphia, USA",      "Birthplace of American democracy, a city of cheesesteaks, the Liberty Bell and mural-covered streets", 39.9526, -75.1652, 1],
+  ["Las Vegas, USA",         "Neon oasis rising from the Mojave Desert — the Entertainment Capital of the World",                36.1699, -115.1398, 1],
+  ["Atlanta, USA",           "Capital of the American South, home to Coca-Cola, CNN and the world's busiest airport",           33.7490,  -84.3880, 1],
+  ["Denver, USA",            "The Mile High City at the foot of the Rocky Mountains, gateway to the American mountain West",    39.7392, -104.9903, 1],
+  ["Phoenix, USA",           "The Valley of the Sun — America's hottest major city, rising from the Sonoran Desert",            33.4484, -112.0740, 1],
+  ["Dallas, USA",            "Big D — Texas's cosmopolitan commercial hub where oil money meets modern architecture",            32.7767,  -96.7970, 1],
+  ["New Orleans, USA",       "The Big Easy — America's most unique city, where jazz, Creole food and Mardi Gras meet the Mississippi", 29.9511, -90.0715, 1],
+  ["Nashville, USA",         "Music City — country music's glittering capital on the Cumberland River in Tennessee",            36.1627,  -86.7816, 1],
+  ["Portland, USA",          "The City of Roses on the Pacific Northwest coast, famous for its food scene and quirky culture",  45.5051, -122.6750, 1],
+  ["San Diego, USA",         "America's Finest City — a sun-soaked Pacific beach city on the US-Mexico border",                32.7157, -117.1611, 1],
+
+  // Canada (5)
+  ["Vancouver, Canada",      "Stunning Pacific city framed by mountains and ocean, one of the world's most liveable cities",    49.2827, -123.1207, 1],
+  ["Montreal, Canada",       "North America's French-speaking cultural heartland, a city of festivals, bagels and underground cities", 45.5017, -73.5673, 1],
+  ["Calgary, Canada",        "Gateway to the Canadian Rockies, an oil-boom city famous for the Calgary Stampede rodeo",        51.0447, -114.0719, 1],
+  ["Ottawa, Canada",         "Canada's tidy national capital on the Ottawa River, home to Parliament Hill and the Rideau Canal", 45.4215, -75.6972, 1],
+  ["Quebec City, Canada",    "North America's only walled city north of Mexico, a French fortress overlooking the St. Lawrence", 46.8139, -71.2082, 1],
+
+  // Europe (25)
+  ["Milan, Italy",           "Italy's fashion and finance capital, home to La Scala, da Vinci's Last Supper and the soaring Duomo", 45.4642,   9.1900, 1],
+  ["Munich, Germany",        "Bavaria's beer-garden capital — home to Oktoberfest, BMW and the medieval Marienplatz city heart", 48.1351,  11.5820, 1],
+  ["Lisbon, Portugal",       "Europe's westernmost capital, a sun-drenched city of yellow trams, azulejo tiles and fado music",  38.7223,  -9.1393, 1],
+  ["Stockholm, Sweden",      "Nordic capital spread across 14 islands where Lake Mälaren meets the Baltic Sea",                  59.3293,  18.0686, 1],
+  ["Copenhagen, Denmark",    "Denmark's colourful harbour capital, home to Nyhavn, the Little Mermaid and world-class dining",   55.6761,  12.5683, 1],
+  ["Dublin, Ireland",        "Ireland's warm-hearted capital — a city of Georgian squares, literary pubs and the River Liffey",  53.3498,  -6.2603, 1],
+  ["Prague, Czech Republic", "The City of a Hundred Spires — a remarkably preserved medieval capital on the Vltava River",      50.0755,  14.4378, 1],
+  ["Budapest, Hungary",      "The Pearl of the Danube — a grand twin city of baroque Buda and elegant Pest split by the river", 47.4979,  19.0402, 1],
+  ["Edinburgh, Scotland",    "Scotland's dramatic capital, where a volcanic castle rock dominates a medieval Royal Mile",        55.9533,  -3.1883, 1],
+  ["Zurich, Switzerland",    "Switzerland's financial capital on the lake — one of the world's most prosperous and liveable cities", 47.3769,   8.5417, 1],
+  ["Oslo, Norway",           "Norway's compact waterfront capital, gateway to the fjords and one of the world's greenest cities", 59.9139,  10.7522, 1],
+  ["Brussels, Belgium",      "The de facto capital of Europe, a city of grand squares, surrealist art and Belgian chocolate",    50.8503,   4.3517, 1],
+  ["Helsinki, Finland",      "Nordic capital on a granite peninsula where design, saunas and Baltic ferries define city life",   60.1699,  24.9384, 1],
+  ["Florence, Italy",        "The Cradle of the Renaissance — a compact city of unparalleled art, the Uffizi and the Duomo",    43.7696,  11.2558, 1],
+  ["Venice, Italy",          "La Serenissima — a city of canals, gondolas and crumbling palaces built on 118 lagoon islands",   45.4408,  12.3155, 1],
+  ["Naples, Italy",          "Chaotic, passionate southern Italian city — birthplace of pizza, overlooking Mount Vesuvius",      40.8518,  14.2681, 1],
+  ["Hamburg, Germany",       "Germany's gateway to the world — a port city of canals, warehouses and legendary nightlife",      53.5753,  10.0153, 1],
+  ["Frankfurt, Germany",     "Germany's financial capital, a skyline of towers rising beside the medieval Old Town on the Main", 50.1109,   8.6821, 1],
+  ["Lyon, France",           "France's gastronomic capital, a UNESCO-listed city at the confluence of the Rhône and Saône rivers", 45.7640,   4.8357, 1],
+  ["Seville, Spain",         "Andalusia's passionate capital — birthplace of flamenco, tapas and the orange-scented Giralda",   37.3891,  -5.9845, 1],
+  ["Porto, Portugal",        "Hillside port city of azulejo tiles, port wine cellars and the dramatic Douro River gorge",       41.1579,  -8.6291, 1],
+  ["Manchester, UK",         "England's Northern Powerhouse — a city of Mancunian pride, football, music and industrial heritage", 53.4808,  -2.2426, 1],
+  ["Glasgow, UK",            "Scotland's largest city, a former industrial giant reinvented as a hub of art, music and food",   55.8642,  -4.2518, 1],
+  ["Liverpool, UK",          "Birthplace of the Beatles, a proud port city of Merseyside wit and a spectacular waterfront",     53.4084,  -2.9916, 1],
+  ["Reykjavik, Iceland",     "World's northernmost capital, gateway to the Northern Lights, geysers and volcanic landscapes",   64.1466, -21.9426, 1],
+
+  // Australia / New Zealand (5)
+  ["Brisbane, Australia",    "Sunny Queensland capital on the Brisbane River, host city of the 2032 Olympic Games",            -27.4698, 153.0251, 1],
+  ["Perth, Australia",       "The most isolated major city on Earth, a sun-drenched Indian Ocean capital of beaches and wine", -31.9505, 115.8605, 1],
+  ["Auckland, New Zealand",  "New Zealand's largest city, straddling two harbours on a slender volcanic isthmus",             -36.8509, 174.7645, 1],
+  ["Adelaide, Australia",    "Festival city of South Australia, famous for wine regions, world-class museums and a planned grid", -34.9285, 138.6007, 1],
+  ["Wellington, New Zealand","Compact, wind-blown capital of New Zealand perched on a stunning harbour at the Cook Strait",   -41.2866, 174.7756, 1],
 
 ];
 

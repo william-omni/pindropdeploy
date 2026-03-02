@@ -1703,6 +1703,7 @@ async function lockPin() {
   state.totalScore += pts;
 
   state.roundResults.push({ name, description, pts, distKm, userLat: lat, userLng: lng, targetLat, targetLng });
+  state.roundBounds = { pinLng: lng, pinLat: lat, targetLng, targetLat };
 
   // Show answer marker
   const ansEl = document.createElement('div');
@@ -1751,7 +1752,7 @@ async function lockPin() {
   const bounds = new mapboxgl.LngLatBounds()
     .extend([lng, lat])
     .extend([targetLng, targetLat]);
-  map.fitBounds(bounds, { padding: { top: 80, left: 80, right: 80, bottom: 200 }, maxZoom: 13, duration: 800 });
+  map.fitBounds(bounds, { padding: { top: 80, left: 60, right: 60, bottom: 160 }, maxZoom: 12, duration: 800 });
 
   // Show result overlay
   showRoundResult(name, description, distKm, pts);
@@ -1833,6 +1834,7 @@ function nextRound() {
   const clueBannerEl = document.querySelector('.clue-banner');
   if (clueBannerEl) clueBannerEl.classList.remove('hidden');
   state.pendingPin = null;
+  state.roundBounds = null;
 
   const isLast = state.round === ROUNDS_PER_GAME - 1;
 
@@ -1869,6 +1871,12 @@ function nextRound() {
       overlay.style.background          = 'transparent';
       overlay.style.backdropFilter       = 'none';
       overlay.style.webkitBackdropFilter = 'none';
+      // Re-fit map so both pins are clearly in view above the footer strip
+      if (state.roundBounds) {
+        var _b = state.roundBounds;
+        var _pb = new mapboxgl.LngLatBounds().extend([_b.pinLng, _b.pinLat]).extend([_b.targetLng, _b.targetLat]);
+        map.fitBounds(_pb, { padding: { top: 80, left: 60, right: 60, bottom: 160 }, maxZoom: 12, duration: 350 });
+      }
     } else {
       body.style.height = naturalHeight + 'px';
       overlay.style.background          = '';
