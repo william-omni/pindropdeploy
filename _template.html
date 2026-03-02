@@ -410,13 +410,14 @@
       transition: opacity 0.3s;
     }
     .result-overlay.visible { opacity: 1; pointer-events: auto; }
-    /* When peeked: transparent so map is fully visible behind the strip */
+    /* Peeked: clear backdrop so map shows through; sheet surface colour remains */
     .result-overlay.peeked {
       background: transparent;
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
     }
 
+    /* Sheet: flex column, stays at bottom — translateY only for round show/hide */
     .result-sheet {
       width: 100%;
       background: var(--surface);
@@ -429,44 +430,38 @@
       will-change: transform;
       overflow: hidden;
     }
-    .result-overlay.visible .result-sheet {
-      transform: translateY(0);
-    }
+    .result-overlay.visible .result-sheet { transform: translateY(0); }
 
-    /* Full details body — all the score info */
-    .result-full-body {
-      padding: 20px 24px 12px;
-    }
-
-    /* Peek strip — always pinned at the sheet bottom; visible in both states */
-    .result-peek-strip {
-      border-top: 1px solid var(--border);
-      padding: 0 24px calc(var(--safe-bot) + 14px);
-      background: var(--surface);
+    /* Header: drag handle — always at the very top of the sheet */
+    .result-header {
       flex-shrink: 0;
+      padding-top: 12px;
+      cursor: grab;
     }
     .result-handle {
       width: 40px; height: 4px;
       background: var(--surface2);
       border-radius: 2px;
-      margin: 12px auto 12px;
-      cursor: grab;
+      margin: 0 auto 10px;
       touch-action: none;
     }
-    .result-compact-row {
+
+    /* Body: score details — JS controls height; collapses to 0 when peeked */
+    .result-body {
+      padding: 4px 24px 0;
+      overflow: hidden;
+    }
+
+    /* Footer: always visible — compact score summary + Next Round button */
+    .result-footer {
       display: flex;
       align-items: center;
       gap: 12px;
+      padding: 12px 24px calc(var(--safe-bot) + 14px);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
     }
-    /* Compact name/pts line — hidden in full state, shown when peeked */
-    .result-compact-info {
-      flex: 1;
-      min-width: 0;
-      display: none;
-    }
-    .result-overlay.peeked .result-compact-info {
-      display: block;
-    }
+    .result-compact-info { flex: 1; min-width: 0; }
     .result-compact-name {
       display: block;
       font-family: 'Syne', sans-serif;
@@ -556,7 +551,7 @@
       color: var(--accent);
     }
 
-    /* Next button: full-width by default; auto-width when peeked (shares row) */
+    /* Next button: auto-width, pinned in footer flex row */
     .btn-next {
       height: 48px;
       background: var(--accent);
@@ -567,11 +562,9 @@
       cursor: pointer;
       white-space: nowrap;
       padding: 0 20px;
-      width: 100%;
       flex-shrink: 0;
       transition: transform 0.15s;
     }
-    .result-overlay.peeked .btn-next { width: auto; }
     .btn-next:active { transform: scale(0.97); }
 
     /* ─── SUMMARY SCREEN ──────────────────────────────────── */
@@ -1100,8 +1093,13 @@
   <div class="result-overlay" id="result-overlay">
     <div class="result-sheet" id="result-sheet">
 
-      <!-- Full details body (visible in expanded state) -->
-      <div class="result-full-body">
+      <!-- Header: drag handle — always at the very top, always visible -->
+      <div class="result-header" id="result-header">
+        <div class="result-handle" id="result-handle"></div>
+      </div>
+
+      <!-- Body: score details — collapses when user drags handle down -->
+      <div class="result-body" id="result-body">
         <div class="result-round-label" id="result-round-label">Round 1 of 5</div>
         <div class="result-location" id="result-location">—</div>
         <div class="result-quality" id="result-quality" style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin:-4px 0 12px;"></div>
@@ -1138,7 +1136,7 @@
           color: rgba(240,240,245,0.55);
           font-family: 'DM Mono', monospace;
           font-weight: 300;
-          margin: -8px 0 4px;
+          margin: -8px 0 12px;
           padding: 10px 14px;
           background: rgba(255,255,255,0.04);
           border-radius: 10px;
@@ -1147,17 +1145,13 @@
         "></div>
       </div>
 
-      <!-- Peek strip — drag handle + compact info + Next button; always visible -->
-      <div class="result-peek-strip" id="result-peek-strip">
-        <div class="result-handle" id="result-handle"></div>
-        <div class="result-compact-row">
-          <!-- Compact info: location + score, shown only when peeked -->
-          <div class="result-compact-info">
-            <span class="result-compact-name" id="result-compact-name">—</span>
-            <span class="result-compact-sub"  id="result-compact-sub">—</span>
-          </div>
-          <button class="btn-next" id="btn-next">Next Round →</button>
+      <!-- Footer: always visible — compact score summary + Next Round button -->
+      <div class="result-footer" id="result-footer">
+        <div class="result-compact-info">
+          <span class="result-compact-name" id="result-compact-name">—</span>
+          <span class="result-compact-sub"  id="result-compact-sub">—</span>
         </div>
+        <button class="btn-next" id="btn-next">Next Round →</button>
       </div>
 
     </div>
@@ -1763,16 +1757,15 @@ async function lockPin() {
 }
 
 function showRoundResult(name, description, distKm, pts) {
-  // Reset any peek/drag state from the previous round so the sheet
-  // slides in cleanly from the bottom again
+  // Reset any peek/drag state so the sheet slides in cleanly for the new round
   const overlayEl = document.getElementById('result-overlay');
-  const sheetEl   = document.getElementById('result-sheet');
+  const bodyEl    = document.getElementById('result-body');
   overlayEl.classList.remove('peeked');
   overlayEl.style.background           = '';
   overlayEl.style.backdropFilter        = '';
   overlayEl.style.webkitBackdropFilter  = '';
-  sheetEl.style.transition = '';
-  sheetEl.style.transform  = '';
+  bodyEl.style.height     = '';
+  bodyEl.style.transition = '';
 
   document.getElementById('result-round-label').textContent =
     `Round ${state.round + 1} of ${ROUNDS_PER_GAME}`;
@@ -1823,9 +1816,9 @@ function nextRound() {
   overlayEl.style.background           = '';
   overlayEl.style.backdropFilter        = '';
   overlayEl.style.webkitBackdropFilter  = '';
-  const sheetEl = document.getElementById('result-sheet');
-  sheetEl.style.transition = '';
-  sheetEl.style.transform  = '';
+  const bodyEl = document.getElementById('result-body');
+  bodyEl.style.height     = '';
+  bodyEl.style.transition = '';
 
   document.getElementById('pin-confirm').classList.remove('visible');
   document.getElementById('tap-hint').classList.remove('hidden-hint');
@@ -1843,70 +1836,66 @@ function nextRound() {
   loadRound();
 }
 
-// ── Result sheet: drag the handle down to peek at the map ─────────────────
+// ── Result sheet: drag the handle to collapse body and peek at the map ───────
 (function initResultDrag() {
-  const overlay    = document.getElementById('result-overlay');
-  const sheet      = document.getElementById('result-sheet');
-  const peekStrip  = document.getElementById('result-peek-strip');
+  const overlay = document.getElementById('result-overlay');
+  const header  = document.getElementById('result-header');
+  const body    = document.getElementById('result-body');
 
   let isDragging    = false;
   let startY        = 0;
-  let startTranslate = 0;
-  let maxTranslate  = 0;
+  let startBodyHeight = 0;
+  let naturalHeight = 0;
   let dragStartTime = 0;
   let hasMoved      = false;
 
-  // Treat the overlay class as source of truth for peeked state
   function isPeeked() { return overlay.classList.contains('peeked'); }
 
-  // Snap the sheet to full (0) or peeked (maxTranslate) position with animation
+  // Snap body open (full) or closed (peeked) with a smooth height animation
   function snapTo(peeked) {
     overlay.classList.toggle('peeked', peeked);
-    sheet.style.transition = 'transform 0.38s cubic-bezier(0.34, 1.2, 0.64, 1)';
-    sheet.style.transform  = peeked ? `translateY(${maxTranslate}px)` : 'translateY(0)';
+    body.style.transition = 'height 0.35s cubic-bezier(0.4, 0, 0.2, 1)';
     if (peeked) {
-      // Lock backdrop to transparent immediately
-      overlay.style.background           = 'transparent';
-      overlay.style.backdropFilter        = 'none';
-      overlay.style.webkitBackdropFilter  = 'none';
+      body.style.height = '0px';
+      overlay.style.background          = 'transparent';
+      overlay.style.backdropFilter       = 'none';
+      overlay.style.webkitBackdropFilter = 'none';
     } else {
-      // Restore CSS-controlled backdrop once animation finishes
-      setTimeout(() => {
-        if (!isDragging) {
-          overlay.style.background           = '';
-          overlay.style.backdropFilter        = '';
-          overlay.style.webkitBackdropFilter  = '';
-          sheet.style.transition = '';
-          sheet.style.transform  = '';
-        }
-      }, 420);
+      body.style.height = naturalHeight + 'px';
+      overlay.style.background          = '';
+      overlay.style.backdropFilter       = '';
+      overlay.style.webkitBackdropFilter = '';
+      // After animation completes, clear inline height so content can reflow freely
+      setTimeout(function() {
+        if (!isDragging) { body.style.height = ''; body.style.transition = ''; }
+      }, 380);
     }
   }
 
   function onDragStart(e) {
     if (!overlay.classList.contains('visible')) return;
-    if (e.target.closest('#btn-next')) return; // let button handle its tap
-    const clientY  = e.touches ? e.touches[0].clientY : e.clientY;
-    isDragging     = true;
-    hasMoved       = false;
-    dragStartTime  = Date.now();
-    startY         = clientY;
-    // Measure how far the sheet can travel: sheet height minus the always-visible strip
-    maxTranslate   = sheet.offsetHeight - peekStrip.offsetHeight;
-    startTranslate = isPeeked() ? maxTranslate : 0;
-    sheet.style.transition = 'none'; // disable CSS transition while dragging
+    if (e.target.closest('#btn-next')) return; // let button handle its own events
+    const clientY   = e.touches ? e.touches[0].clientY : e.clientY;
+    naturalHeight   = body.scrollHeight; // full natural height of the body
+    startBodyHeight = isPeeked() ? 0 : body.offsetHeight;
+    body.style.height     = startBodyHeight + 'px'; // lock for drag animation
+    body.style.transition = 'none';
+    isDragging    = true;
+    hasMoved      = false;
+    dragStartTime = Date.now();
+    startY        = clientY;
     e.preventDefault();
   }
 
   function onDragMove(e) {
     if (!isDragging) return;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    const delta   = clientY - startY;
+    const delta = (e.touches ? e.touches[0].clientY : e.clientY) - startY;
     if (Math.abs(delta) > 4) hasMoved = true;
-    const newY    = Math.max(0, Math.min(maxTranslate, startTranslate + delta));
-    sheet.style.transform = `translateY(${newY}px)`;
-    // Fade the backdrop proportionally as the sheet slides down
-    const progress = maxTranslate > 0 ? newY / maxTranslate : 0;
+    // Dragging DOWN (delta > 0) collapses body; dragging UP expands it
+    const newH = Math.max(0, Math.min(naturalHeight, startBodyHeight - delta));
+    body.style.height = newH + 'px';
+    // Fade backdrop proportionally: 0=full backdrop, 1=transparent
+    const progress = naturalHeight > 0 ? (naturalHeight - newH) / naturalHeight : 0;
     overlay.style.background = `rgba(var(--bg-rgb),${(0.7 * (1 - progress)).toFixed(3)})`;
     const blurPx = Math.max(0, 4 * (1 - progress * 2)).toFixed(1);
     overlay.style.backdropFilter       = progress < 0.5 ? `blur(${blurPx}px)` : 'none';
@@ -1917,34 +1906,30 @@ function nextRound() {
     if (!isDragging) return;
     isDragging = false;
     if (!hasMoved) {
-      // Tap on strip (no drag movement) — toggle peek state
+      // Pure tap on handle — toggle between peek and full
       snapTo(!isPeeked());
       return;
     }
-    const clientY   = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
-    const delta     = clientY - startY;
-    const elapsed   = Math.max(1, Date.now() - dragStartTime);
-    const velocity  = delta / elapsed; // px/ms; positive = dragging downward
-    const currentY  = startTranslate + delta;
-    const threshold = maxTranslate * 0.4;
-    // Flick down (v>0.3) OR dragged past 40% → peek; otherwise expand
-    snapTo(velocity > 0.3 || (velocity > -0.3 && currentY > threshold));
+    const delta    = (e.changedTouches ? e.changedTouches[0].clientY : e.clientY) - startY;
+    const velocity = delta / Math.max(1, Date.now() - dragStartTime); // px/ms
+    const curH     = Math.max(0, startBodyHeight - delta);
+    // Fast downward flick OR body < 40% height remaining → peek
+    snapTo(velocity > 0.3 || (velocity > -0.3 && curH < naturalHeight * 0.4));
   }
 
-  // Touch: attach to whole peek strip so the handle + compact area are all draggable
-  peekStrip.addEventListener('touchstart',  onDragStart, { passive: false });
+  // Touch: fire from header (handle area at top)
+  header.addEventListener('touchstart', onDragStart, { passive: false });
   document.addEventListener('touchmove', function(e) {
     if (isDragging) { onDragMove(e); e.preventDefault(); }
   }, { passive: false });
   document.addEventListener('touchend',    onDragEnd);
   document.addEventListener('touchcancel', function() { isDragging = false; });
 
-  // Mouse: attach to peek strip for desktop usability
-  peekStrip.addEventListener('mousedown', function(e) {
-    if (e.target.closest('#btn-next')) return;
+  // Mouse: fire from header (desktop)
+  header.addEventListener('mousedown', function(e) {
     onDragStart(e);
-    const onMove = function(ev) { onDragMove(ev); };
-    const onUp   = function(ev) {
+    var onMove = function(ev) { onDragMove(ev); };
+    var onUp   = function(ev) {
       onDragEnd(ev);
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup',   onUp);
