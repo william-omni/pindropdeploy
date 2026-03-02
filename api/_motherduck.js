@@ -17,6 +17,11 @@ async function getInstance() {
   const token = process.env.MOTHERDUCK_TOKEN;
   if (!token) return null; // integration not configured — skip silently
 
+  // Skip analytics writes in preview and development deployments so test plays
+  // never pollute production data. VERCEL_ENV is injected automatically by Vercel:
+  // 'production' | 'preview' | 'development'
+  if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== 'production') return null;
+
   // Vercel Lambda needs a writable HOME for DuckDB's temp files
   process.env.HOME = '/tmp';
 
