@@ -451,6 +451,7 @@
     .result-body {
       padding: 4px 24px 0;
       overflow: hidden;
+      cursor: grab;
     }
 
     /* Footer: always visible — compact score summary + Next Round button */
@@ -1752,7 +1753,7 @@ async function lockPin() {
   const bounds = new mapboxgl.LngLatBounds()
     .extend([lng, lat])
     .extend([targetLng, targetLat]);
-  map.fitBounds(bounds, { padding: { top: 80, left: 60, right: 60, bottom: 160 }, maxZoom: 12, duration: 800 });
+  map.fitBounds(bounds, { padding: { top: 160, left: 80, right: 80, bottom: 320 }, maxZoom: 10, duration: 800 });
 
   // Show result overlay
   showRoundResult(name, description, distKm, pts);
@@ -1875,7 +1876,7 @@ function nextRound() {
       if (state.roundBounds) {
         var _b = state.roundBounds;
         var _pb = new mapboxgl.LngLatBounds().extend([_b.pinLng, _b.pinLat]).extend([_b.targetLng, _b.targetLat]);
-        map.fitBounds(_pb, { padding: { top: 80, left: 60, right: 60, bottom: 160 }, maxZoom: 12, duration: 350 });
+        map.fitBounds(_pb, { padding: { top: 160, left: 80, right: 80, bottom: 120 }, maxZoom: 10, duration: 350 });
       }
     } else {
       body.style.height = naturalHeight + 'px';
@@ -1934,16 +1935,20 @@ function nextRound() {
     snapTo(velocity > 0.3 || (velocity > -0.3 && curH < naturalHeight * 0.4));
   }
 
-  // Touch: fire from header (handle area at top)
-  header.addEventListener('touchstart', onDragStart, { passive: false });
+  // Touch: fire from anywhere on the result sheet (excluding buttons/links)
+  document.getElementById('result-sheet').addEventListener('touchstart', function(e) {
+    if (e.target.closest('button, a, [role="button"]')) return;
+    onDragStart(e);
+  }, { passive: false });
   document.addEventListener('touchmove', function(e) {
     if (isDragging) { onDragMove(e); e.preventDefault(); }
   }, { passive: false });
   document.addEventListener('touchend',    onDragEnd);
   document.addEventListener('touchcancel', function() { isDragging = false; });
 
-  // Mouse: fire from header (desktop)
-  header.addEventListener('mousedown', function(e) {
+  // Mouse: fire from anywhere on the result sheet (desktop)
+  document.getElementById('result-sheet').addEventListener('mousedown', function(e) {
+    if (e.target.closest('button, a, [role="button"]')) return;
     onDragStart(e);
     var onMove = function(ev) { onDragMove(ev); };
     var onUp   = function(ev) {
