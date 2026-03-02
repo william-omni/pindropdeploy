@@ -555,6 +555,49 @@ const LOCATIONS = [
   ["Adelaide, Australia",    "Festival city of South Australia, famous for wine regions, world-class museums and a planned grid", -34.9285, 138.6007, 1],
   ["Wellington, New Zealand","Compact, wind-blown capital of New Zealand perched on a stunning harbour at the Cook Strait",   -41.2866, 174.7756, 1],
 
+  // ── WESTERN CITIES — ROUND 2 ADDITIONS ───────────────────────────────────────
+
+  // USA (10)
+  ["Austin, USA",          "Texas's live-music capital — a booming tech and culture hub on the Colorado River",              30.2672,  -97.7431, 1],
+  ["Minneapolis, USA",     "Twin Cities — Minnesota's cultural hub of lakes, music and the mighty Mississippi headwaters",   44.9778,  -93.2650, 1],
+  ["Tampa, USA",           "Florida's Gulf Coast city of Cuban heritage, craft beer and one of the USA's top beaches",      27.9506,  -82.4572, 1],
+  ["Pittsburgh, USA",      "Steel City reinvented — a dramatic city of bridges at the confluence of three rivers",          40.4406,  -79.9959, 1],
+  ["Salt Lake City, USA",  "Utah's capital at the foot of the Wasatch Mountains, gateway to world-class ski resorts",      40.7608, -111.8910, 1],
+  ["Kansas City, USA",     "Heartland city famous for BBQ, jazz, fountains and straddling two US states",                   39.0997,  -94.5786, 1],
+  ["Charlotte, USA",       "The Queen City — America's second-largest banking hub, booming in the Carolina Piedmont",       35.2271,  -80.8431, 1],
+  ["San Antonio, USA",     "Home of the Alamo, River Walk and one of the oldest Spanish colonial cities in North America",  29.4241,  -98.4936, 1],
+  ["Raleigh, USA",         "North Carolina's Research Triangle capital — a fast-growing Southern tech city",                35.7796,  -78.6382, 1],
+  ["Cincinnati, USA",      "Queen City on the Ohio River — known for chili, craft beer and stunning Art Deco architecture", 39.1031,  -84.5120, 1],
+
+  // Canada (3)
+  ["Edmonton, Canada",     "Alberta's capital on the North Saskatchewan River, gateway to the Canadian wilderness",         53.5461, -113.4938, 1],
+  ["Halifax, Canada",      "Maritime capital of Nova Scotia — a harbour city of wooden churches and the world's second-largest natural harbour", 44.6488, -63.5752, 1],
+  ["Winnipeg, Canada",     "Prairie crossroads city where the Red and Assiniboine rivers meet at the heart of Canada",     49.8951,  -97.1384, 1],
+
+  // Mexico (2)
+  ["Cancún, Mexico",       "Caribbean resort city on the Yucatán Peninsula, gateway to Mayan ruins and turquoise waters",  21.1619,  -86.8515, 1],
+  ["Monterrey, Mexico",    "Mexico's industrial powerhouse — a dynamic northern city ringed by the dramatic Sierra Madre",  25.6866, -100.3161, 1],
+
+  // Europe (15)
+  ["Geneva, Switzerland",  "International city on Lac Léman — home to the UN, Red Cross and the world's largest particle accelerator", 46.2044,   6.1432, 1],
+  ["Nice, France",         "Jewel of the French Riviera, a pastel city of beaches, belle époque promenades and Matisse",   43.7102,   7.2620, 1],
+  ["Marseille, France",    "France's oldest city and its busiest port, a sun-drenched melting pot on the Mediterranean",   43.2965,   5.3698, 1],
+  ["Toulouse, France",     "The Pink City — France's aerospace capital on the Garonne, home of Airbus",                    43.6047,   1.4442, 1],
+  ["Cologne, Germany",     "Rhineland city dominated by its twin-towered Gothic cathedral, Germany's carnival capital",    50.9333,   6.9500, 1],
+  ["Düsseldorf, Germany",  "Elegant Rhineland fashion capital, known for its old town pubs and cutting-edge architecture", 51.2217,   6.7762, 1],
+  ["Valencia, Spain",      "Spain's third city — birthplace of paella, home of La Tomatina and the futuristic City of Arts", 39.4699,  -0.3763, 1],
+  ["Turin, Italy",         "Italy's automotive capital — an elegant Baroque city of porticoed streets and the Shroud of Turin", 45.0703,   7.6869, 1],
+  ["Bologna, Italy",       "La Grassa — Italy's gastronomic heart, a medieval university city of arcaded streets",         44.4949,  11.3426, 1],
+  ["Kraków, Poland",       "Poland's royal capital and cultural heart — a stunning medieval old town on the Vistula River", 50.0647,  19.9450, 1],
+  ["Tallinn, Estonia",     "Best-preserved medieval old town in Northern Europe, a Baltic gem of turrets and spires",       59.4370,  24.7536, 1],
+  ["Riga, Latvia",         "Art Nouveau capital of Latvia — the largest city in the Baltic states",                        56.9496,  24.1052, 1],
+  ["Belgrade, Serbia",     "Serbia's vibrant capital at the confluence of the Sava and Danube, with a fortress and legendary nightlife", 44.8176,  20.4569, 1],
+  ["Sofia, Bulgaria",      "Bulgaria's compact capital beneath Mount Vitosha — one of Europe's oldest continuously inhabited cities", 42.6977,  23.3219, 1],
+  ["Bratislava, Slovakia", "One of the smallest capital cities in the world, perched above the Danube bordering Austria",  48.1486,  17.1077, 1],
+
+  // UK (1)
+  ["Birmingham, UK",       "England's second city — a multicultural powerhouse that gave the world the industrial revolution", 52.4862,  -1.8904, 1],
+
 ];
 
 const ROUNDS_PER_GAME = 5;
@@ -629,6 +672,18 @@ const DIFFICULTY_MAP = {
   // Previously missing iconic cities — now added to D1
   'Paris, France':1,'London, UK':1,'New York, USA':1,'Sydney, Australia':1,
   'Dubai, UAE':1,'Rome, Italy':1,'Istanbul, Turkey':1,'Rio de Janeiro, Brazil':1,
+  // Western city additions — round 2
+  'Austin, USA':1,'Minneapolis, USA':1,'Tampa, USA':1,'Pittsburgh, USA':1,
+  'Salt Lake City, USA':1,'Kansas City, USA':1,'Charlotte, USA':1,
+  'San Antonio, USA':1,'Raleigh, USA':1,'Cincinnati, USA':1,
+  'Edmonton, Canada':1,'Halifax, Canada':1,'Winnipeg, Canada':1,
+  'Cancún, Mexico':1,'Monterrey, Mexico':1,
+  'Geneva, Switzerland':1,'Nice, France':1,'Marseille, France':1,
+  'Toulouse, France':1,'Cologne, Germany':1,'Düsseldorf, Germany':1,
+  'Valencia, Spain':1,'Turin, Italy':1,'Bologna, Italy':1,
+  'Kraków, Poland':1,'Tallinn, Estonia':1,'Riga, Latvia':1,
+  'Belgrade, Serbia':1,'Sofia, Bulgaria':1,'Bratislava, Slovakia':1,
+  'Birmingham, UK':1,
   // Western city additions (70/30 rebalance)
   'San Francisco, USA':1,'Miami, USA':1,'Seattle, USA':1,'Boston, USA':1,
   'Houston, USA':1,'Philadelphia, USA':1,'Las Vegas, USA':1,'Atlanta, USA':1,
@@ -724,6 +779,21 @@ function getLocDifficulty(loc) {
   return DIFFICULTY_MAP[loc[0]] !== undefined ? DIFFICULTY_MAP[loc[0]] : 3;
 }
 
+// Extract the country name from a location string (e.g. "Paris, France" → "France").
+// Special cases handle entries with no comma or US state names.
+function getCountry(locName) {
+  const OVERRIDES = {
+    'Hong Kong': 'China',
+    'Singapore': 'Singapore',
+    'Detroit, Michigan': 'USA',
+    'Mount Mitchell, North Carolina': 'USA',
+    'Edinburgh, Scotland': 'UK',
+  };
+  if (OVERRIDES[locName]) return OVERRIDES[locName];
+  const parts = locName.split(', ');
+  return parts.length > 1 ? parts[parts.length - 1] : locName;
+}
+
 function getTodayLocations(dateStr) {
   // ── Build full difficulty pools ───────────────────────────────────────────
   const allPools = { 1: [], 2: [], 3: [], 4: [], 5: [] };
@@ -734,17 +804,21 @@ function getTodayLocations(dateStr) {
 
   // ── Pick 5 locations from (possibly cooldown-filtered) pools ─────────────
   // Uses loc[0] (name string) for dedup so same-day picks never repeat.
-  function pickForPools(pools, rand) {
+  function pickForPools(pools, rand, prevR1Country) {
     const usedToday = new Set();
-    function pick(pool) {
-      const avail = pool.filter(l => !usedToday.has(l[0]));
-      const src   = avail.length ? avail : pool; // safety fallback
-      const loc   = src[Math.floor(rand() * src.length)];
+    function pick(pool, excludeCountry) {
+      let avail = pool.filter(l => !usedToday.has(l[0]));
+      if (excludeCountry) {
+        const noSameCountry = avail.filter(l => getCountry(l[0]) !== excludeCountry);
+        if (noSameCountry.length > 0) avail = noSameCountry; // only apply if non-empty (safety)
+      }
+      const src = avail.length ? avail : pool; // safety fallback
+      const loc = src[Math.floor(rand() * src.length)];
       usedToday.add(loc[0]);
       return loc;
     }
     return [
-      pick(pools[1]),                       // R1: major world city
+      pick(pools[1], prevR1Country),        // R1: major city, no same country as prev day R1
       pick(pools[1]),                       // R2: different major city
       pick(pools[2]),                       // R3: world-famous landmark
       pick([...pools[3], ...pools[4]]),     // R4: medium or hard
@@ -823,7 +897,20 @@ function getTodayLocations(dateStr) {
       pools[k] = filtered.length > 0 ? filtered : allPools[k];
     }
 
-    history[ds] = pickForPools(pools, seededRand(getDailySeed(ds)));
+    // R1 country dedup: prevent same country as previous day's R1
+    const prevMs2 = ms - 86400000;
+    let prevR1Country = null;
+    if (prevMs2 >= FIRST_DAY_MS) {
+      const pd2  = new Date(prevMs2);
+      const pds2 = pd2.getUTCFullYear() + '-'
+                 + String(pd2.getUTCMonth() + 1).padStart(2, '0') + '-'
+                 + String(pd2.getUTCDate()).padStart(2, '0');
+      if (history[pds2] && history[pds2][0]) {
+        prevR1Country = getCountry(history[pds2][0][0]);
+      }
+    }
+
+    history[ds] = pickForPools(pools, seededRand(getDailySeed(ds)), prevR1Country);
   }
 
   return history[dateStr];
