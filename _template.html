@@ -317,6 +317,7 @@
       z-index: 10;
       transition: transform 0.3s ease, opacity 0.3s ease;
     }
+    .clue-banner.hidden { opacity: 0; transform: translateY(8px); pointer-events: none; }
     .clue-label {
       font-size: 9px; letter-spacing: 0.15em;
       text-transform: uppercase; color: var(--accent);
@@ -1750,7 +1751,7 @@ async function lockPin() {
   const bounds = new mapboxgl.LngLatBounds()
     .extend([lng, lat])
     .extend([targetLng, targetLat]);
-  map.fitBounds(bounds, { padding: 80, duration: 800 });
+  map.fitBounds(bounds, { padding: { top: 80, left: 80, right: 80, bottom: 200 }, maxZoom: 13, duration: 800 });
 
   // Show result overlay
   showRoundResult(name, description, distKm, pts);
@@ -1766,6 +1767,10 @@ function showRoundResult(name, description, distKm, pts) {
   overlayEl.style.webkitBackdropFilter  = '';
   bodyEl.style.height     = '';
   bodyEl.style.transition = '';
+
+  // Hide the clue banner so it doesn't show through the transparent peeked overlay
+  const clueBannerEl = document.querySelector('.clue-banner');
+  if (clueBannerEl) clueBannerEl.classList.add('hidden');
 
   document.getElementById('result-round-label').textContent =
     `Round ${state.round + 1} of ${ROUNDS_PER_GAME}`;
@@ -1823,6 +1828,10 @@ function nextRound() {
   document.getElementById('pin-confirm').classList.remove('visible');
   document.getElementById('tap-hint').classList.remove('hidden-hint');
   document.getElementById('score-bar-fill').style.width = '0%';
+
+  // Restore clue banner for next round
+  const clueBannerEl = document.querySelector('.clue-banner');
+  if (clueBannerEl) clueBannerEl.classList.remove('hidden');
   state.pendingPin = null;
 
   const isLast = state.round === ROUNDS_PER_GAME - 1;
