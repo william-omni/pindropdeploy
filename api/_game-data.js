@@ -806,15 +806,25 @@ function getTodayLocations(dateStr) {
   // Uses loc[0] (name string) for dedup so same-day picks never repeat.
   function pickForPools(pools, rand, prevR1Country) {
     const usedToday = new Set();
+    const countryCount = {}; // tracks how many times each country appears today
     function pick(pool, excludeCountry) {
       let avail = pool.filter(l => !usedToday.has(l[0]));
       if (excludeCountry) {
         const noSameCountry = avail.filter(l => getCountry(l[0]) !== excludeCountry);
         if (noSameCountry.length > 0) avail = noSameCountry; // only apply if non-empty (safety)
       }
+      // Within-day country dedup: max 1 per country, max 2 for USA
+      const countryFiltered = avail.filter(l => {
+        const c = getCountry(l[0]);
+        const limit = c === 'USA' ? 2 : 1;
+        return (countryCount[c] || 0) < limit;
+      });
+      if (countryFiltered.length > 0) avail = countryFiltered; // only apply if non-empty (safety)
       const src = avail.length ? avail : pool; // safety fallback
       const loc = src[Math.floor(rand() * src.length)];
       usedToday.add(loc[0]);
+      const c = getCountry(loc[0]);
+      countryCount[c] = (countryCount[c] || 0) + 1;
       return loc;
     }
     return [
