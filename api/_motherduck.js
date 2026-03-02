@@ -106,6 +106,11 @@ async function ensureTables(conn) {
     )
   `);
 
+  // Columns added to games after initial creation — idempotent, safe to re-run
+  await conn.run(`ALTER TABLE pindrop.games ADD COLUMN IF NOT EXISTS timezone VARCHAR`);
+  await conn.run(`ALTER TABLE pindrop.games ADD COLUMN IF NOT EXISTS locale   VARCHAR`);
+  await conn.run(`ALTER TABLE pindrop.games ADD COLUMN IF NOT EXISTS referrer VARCHAR`);
+
   _tablesReady = true;
 }
 
@@ -149,6 +154,7 @@ async function trackGame({
   gameDate, dayNumber, playerId, totalScore,
   gameDurationSeconds, streakAtTime, gamesPlayedLifetime,
   deviceType, darkMode,
+  timezone, locale, referrer,
 }) {
   try {
     const inst = await getInstance();
@@ -161,14 +167,18 @@ async function trackGame({
         `INSERT INTO pindrop.games
            (game_date, day_number, player_id, total_score,
             game_duration_seconds, streak_at_time, games_played_lifetime,
-            device_type, dark_mode)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            device_type, dark_mode,
+            timezone, locale, referrer)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [gameDate, dayNumber, playerId ?? null, totalScore,
          gameDurationSeconds ?? null,
          streakAtTime ?? null,
          gamesPlayedLifetime ?? null,
          deviceType ?? null,
-         darkMode ?? null]
+         darkMode ?? null,
+         timezone ?? null,
+         locale ?? null,
+         referrer ?? null]
       );
     } finally {
       conn.closeSync();

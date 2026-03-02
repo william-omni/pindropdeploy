@@ -1394,15 +1394,36 @@ function saveStorage(data) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
 }
 
+// ─── cookie helpers (private, minimal) ──────────────────────────────────────
+function _getCookie(name) {
+  const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+function _setCookie(name, value, days) {
+  const exp = new Date(Date.now() + days * 864e5).toUTCString();
+  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${exp}; path=/; SameSite=Lax`;
+}
+
 // Returns a stable anonymous UUID for this browser/device.
-// Generated once on first visit and persisted in localStorage forever.
+// Two-layer persistence: cookie (pd_pid) + localStorage.
+// Cookie wins when both exist and differ — it's more durable; the most common
+// cause of ID churn is a localStorage clear, not a cookie clear.
 function getPlayerId() {
-  const store = loadStorage();
-  if (!store.playerId) {
-    store.playerId = crypto.randomUUID();
-    saveStorage(store);
-  }
-  return store.playerId;
+  const COOKIE = 'pd_pid';
+  const DAYS   = 730; // 2-year expiry
+
+  const fromCookie = _getCookie(COOKIE);
+  const store      = loadStorage();
+  const fromLS     = store.playerId || null;
+
+  // Resolve: cookie > localStorage > new UUID
+  const resolved = fromCookie || fromLS || crypto.randomUUID();
+
+  // Keep both stores in sync
+  if (!fromCookie || fromCookie !== resolved) _setCookie(COOKIE, resolved, DAYS);
+  if (fromLS !== resolved) { store.playerId = resolved; saveStorage(store); }
+
+  return resolved;
 }
 
 function getTodayKey() {
@@ -2019,6 +2040,10 @@ function finishGame() {
       gamesPlayedLifetime:  store.played || 0,
       deviceType:           getDeviceType(),
       darkMode:             window.matchMedia('(prefers-color-scheme: dark)').matches,
+      // Passive geographic/behavioral signals — no PII, no user prompts
+      timezone:             Intl.DateTimeFormat().resolvedOptions().timeZone || null,
+      locale:               navigator.language || null,
+      referrer:             document.referrer || null,
       preview:              PREVIEW_MODE || undefined,
     }),
   }).catch(() => {}); // non-blocking — never delay the screen transition

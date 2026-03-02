@@ -95,6 +95,7 @@ module.exports = async function handler(req, res) {
       const {
         totalScore, gameDurationSeconds, streakAtTime,
         gamesPlayedLifetime, deviceType, darkMode,
+        timezone, locale, referrer,
       } = req.body;
 
       if (!isPreview) await trackGame({
@@ -107,6 +108,9 @@ module.exports = async function handler(req, res) {
         gamesPlayedLifetime:  Number.isFinite(gamesPlayedLifetime) ? gamesPlayedLifetime : null,
         deviceType:           typeof deviceType === 'string' ? deviceType : null,
         darkMode:             typeof darkMode === 'boolean' ? darkMode : null,
+        timezone:             typeof timezone  === 'string' ? timezone  : null,
+        locale:               typeof locale    === 'string' ? locale    : null,
+        referrer:             typeof referrer  === 'string' ? referrer  : null,
       });
 
       return res.status(200).json({ ok: true });
