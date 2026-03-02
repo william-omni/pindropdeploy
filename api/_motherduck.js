@@ -1,14 +1,15 @@
 // api/_motherduck.js — MotherDuck analytics writer for PinDrop
 //
-// Three tables in my_db.pindrop:
-//   plays  — one row per scored round
-//   games  — one row per completed game
-//   shares — one row each time a player shares their score
+// Four tables in my_db.pindrop:
+//   plays               — one row per scored round
+//   games               — one row per completed game
+//   shares              — one row each time a player shares their score
+//   daily_combinations  — one row per calendar day (location set for that day)
 //
 // Gracefully no-ops if MOTHERDUCK_TOKEN is not set.
 
-let _instance   = null;   // singleton DuckDB instance (reused across warm Vercel invocations)
-let _tablesReady = false; // only run CREATE TABLE once per warm instance
+let _instance    = null;   // singleton DuckDB instance (reused across warm Vercel invocations)
+let _tablesReady = false;  // only run CREATE/ALTER TABLE once per warm instance
 
 async function getInstance() {
   if (_instance) return _instance;
@@ -31,7 +32,10 @@ async function ensureTables(conn) {
 
   await conn.run(`CREATE SCHEMA IF NOT EXISTS pindrop`);
 
-  // One row per scored round
+  // ── plays ─────────────────────────────────────────────────────────────────
+  // One row per scored round.
+  // CREATE TABLE establishes the base schema; ALTER TABLE adds columns that
+  // were introduced after the table was first created in production.
   await conn.run(`
     CREATE TABLE IF NOT EXISTS pindrop.plays (
       played_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -42,14 +46,16 @@ async function ensureTables(conn) {
       guess_lat             DOUBLE      NOT NULL,
       guess_lng             DOUBLE      NOT NULL,
       dist_km               DOUBLE      NOT NULL,
-      points                INTEGER     NOT NULL,   -- 0–200
-      player_id             VARCHAR,
-      time_to_guess_seconds INTEGER,               -- clue shown → pin locked
-      location_difficulty   INTEGER                -- 1–5 from DIFFICULTY_MAP
+      points                INTEGER     NOT NULL    -- 0–200
     )
   `);
+  // Columns added after the table was originally created — safe to re-run
+  await conn.run(`ALTER TABLE pindrop.plays ADD COLUMN IF NOT EXISTS player_id             VARCHAR`);
+  await conn.run(`ALTER TABLE pindrop.plays ADD COLUMN IF NOT EXISTS time_to_guess_seconds INTEGER`);
+  await conn.run(`ALTER TABLE pindrop.plays ADD COLUMN IF NOT EXISTS location_difficulty   INTEGER`);
 
-  // One row per completed game
+  // ── games ─────────────────────────────────────────────────────────────────
+  // One row per completed game.
   await conn.run(`
     CREATE TABLE IF NOT EXISTS pindrop.games (
       completed_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -65,13 +71,31 @@ async function ensureTables(conn) {
     )
   `);
 
-  // One row each time a player shares their score
+  // ── shares ────────────────────────────────────────────────────────────────
+  // One row each time a player shares their score.
   await conn.run(`
     CREATE TABLE IF NOT EXISTS pindrop.shares (
       occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       game_date   DATE        NOT NULL,
       player_id   VARCHAR,
       method      VARCHAR                          -- 'native' | 'clipboard'
+    )
+  `);
+
+  // ── daily_combinations ────────────────────────────────────────────────────
+  // One row per calendar day recording which 5 locations were used.
+  // game_date is the PRIMARY KEY so duplicate inserts silently no-op via
+  // ON CONFLICT DO NOTHING.  Stored on first player's round-1 guess each day.
+  await conn.run(`
+    CREATE TABLE IF NOT EXISTS pindrop.daily_combinations (
+      game_date   DATE        PRIMARY KEY,
+      day_number  INTEGER     NOT NULL,
+      round_1     VARCHAR     NOT NULL,
+      round_2     VARCHAR     NOT NULL,
+      round_3     VARCHAR     NOT NULL,
+      round_4     VARCHAR     NOT NULL,
+      round_5     VARCHAR     NOT NULL,
+      stored_at   TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);
 
@@ -167,4 +191,33 @@ async function trackShare({ gameDate, playerId, method }) {
   }
 }
 
-module.exports = { trackPlay, trackGame, trackShare };
+// ── storeDailyCombo ───────────────────────────────────────────────────────────
+// Records the 5-location combination for a given day.
+// Idempotent: ON CONFLICT DO NOTHING means only the first call per day wins;
+// subsequent calls (from other players) are silently ignored.
+async function storeDailyCombo({ gameDate, dayNumber, locationNames }) {
+  try {
+    const inst = await getInstance();
+    if (!inst) return;
+
+    const conn = await inst.connect();
+    try {
+      await ensureTables(conn);
+      await conn.run(
+        `INSERT INTO pindrop.daily_combinations
+           (game_date, day_number, round_1, round_2, round_3, round_4, round_5)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (game_date) DO NOTHING`,
+        [gameDate, dayNumber,
+         locationNames[0], locationNames[1], locationNames[2],
+         locationNames[3], locationNames[4]]
+      );
+    } finally {
+      conn.closeSync();
+    }
+  } catch (e) {
+    console.error('[MotherDuck] storeDailyCombo error:', e.message);
+  }
+}
+
+module.exports = { trackPlay, trackGame, trackShare, storeDailyCombo };

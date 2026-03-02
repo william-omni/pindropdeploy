@@ -8,7 +8,7 @@ const {
   getLocDifficulty,
 } = require('./_game-data');
 
-const { trackPlay, trackGame, trackShare } = require('./_motherduck');
+const { trackPlay, trackGame, trackShare, storeDailyCombo } = require('./_motherduck');
 
 // ── Handler ─────────────────────────────────────────────────────────────────
 module.exports = async function handler(req, res) {
@@ -56,19 +56,32 @@ module.exports = async function handler(req, res) {
         const distKm = haversineKm(guessLat, guessLng, targetLat, targetLng);
         const pts    = scoreFromDistance(distKm, perfectRadius);
 
-        if (!isPreview) await trackPlay({
-          gameDate,
-          dayNumber,
-          round:                r + 1,   // store 1-indexed
-          location:             name,
-          guessLat,
-          guessLng,
-          distKm,
-          points:               pts,
-          playerId:             playerId ?? null,
-          timeToGuessSeconds:   Number.isFinite(timeToGuess) ? timeToGuess : null,
-          locationDifficulty:   getLocDifficulty(loc),
-        });
+        if (!isPreview) {
+          // Run analytics concurrently; on round 1 also store the day's combo
+          const tasks = [
+            trackPlay({
+              gameDate,
+              dayNumber,
+              round:                r + 1,   // store 1-indexed
+              location:             name,
+              guessLat,
+              guessLng,
+              distKm,
+              points:               pts,
+              playerId:             playerId ?? null,
+              timeToGuessSeconds:   Number.isFinite(timeToGuess) ? timeToGuess : null,
+              locationDifficulty:   getLocDifficulty(loc),
+            }),
+          ];
+          if (r === 0 && locs.length >= 5) {
+            tasks.push(storeDailyCombo({
+              gameDate,
+              dayNumber,
+              locationNames: locs.map(l => l[0]),
+            }));
+          }
+          await Promise.all(tasks);
+        }
 
         return res.status(200).json({ name, description, targetLat, targetLng, distKm, pts });
       }
