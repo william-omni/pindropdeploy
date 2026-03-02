@@ -53,6 +53,8 @@ async function ensureTables(conn) {
   await conn.run(`ALTER TABLE pindrop.plays ADD COLUMN IF NOT EXISTS player_id             VARCHAR`);
   await conn.run(`ALTER TABLE pindrop.plays ADD COLUMN IF NOT EXISTS time_to_guess_seconds INTEGER`);
   await conn.run(`ALTER TABLE pindrop.plays ADD COLUMN IF NOT EXISTS location_difficulty   INTEGER`);
+  await conn.run(`ALTER TABLE pindrop.plays ADD COLUMN IF NOT EXISTS target_lat            DOUBLE`);
+  await conn.run(`ALTER TABLE pindrop.plays ADD COLUMN IF NOT EXISTS target_lng            DOUBLE`);
 
   // ── games ─────────────────────────────────────────────────────────────────
   // One row per completed game.
@@ -105,7 +107,7 @@ async function ensureTables(conn) {
 // ── trackPlay ────────────────────────────────────────────────────────────────
 async function trackPlay({
   gameDate, dayNumber, round, location,
-  guessLat, guessLng, distKm, points, playerId,
+  guessLat, guessLng, targetLat, targetLng, distKm, points, playerId,
   timeToGuessSeconds, locationDifficulty,
 }) {
   try {
@@ -118,11 +120,13 @@ async function trackPlay({
       await conn.run(
         `INSERT INTO pindrop.plays
            (game_date, day_number, round, location,
-            guess_lat, guess_lng, dist_km, points,
+            guess_lat, guess_lng, target_lat, target_lng, dist_km, points,
             player_id, time_to_guess_seconds, location_difficulty)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [gameDate, dayNumber, round, location,
-         guessLat, guessLng, distKm, points,
+         guessLat, guessLng,
+         targetLat ?? null, targetLng ?? null,
+         distKm, points,
          playerId ?? null,
          timeToGuessSeconds ?? null,
          locationDifficulty ?? null]

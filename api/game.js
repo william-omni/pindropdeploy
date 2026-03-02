@@ -66,6 +66,8 @@ module.exports = async function handler(req, res) {
               location:             name,
               guessLat,
               guessLng,
+              targetLat,
+              targetLng,
               distKm,
               points:               pts,
               playerId:             playerId ?? null,
