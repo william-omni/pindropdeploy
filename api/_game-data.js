@@ -943,7 +943,7 @@ function scoreFromDistance(km, perfectRadius = 5) {
   if (d <= 2000) {
     // Accelerating power curve: high reward for precision, 0 at 2000 km
     const t = (2000 - d) / (2000 - 25);                     // 1.0 at d=25, 0 at d=2000
-    return Math.round(190 * Math.pow(t, 1.5));
+    return Math.round(190 * Math.pow(t, 3.4));
   }
   return 0;
 }
