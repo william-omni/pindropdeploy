@@ -873,6 +873,13 @@ function getTodayLocations(dateStr) {
       ['Shenzhen, China',            "China's tech boomtown, transformed from fishing village to megacity in one generation",         22.5431, 114.0579, 3],
       ['Sahara Desert, Algeria',     "World's largest hot desert, stretching across North Africa",                                   23.4162,   5.0418, 75],
     ],
+    '2026-03-03': [                          // Day 2 — R2 swapped to Amsterdam (was Xi'an, China)
+      'Riyadh, Saudi Arabia',
+      'Amsterdam, Netherlands',
+      'Varanasi Ghats, India',
+      'Khartoum, Sudan',
+      'Svalbard Global Seed Vault',
+    ],
     '2026-03-04': [                          // Launch day — parents' anniversary
       'Detroit, Michigan',
       'Mount Mitchell, North Carolina',
