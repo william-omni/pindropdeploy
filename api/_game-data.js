@@ -938,11 +938,13 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 
 function scoreFromDistance(km, perfectRadius = 5) {
   const d = Math.max(0, km - perfectRadius);
-  if (d <= 0)     return 200;
-  if (d <= 25)    return Math.round(200 - (d / 25) * 10);
-  if (d <= 500)   return Math.round(190 - ((d - 25) / 475) * 110);
-  if (d <= 2000)  return Math.round(80  - ((d - 500) / 1500) * 60);
-  if (d <= 10000) return Math.round(20  - ((d - 2000) / 8000) * 20);
+  if (d <= 0)    return 200;
+  if (d <= 25)   return Math.round(200 - (d / 25) * 10);    // 200→190 perfect zone
+  if (d <= 2000) {
+    // Accelerating power curve: high reward for precision, 0 at 2000 km
+    const t = (2000 - d) / (2000 - 25);                     // 1.0 at d=25, 0 at d=2000
+    return Math.round(190 * Math.pow(t, 1.5));
+  }
   return 0;
 }
 
