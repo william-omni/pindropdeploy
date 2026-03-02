@@ -71,7 +71,6 @@ const LOCATIONS = [
 
   ["Dead Sea, Jordan",             "Earth's lowest point and saltiest body of water, where you float effortlessly",  31.5590,  35.4732,  20],
   ["Wadi Rum, Jordan",             "Vast desert landscape of rose-red sandstone mountains and valleys",              29.5797,  35.4229,  20],
-  ["Maldives Atolls",              "Low-lying coral atolls scattered across the Indian Ocean",                        4.1755,  73.5093,  75],
   ["Phi Phi Islands, Thailand",    "Dramatic limestone cliffs rising from turquoise Andaman Sea waters",              7.7407,  98.7784,  12],
   ["Guilin Karst, China",          "Surreal landscape of limestone peaks rising from rice paddies and rivers",       24.8138, 110.4980,  15],
 
@@ -82,9 +81,7 @@ const LOCATIONS = [
 
   ["Mount Kilimanjaro, Tanzania",  "Africa's highest peak, a freestanding volcanic mountain capped in snow",          -3.0674,  37.3556, 2],
 
-  ["Serengeti, Tanzania",          "Vast savanna ecosystem famous for the annual wildebeest migration",               -2.3333,  34.8333,  50],
   ["Sossusvlei, Namibia",          "Towering red sand dunes surrounding a stark white clay pan in the Namib Desert", -24.7272,  15.3445,  20],
-  ["Sahara Desert, Algeria",       "World's largest hot desert, stretching across North Africa",                     23.4162,   5.0418,  75],
   ["Okavango Delta, Botswana",     "World's largest inland delta, a lush oasis in the middle of the Kalahari",       -19.2948,  22.9411,  40],
   ["Wadi Halfa, Sudan",            "Ancient town on the banks of the Nile near the Egyptian border",                 21.8006,  31.3503, 4],
 
@@ -115,8 +112,6 @@ const LOCATIONS = [
   ["Antelope Canyon, USA",         "Narrow slot canyon carved by flash floods in the Arizona sandstone",             36.8619,-111.3743, 4],
 
   ["Yellowstone, USA",             "World's first national park, sitting atop a supervolcano",                      44.4280,-110.5885,  35],
-  ["Patagonia, Argentina",         "Remote wilderness of jagged peaks, glaciers and vast steppe at the end of the world", -50.9423, -73.4068,  75],
-  ["Amazon River Delta, Brazil",   "Where the world's largest river meets the Atlantic in a vast maze of channels",   0.1500, -50.0000,  60],
   ["Tikal, Guatemala",             "Ancient Mayan city rising above the jungle canopy, abandoned for a thousand years", 17.2220, -89.6237],
   ["Salar de Uyuni, Bolivia",      "World's largest salt flat, a mirror-like expanse at 3,600m altitude",           -20.1338, -67.4891,  40],
   ["Easter Island, Chile",         "Remote Pacific island famous for its 900 monolithic Moai statues",              -27.1127,-109.3497, 2],
@@ -131,12 +126,10 @@ const LOCATIONS = [
   // ── OCEANIA & POLAR ─────────────────────────────────────
   ["Sydney Opera House",           "Sail-shaped performing arts center on Sydney Harbour",                           -33.8568, 151.2153, 2],
 
-  ["Great Barrier Reef, Australia","World's largest coral reef system, visible from space",                          -18.2871, 147.6992,  75],
   ["Milford Sound, New Zealand",   "Fiord of sheer cliffs, waterfalls and wildlife in Fiordland National Park",     -44.6414, 167.8974],
   ["Waitomo Glowworm Caves, NZ",   "Limestone caves illuminated by thousands of bioluminescent glowworms",          -38.2608, 175.1038, 4],
 
   ["Bora Bora, French Polynesia",  "Volcanic island ringed by turquoise lagoon and overwater bungalows",            -16.5004,-151.7415],
-  ["Antarcic Peninsula",           "Icy wilderness of glaciers, penguins and icebergs at the bottom of the world",  -63.4000, -57.0000,  75],
   ["Rotorua, New Zealand",         "Geothermal city of bubbling mud pools, geysers and Māori culture",             -38.1368, 176.2497],
   ["Kakadu, Australia",            "Ancient Aboriginal land of rock art, wetlands and dramatic escarpments",         -12.6767, 132.8851,  40],
   ["Palau, Micronesia",            "Remote Pacific archipelago of pristine reefs and jellyfish lakes",                7.5150, 134.5825,  25],
@@ -188,7 +181,6 @@ const LOCATIONS = [
   ["Hsipaw, Myanmar",              "Quiet Shan town surrounded by tea plantations and tribal villages",                  22.6200,  97.3000, 5],
 
   ["Nubra Valley, India",          "High-altitude cold desert valley with sand dunes between Himalayan ranges",          34.6500,  77.5500,  20],
-  ["Tian Shan, Kazakhstan",        "Vast snowy mountain range stretching across Central Asia",                           42.0000,  78.0000,  75],
   ["Samarkand, Uzbekistan",        "Silk Road city of turquoise-domed mosques and madrasas in Central Asia",             39.6270,  66.9750],
   ["Paro Taktsang, Bhutan",        "Tiger's Nest monastery clinging to a cliff 900m above the Paro Valley",             27.4914,  89.3634, 4],
 
@@ -207,7 +199,6 @@ const LOCATIONS = [
   ["Bwindi Forest, Uganda",        "Impenetrable forest reserve home to nearly half the world's mountain gorillas",      -1.0636,  29.6636,  15],
   ["Tsingy de Bemaraha, Madagascar","Forest of razor-sharp limestone pinnacles, a UNESCO natural wonder",               -18.7500,  44.7500,  20],
   ["Omo Valley, Ethiopia",         "Remote valley where ancient tribal cultures have remained largely unchanged",          5.5000,  36.0000,  30],
-  ["Saharan Tuareg Camps, Niger",  "Salt caravans and nomadic Tuareg camps deep in the Sahara",                         16.0000,   8.0000,  75],
   ["Bazaruto Archipelago, Mozambique","Pristine coral islands with dugongs, manta rays and dhow sailboats",             -21.6000,  35.4667,  25],
   ["Simien Mountains, Ethiopia",   "Dramatic highlands plateau with vertical escarpments and gelada baboons",            13.2350,  38.0640,  25],
   ["Rwenzori Mountains, Uganda",   "Glaciated equatorial Mountains of the Moon straddling the DRC-Uganda border",        0.3833,  29.9000,  25],
@@ -224,11 +215,9 @@ const LOCATIONS = [
   ["Banff, Canada",                "Turquoise glacial lakes and Rocky Mountain peaks in Canada's oldest national park",  51.4968,-115.9281],
   ["Guanajuato, Mexico",           "Colonial city of colorful houses tumbling down hillsides in central Mexico",         21.0190,-101.2574],
   ["Carnaval, Rio de Janeiro",     "Sambadrome where samba schools parade through in an explosion of color and rhythm", -22.9000, -43.1956],
-  ["Atacama Desert, Chile",        "World's driest non-polar desert of salt flats, geysers and alien landscapes",       -23.8634, -69.0742,  60],
   ["Oaxaca, Mexico",               "Colonial city known for Zapotec ruins, mezcal and one of Mexico's richest cuisines", 17.0732, -96.7266],
   ["Corcovado, Costa Rica",        "Incredibly biodiverse national park on the Osa Peninsula, a global hotspot",         8.5417, -83.5920, 4],
 
-  ["Pantanal, Brazil",             "World's largest tropical wetland, the best place on Earth to see jaguars",          -17.0000, -57.0000,  75],
   ["Quebrada de Humahuaca, Argentina","Colourful gorge of multicoloured hills and pre-Columbian ruins in the Andes",   -23.2061, -65.3464,  25],
   ["Tayrona, Colombia",            "Lush national park where the Andes meet white-sand beaches on the Caribbean",       11.3204, -73.9192,  15],
   ["Lake Titicaca, Peru",          "World's highest navigable lake straddling the Peru-Bolivia border",                 -15.8402, -69.3361,  60],
@@ -269,8 +258,6 @@ const LOCATIONS = [
   ["Chernobyl, Ukraine",           "Exclusion zone around the 1986 nuclear disaster, now a haunting ghost landscape",   51.2731,  30.2219, 3],
 
   ["Salar de Atacama, Chile",      "Lithium-rich salt flat ringed by volcanoes, home to flamingo colonies",             -23.4935, -68.2500,  30],
-  ["Skeleton Coast, Namibia",      "Foggy Atlantic coast of shipwrecks, seal colonies and desert-adapted lions",        -19.0000,  12.5000,  60],
-  ["Kamchatka Peninsula, Russia",  "Remote volcanic peninsula of geysers, brown bears and undisturbed wilderness",      54.0000, 159.0000,  60],
   ["Svalbard Global Seed Vault",   "Doomsday vault buried in permafrost preserving the world's crop diversity",         78.2380,  15.4910, 4],
 
   ["Inaccessible Island",          "Uninhabited volcanic island — one of the most remote places on the planet",        -37.3120, -12.6780, 5],
@@ -598,6 +585,23 @@ const LOCATIONS = [
   // UK (1)
   ["Birmingham, UK",       "England's second city — a multicultural powerhouse that gave the world the industrial revolution", 52.4862,  -1.8904, 1],
 
+
+  // ── REPLACEMENT LOCATIONS ─────────────────────────────────────────────────
+  // Specific, pinnable replacements for removed massive/vague regions
+  ["Tamanrasset, Algeria",          "Major oasis city deep in the Algerian Sahara, gateway to the Hoggar Mountains and Tuareg territory",      22.7850,   5.5228],
+  ["El Chaltén, Argentina",         "Remote Patagonian trekking village at the base of Mount Fitz Roy's iconic granite towers",               -49.3306, -72.8858],
+  ["Belém, Brazil",                 "Amazonian gateway city where the world's mightiest river meets the Atlantic in a vast green estuary",     -1.4558,  -48.5044],
+  ["Bonito, Brazil",                "Ecotourism capital of the Pantanal, known for crystal-clear rivers and the world's best freshwater diving",-21.1214, -56.4817],
+  ["Charyn Canyon, Kazakhstan",     "Dramatic canyon of 300m-high walls carved by the Charyn River — Central Asia's answer to the Grand Canyon", 43.3500, 79.0700],
+  ["Kolmanskop, Namibia",           "Abandoned diamond-mining ghost town slowly swallowed by Namib Desert sand dunes since the 1950s",        -26.7021,  15.2301],
+  ["Valley of Geysers, Kamchatka",  "World's second-largest geyser field, discovered in 1941 in a remote volcanic valley in Russia's Far East", 54.4370, 160.1423],
+  ["San Pedro de Atacama, Chile",   "Andean oasis village at 2,400m — base for Moon Valley, salt flats and the world's finest stargazing",    -22.9087, -68.1996],
+  ["Ningaloo Reef, Australia",      "World Heritage fringing reef off Western Australia — one of the few places to swim with whale sharks",    -22.6833, 113.7719, 10],
+  ["Malé, Maldives",                "One of the most densely populated capital cities on Earth, a compact island of mosques and markets",        4.1755,  73.5093],
+  ["Deception Island, Antarctica",  "Active Antarctic volcano where ships sail inside a sunken caldera and hot springs warm the beaches",      -62.9728, -60.6519],
+  ["Agadez, Niger",                 "Ancient Saharan trading city and UNESCO World Heritage site, heart of the Tuareg homeland in northern Niger", 16.9736, 7.9956],
+  ["Maasai Mara, Kenya",            "Kenya's most celebrated wildlife reserve, heart of the Great Migration where wildebeest cross the Mara River", -1.5044, 35.1444, 10],
+
 ];
 
 const ROUNDS_PER_GAME = 5;
@@ -720,9 +724,8 @@ const DIFFICULTY_MAP = {
   // D3 → D2 promotions (globally iconic, universally recognised)
   'Santorini Caldera, Greece':2,'Halong Bay, Vietnam':2,
   'Galápagos Islands, Ecuador':2,'Yellowstone, USA':2,
-  'Serengeti, Tanzania':2,'Bora Bora, French Polynesia':2,
-  'Maldives Atolls':2,'Dead Sea, Jordan':2,'Pompeii, Italy':2,
-  'Cappadocia, Turkey':2,'Pamukkale, Turkey':2,'Great Barrier Reef, Australia':2,
+  'Bora Bora, French Polynesia':2,'Dead Sea, Jordan':2,'Pompeii, Italy':2,
+  'Cappadocia, Turkey':2,'Pamukkale, Turkey':2,
   // New D2 landmark additions
   'Mount Everest, Nepal':2,'Leaning Tower of Pisa':2,'Table Mountain, South Africa':2,
 
@@ -730,17 +733,16 @@ const DIFFICULTY_MAP = {
   'Jiuzhaigou Valley, China':4,'Bagan, Myanmar':4,'Ha Giang Loop, Vietnam':4,
   'Preah Vihear, Cambodia':4,'Hitachi Seaside Park, Japan':4,
   'Hampi, India':4,'Ellora Caves, India':4,'Nubra Valley, India':4,
-  'Tian Shan, Kazakhstan':4,'Wadi Halfa, Sudan':4,'Mount Nyiragongo, DRC':4,
+  'Wadi Halfa, Sudan':4,'Mount Nyiragongo, DRC':4,
   'Lamu Old Town, Kenya':4,'Danakil Depression, Ethiopia':4,'Dallol, Ethiopia':4,
   'Bwindi Forest, Uganda':4,'Fish River Canyon, Namibia':4,'Omo Valley, Ethiopia':4,
   'Bazaruto Archipelago, Mozambique':4,'Rwenzori Mountains, Uganda':4,
-  'Simien Mountains, Ethiopia':4,'Skeleton Coast, Namibia':4,
-  'Kamchatka Peninsula, Russia':4,'Lavaux Vineyards, Switzerland':4,
+  'Simien Mountains, Ethiopia':4,'Lavaux Vineyards, Switzerland':4,
   'Rila Monastery, Bulgaria':4,'Bran Castle, Romania':4,
   'Mostar Bridge, Bosnia':4,'Hashima Island, Japan':4,
   'Mergui Archipelago, Myanmar':4,'Wadi Draa, Morocco':4,
   'Socotra Island, Yemen':4,'Coron Island, Philippines':4,
-  'Chocolate Hills, Philippines':4,'Pantanal, Brazil':4,
+  'Chocolate Hills, Philippines':4,
   'Canaima, Venezuela':4,'Chiloé Island, Chile':4,
   'Copper Canyon, Mexico':4,'Lord Howe Island, Australia':4,
   'Raja Ampat, Indonesia':4,'Svalbard Global Seed Vault':4,
@@ -750,28 +752,38 @@ const DIFFICULTY_MAP = {
   // D3 → D4 demotions (requires real geographic knowledge to locate)
   'Svalbard, Norway':4,'Kirkjufell, Iceland':4,'Ronda, Spain':4,
   'Český Krumlov, Czechia':4,'Gdańsk, Poland':4,'Guanajuato, Mexico':4,
-  'Oaxaca, Mexico':4,'Florianópolis, Brazil':4,'Atacama Desert, Chile':4,
-  'Amazon River Delta, Brazil':4,'Patagonia, Argentina':4,
+  'Oaxaca, Mexico':4,'Florianópolis, Brazil':4,
   'Okavango Delta, Botswana':4,'Sossusvlei, Namibia':4,
-  'Sahara Desert, Algeria':4,'Quebrada de Humahuaca, Argentina':4,
+  'Quebrada de Humahuaca, Argentina':4,
   'Dakar, Senegal':4,'Carnaval, Rio de Janeiro':4,'Chernobyl, Ukraine':4,
   'Palau, Micronesia':4,'Tonga':4,'Samoa':4,'Kakadu, Australia':4,
   'Samarkand, Uzbekistan':4,'Ngorongoro Crater, Tanzania':4,
   // New D4 additions
   'Lofoten Islands, Norway':4,'Geirangerfjord, Norway':4,
   'Mount Bromo, Indonesia':4,'Sundarbans, Bangladesh':4,'Colca Canyon, Peru':4,
+  // Replacement locations — D4
+  'Tamanrasset, Algeria':4,'El Chaltén, Argentina':4,
+  'Bonito, Brazil':4,'Charyn Canyon, Kazakhstan':4,
+  'Kolmanskop, Namibia':4,'Valley of Geysers, Kamchatka':4,
+  'Ningaloo Reef, Australia':4,'Agadez, Niger':4,
 
   // ── D5: Very hard — obscure or very remote (used sparingly in Round 5) ───
   'Surtsey, Iceland':5,'Tristan da Cunha':5,'Oymyakon, Russia':5,
-  'Inaccessible Island':5,'Saharan Tuareg Camps, Niger':5,'Nauru':5,
+  'Inaccessible Island':5,'Nauru':5,
   // New D5 additions
   'Kerguelen Islands':5,'Pitcairn Island':5,'Bouvet Island':5,'Magadan, Russia':5,
+  // Replacement locations — D5
+  'Deception Island, Antarctica':5,
 
   // ── Special / anniversary locations ───────────────────────────────────────
   'Detroit, Michigan':1,
   'Mount Mitchell, North Carolina':3,
   'The Matterhorn, Switzerland':2,
   'Salisbury Cathedral':3,
+
+  // ── Replacement locations — D3 ────────────────────────────────────────────
+  'Belém, Brazil':3,'San Pedro de Atacama, Chile':3,
+  'Malé, Maldives':3,'Maasai Mara, Kenya':3,
 };
 
 // Difficulty: 1=major city  2=famous landmark  3=medium (default)  4=hard  5=very hard
@@ -854,6 +866,13 @@ function getTodayLocations(dateStr) {
   // These bypass the seeded RNG entirely for that date.  The pinned locations
   // still participate in the 28-day cooldown (future days exclude them).
   const DATE_OVERRIDES = {
+    '2026-03-02': [                          // Soft-launch day 3 — pinned to protect active game
+      ['Cairo, Egypt',               "Africa's largest city, spread along the Nile with the Great Pyramid visible from its suburbs", 30.0444,  31.2357, 1],
+      ['Kraków, Poland',             "Poland's royal capital and cultural heart — a stunning medieval old town on the Vistula River", 50.0647,  19.9450, 1],
+      ['Dubrovnik Old City, Croatia',"Walled medieval city on the Adriatic coast, known as the Pearl of the Adriatic",               42.6507,  18.0944, 2],
+      ['Shenzhen, China',            "China's tech boomtown, transformed from fishing village to megacity in one generation",         22.5431, 114.0579, 3],
+      ['Sahara Desert, Algeria',     "World's largest hot desert, stretching across North Africa",                                   23.4162,   5.0418, 75],
+    ],
     '2026-03-04': [                          // Launch day — parents' anniversary
       'Detroit, Michigan',
       'Mount Mitchell, North Carolina',
@@ -873,7 +892,7 @@ function getTodayLocations(dateStr) {
 
     // If this date has a pinned override, use it directly and skip RNG
     if (DATE_OVERRIDES[ds]) {
-      history[ds] = DATE_OVERRIDES[ds].map(name => LOCATIONS.find(l => l[0] === name));
+      history[ds] = DATE_OVERRIDES[ds].map(entry => Array.isArray(entry) ? entry : LOCATIONS.find(l => l[0] === entry));
       continue;
     }
 
@@ -895,7 +914,7 @@ function getTodayLocations(dateStr) {
     for (const [overrideDate, overrideNames] of Object.entries(DATE_OVERRIDES)) {
       const daysUntil = Math.round((new Date(overrideDate).getTime() - ms) / 86400000);
       if (daysUntil > 0 && daysUntil <= 27) {
-        overrideNames.forEach(name => excluded.add(name));
+        overrideNames.forEach(entry => excluded.add(Array.isArray(entry) ? entry[0] : entry));
       }
     }
 
