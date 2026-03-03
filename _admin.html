@@ -176,8 +176,8 @@
 <div id="app" hidden>
   <nav>
     <div class="nav-brand">&#128205; PinDrop Admin</div>
-    <button class="nav-tab active" data-tab="dashboard"   onclick="switchTab('dashboard',this)">Dashboard</button>
-    <button class="nav-tab"        data-tab="upcoming"    onclick="switchTab('upcoming',this)">Upcoming</button>
+    <button class="nav-tab"        data-tab="dashboard"   onclick="switchTab('dashboard',this)">Dashboard</button>
+    <button class="nav-tab active" data-tab="upcoming"    onclick="switchTab('upcoming',this)">Upcoming</button>
     <button class="nav-tab"        data-tab="analytics"   onclick="switchTab('analytics',this)">Analytics</button>
     <button id="btn-logout" onclick="logout()">Logout</button>
   </nav>
@@ -235,8 +235,18 @@ var sortKey = 'plays', sortAsc = false;
 var embedLoaded  = false;  // true once iframe src has been set
 
 /* ── Bootstrap ── */
-window.addEventListener('DOMContentLoaded', function() {
-  if (TOKEN) showApp();
+window.addEventListener('DOMContentLoaded', async function() {
+  if (!TOKEN) return;
+  // Validate saved token before showing app — avoids stale-token flash-then-logout
+  try {
+    var r = await fetch('/api/admin?action=upcoming&days=1', {
+      headers: { 'Authorization': 'Bearer ' + TOKEN }
+    });
+    if (r.ok) { showApp(); }
+    else { TOKEN = ''; localStorage.removeItem('pd-admin-token'); }
+  } catch(e) {
+    TOKEN = ''; localStorage.removeItem('pd-admin-token');
+  }
 });
 
 /* ── Auth ── */
@@ -291,17 +301,18 @@ function logout() {
 function showApp() {
   document.getElementById('login-screen').hidden = true;
   document.getElementById('app').hidden = false;
-  // Default to Dashboard tab
-  var dashBtn = document.querySelector('.nav-tab[data-tab="dashboard"]');
-  _activateTab('dashboard', dashBtn);
-  loadEmbed();
+  // Default to Upcoming tab — always works without extra env vars
+  var upcomingBtn = document.querySelector('.nav-tab[data-tab="upcoming"]');
+  _activateTab('upcoming', upcomingBtn);
+  loadUpcoming();
 }
 
 /* ── Tabs ── */
 function switchTab(name, btn) {
   _activateTab(name, btn);
   if (name === 'analytics' && !analyticsData) loadAnalytics(false);
-  if (name === 'upcoming') loadUpcoming();
+  if (name === 'upcoming')   loadUpcoming();
+  if (name === 'dashboard')  loadEmbed();
 }
 
 function _activateTab(name, btn) {
@@ -315,7 +326,7 @@ function _activateTab(name, btn) {
   if (name === 'dashboard') {
     dashPane.style.display = '';   // flex column
     mainContent.hidden = true;
-    loadEmbed();
+    // loadEmbed() is called by switchTab / showApp — not here, to avoid double calls
   } else {
     dashPane.style.display = 'none';
     mainContent.hidden = false;
