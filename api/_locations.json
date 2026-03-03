@@ -165,7 +165,7 @@
     "description": "Surreal landscape of fairy chimneys and cave dwellings in central Anatolia",
     "lat": 38.6431,
     "lng": 34.8289,
-    "radius": 20
+    "radius": 100
   },
   {
     "name": "Trolltunga, Norway",
@@ -368,7 +368,7 @@
     "description": "Towering red sand dunes surrounding a stark white clay pan in the Namib Desert",
     "lat": -24.7272,
     "lng": 15.3445,
-    "radius": 20
+    "radius": 100
   },
   {
     "name": "Okavango Delta, Botswana",
@@ -2524,7 +2524,7 @@
     "description": "Kenya's most celebrated wildlife reserve, heart of the Great Migration where wildebeest cross the Mara River",
     "lat": -1.5044,
     "lng": 35.1444,
-    "radius": 10
+    "radius": 100
   },
   {
     "name": "Zion National Park, USA",
