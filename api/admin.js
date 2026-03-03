@@ -2,6 +2,7 @@
 const crypto  = require('crypto');
 const fs      = require('fs');
 const path    = require('path');
+const { embedSsoDashboard } = require('@omni-co/embed');
 const {
   LOCATIONS,
   getDayNumber,
@@ -174,6 +175,25 @@ module.exports = async function handler(req, res) {
     const data = await getAnalytics();
     if (data === null) return res.status(200).json({ configured: false });
     return res.status(200).json({ configured: true, data });
+  }
+
+  // ── GET Omni embed URL ───────────────────────────────────────────────────
+  if (action === 'embed-url') {
+    const secret = process.env.OMNI_EMBED_SECRET;
+    if (!secret) return res.status(503).json({ error: 'OMNI_EMBED_SECRET env var not configured' });
+    try {
+      const url = await embedSsoDashboard({
+        contentId:        '502c7f55',
+        externalId:       'pd-admin-user',
+        name:             'PinDrop Admin',
+        organizationName: 'williamwatkins',
+        secret,
+        prefersDark:      'true',
+      });
+      return res.status(200).json({ url });
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to generate embed URL: ' + e.message });
+    }
   }
 
   return res.status(400).json({ error: 'Unknown action' });
