@@ -884,6 +884,40 @@
     .legend-dot.user   { background: #e8ff47; }
     .legend-dot.answer { background: #47c8ff; }
 
+    /* ── Round map legend — floats over game map, only shown when peeked ─── */
+    .round-map-legend {
+      position: fixed;
+      left: 16px;
+      bottom: 96px;
+      background: rgba(10,10,15,0.82);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 15;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(5px);
+      transition: opacity 0.22s ease, transform 0.22s ease;
+    }
+    .round-map-legend.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .round-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
     .review-rounds {
       display: flex; gap: 6px;
       margin-bottom: 14px;
@@ -1061,6 +1095,18 @@
 <!-- ─── GAME ───────────────────────────────────────────────── -->
 <div id="game" class="screen hidden">
   <div id="map"></div>
+
+  <!-- Pin colour legend — floats over map, shown only while result is peeked -->
+  <div id="round-map-legend" class="round-map-legend">
+    <div class="round-legend-item">
+      <div class="legend-dot user"></div>
+      <span>Your guess</span>
+    </div>
+    <div class="round-legend-item">
+      <div class="legend-dot answer"></div>
+      <span>Actual location</span>
+    </div>
+  </div>
 
   <!-- HUD -->
   <div class="hud">
@@ -1801,9 +1847,20 @@ function showRoundResult(name, description, distKm, pts) {
     `Round ${state.round + 1} of ${ROUNDS_PER_GAME}`;
   document.getElementById('result-location').textContent = name;
   const qualityEl = document.getElementById('result-quality');
-  qualityEl.textContent = scoreToLabel(pts);
-  qualityEl.style.color = scoreToColor(pts);
-  document.getElementById('result-description').textContent = description;
+  const _scoreColor = scoreToColor(pts);
+  const _scoreLabel = scoreToLabel(pts);
+  qualityEl.textContent = _scoreLabel;
+  qualityEl.style.color = _scoreColor;
+  // Description + meta row — mirrors the review desc panel on the results screen
+  document.getElementById('result-description').innerHTML =
+    `<div style="margin-bottom:8px">${description}</div>`
+    + `<div class="review-desc-meta">`
+    + `<span class="review-desc-dist">${formatDist(distKm)} away</span>`
+    + `<span class="review-desc-pts" style="color:${_scoreColor}">${pts} pts · ${_scoreLabel}</span>`
+    + `</div>`;
+  // Ensure the map legend is hidden until the user peeks at the map
+  const _leg = document.getElementById('round-map-legend');
+  if (_leg) _leg.classList.remove('visible');
   document.getElementById('result-dist').textContent = formatDist(distKm);
   document.getElementById('result-pts').textContent = pts;
   document.getElementById('result-total').textContent = state.totalScore;
@@ -1889,6 +1946,9 @@ function nextRound() {
   // Snap body open (full) or closed (peeked) with a smooth height animation
   function snapTo(peeked) {
     overlay.classList.toggle('peeked', peeked);
+    // Show the pin legend only while the map is visible (peeked)
+    var leg = document.getElementById('round-map-legend');
+    if (leg) leg.classList.toggle('visible', peeked);
     body.style.transition = 'height 0.35s cubic-bezier(0.4, 0, 0.2, 1)';
     if (peeked) {
       body.style.height = '0px';
