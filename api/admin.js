@@ -273,7 +273,7 @@ module.exports = async function handler(req, res) {
     ) + '\n';
 
     // GitHub Git Trees API helper
-    const REPO = process.env.GITHUB_REPO || 'williamwatkins/pindropdeploy';
+    const REPO = process.env.GITHUB_REPO || 'william-omni/pindropdeploy';
     async function ghApi(method, apiPath, ghBody) {
       const r = await fetch('https://api.github.com' + apiPath, {
         method,
