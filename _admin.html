@@ -155,6 +155,51 @@
       text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:4px}
     .sort-btn:hover{color:var(--text)}
     .sort-btn.active{color:var(--accent)}
+
+    /* ── LOCATIONS TAB ── */
+    .btn-success{background:#4ade80;color:#0a0a0f}
+    .btn-danger{background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3)}
+    .loc-search{flex:1;min-width:180px;padding:8px 12px;background:var(--s2);
+      border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text);
+      font-size:14px;outline:none;transition:border .15s}
+    .loc-search:focus{border-color:var(--accent)}
+    .loc-form-card{background:var(--s1);border:1px solid var(--border);border-radius:14px;
+      padding:20px 24px;margin-bottom:20px}
+    .loc-form-card h3{font-size:16px;font-weight:700;margin-bottom:16px}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 18px}
+    .form-grid .full-row{grid-column:1/-1}
+    .form-grid label{display:flex;flex-direction:column;gap:5px;
+      font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+    .form-grid input,.form-grid textarea,.form-grid select{
+      background:var(--s2);border:1px solid rgba(255,255,255,.1);border-radius:8px;
+      color:var(--text);padding:8px 10px;font-size:14px;outline:none;transition:border .15s;
+      font-family:inherit}
+    .form-grid input:focus,.form-grid textarea:focus{border-color:var(--accent)}
+    .form-grid textarea{resize:vertical;min-height:60px}
+    .form-actions{display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap}
+    #geocode-status{font-size:12px;color:var(--muted);flex:1}
+    .form-error{color:var(--red);font-size:13px;margin-top:10px;
+      background:rgba(248,113,113,.08);border-radius:6px;padding:8px 12px}
+    /* Location list table */
+    #loc-table-wrap{overflow-x:auto;background:var(--s1);border:1px solid var(--border);
+      border-radius:12px}
+    #loc-count{font-size:14px;font-weight:400;color:var(--muted)}
+    #loc-table{width:100%;border-collapse:collapse;font-size:13px}
+    #loc-table th{text-align:left;padding:10px 12px;color:var(--muted);font-size:11px;
+      text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);
+      white-space:nowrap}
+    #loc-table td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+    #loc-table tr:last-child td{border-bottom:none}
+    #loc-table tr:hover td{background:rgba(255,255,255,.03)}
+    #loc-table tr.pending-row td:first-child{border-left:3px solid #4ade80}
+    .lt-name{font-weight:600;font-size:13px}
+    .lt-desc{font-size:12px;color:var(--muted);max-width:300px;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .lt-coord{font-family:monospace;font-size:11px;color:var(--muted)}
+    .lt-edit{padding:4px 10px;font-size:12px;background:var(--s2);border:1px solid rgba(255,255,255,.1);
+      border-radius:6px;color:var(--text);cursor:pointer;transition:all .15s;white-space:nowrap}
+    .lt-edit:hover{border-color:var(--accent);color:var(--accent)}
+    #loc-load-msg{padding:48px 24px;text-align:center;color:var(--muted)}
   </style>
 </head>
 <body>
@@ -181,6 +226,7 @@
     <button class="nav-tab"        data-tab="dashboard"   onclick="switchTab('dashboard',this)">Dashboard</button>
     <button class="nav-tab active" data-tab="upcoming"    onclick="switchTab('upcoming',this)">Upcoming</button>
     <button class="nav-tab"        data-tab="preview"     onclick="switchTab('preview',this)">Preview</button>
+    <button class="nav-tab"        data-tab="locations"   onclick="switchTab('locations',this)">Locations</button>
     <button id="btn-logout" onclick="logout()">Logout</button>
   </nav>
 
@@ -228,6 +274,77 @@
         <iframe id="preview-iframe" src="" style="width:100%;flex:1;border:none;min-height:600px"></iframe>
       </div>
 
+      <!-- LOCATIONS -->
+      <div id="tab-locations" class="tab-pane" hidden>
+        <div class="tab-header">
+          <h2>Locations <span id="loc-count"></span></h2>
+          <div class="tab-controls">
+            <input class="loc-search" id="loc-search" type="text" placeholder="Search by name or description…" oninput="renderLocTable()">
+            <button class="btn btn-primary" onclick="openLocForm(null)">+ Add Location</button>
+            <button class="btn btn-success" id="commit-btn" onclick="commitLocations()" hidden>
+              Commit&nbsp;<span id="pending-count">0</span>&nbsp;change<span id="pending-s">s</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Add / Edit form (hidden by default) -->
+        <div id="loc-form-card" class="loc-form-card" hidden>
+          <h3 id="loc-form-title">Add Location</h3>
+          <div class="form-grid">
+            <label class="full-row">Name
+              <input id="lf-name" type="text" placeholder="Machu Picchu, Peru" autocomplete="off">
+            </label>
+            <label class="full-row">Description
+              <textarea id="lf-desc" rows="2" placeholder="Short description shown in the game"></textarea>
+            </label>
+            <label>Latitude
+              <input id="lf-lat" type="number" step="0.0001" placeholder="e.g. -13.1631">
+            </label>
+            <label>Longitude
+              <input id="lf-lng" type="number" step="0.0001" placeholder="e.g. -72.5450">
+            </label>
+            <label>Perfect Radius (km)
+              <input id="lf-radius" type="number" value="30" min="1" max="500">
+            </label>
+            <label>Difficulty (1–5)
+              <select id="lf-diff">
+                <option value="1">1 — Major world city</option>
+                <option value="2">2 — Famous landmark</option>
+                <option value="3" selected>3 — Well-known destination</option>
+                <option value="4">4 — Needs geo knowledge</option>
+                <option value="5">5 — Obscure / remote</option>
+              </select>
+            </label>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-ghost" onclick="geocodeName()">&#128205; Geocode Name</button>
+            <span id="geocode-status"></span>
+            <button class="btn btn-ghost" style="margin-left:auto" onclick="closeLocForm()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveLocForm()">Save</button>
+          </div>
+          <div id="loc-form-error" class="form-error" hidden></div>
+        </div>
+
+        <!-- Location table -->
+        <div id="loc-table-wrap" hidden>
+          <table id="loc-table">
+            <thead>
+              <tr>
+                <th>D</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Lat</th>
+                <th>Lng</th>
+                <th>Radius</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="loc-tbody"></tbody>
+          </table>
+        </div>
+        <div id="loc-load-msg">Loading locations&hellip;</div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -236,6 +353,9 @@
 /* ── State ── */
 var TOKEN        = localStorage.getItem('pd-admin-token') || '';
 var embedLoaded  = false;  // true once iframe src has been set
+var locationsData   = null;  // array loaded from server (committed state)
+var pendingLocs     = null;  // working copy — null means no unsaved changes
+var locEditingIndex = null;  // null = add mode, integer = edit mode
 
 /* ── Bootstrap ── */
 window.addEventListener('DOMContentLoaded', async function() {
@@ -318,6 +438,7 @@ function switchTab(name, btn) {
   _activateTab(name, btn);
   if (name === 'upcoming')  loadUpcoming();
   if (name === 'dashboard') loadEmbed();
+  if (name === 'locations' && !locationsData) loadLocations();
 }
 
 function _activateTab(name, btn) {
@@ -438,6 +559,220 @@ function loadPreview() {
   var date = document.getElementById('preview-date-input').value;
   var src  = date ? '/?preview&date=' + date : '/?preview';
   document.getElementById('preview-iframe').src = src;
+}
+
+/* ── Locations ── */
+function locWorkingSet() { return pendingLocs || locationsData || []; }
+
+async function loadLocations() {
+  document.getElementById('loc-load-msg').textContent = 'Loading locations…';
+  document.getElementById('loc-load-msg').hidden = false;
+  document.getElementById('loc-table-wrap').hidden = true;
+  try {
+    var res = await fetch('/api/admin?action=locations', {
+      headers: { 'Authorization': 'Bearer ' + TOKEN }
+    });
+    if (res.status === 401) { logout(); return; }
+    var d = await res.json();
+    locationsData = d.locations;
+    pendingLocs   = null;
+    renderLocTable();
+    document.getElementById('loc-load-msg').hidden = true;
+    document.getElementById('loc-table-wrap').hidden = false;
+  } catch(err) {
+    document.getElementById('loc-load-msg').textContent = 'Error loading locations: ' + err.message;
+  }
+}
+
+function renderLocTable() {
+  var q  = (document.getElementById('loc-search').value || '').toLowerCase().trim();
+  var ws = locWorkingSet();
+  var rows = q ? ws.filter(function(l) {
+    return l.name.toLowerCase().includes(q) || l.description.toLowerCase().includes(q);
+  }) : ws;
+
+  document.getElementById('loc-count').textContent = '(' + ws.length + ' total' + (q ? ', ' + rows.length + ' shown' : '') + ')';
+
+  var pending = pendingLocs ? new Set(pendingLocs.map(function(l,i){ return i; })) : new Set();
+  var orig    = locationsData ? new Set(locationsData.map(function(l){ return l.name; })) : new Set();
+
+  var tbody = document.getElementById('loc-tbody');
+  tbody.innerHTML = rows.map(function(loc) {
+    var wsIdx = ws.indexOf(loc);
+    var isNew = pendingLocs && !orig.has(loc.name);
+    var isPending = pendingLocs !== null;
+    var rowClass = (isPending && isNew) ? ' class="pending-row"' : '';
+    return '<tr' + rowClass + '>' +
+      '<td><div class="diff-badge diff-' + loc.difficulty + '">' + loc.difficulty + '</div></td>' +
+      '<td><div class="lt-name">' + escHtml(loc.name) + '</div></td>' +
+      '<td><div class="lt-desc" title="' + escHtml(loc.description) + '">' + escHtml(loc.description) + '</div></td>' +
+      '<td class="lt-coord">' + loc.lat.toFixed(4) + '</td>' +
+      '<td class="lt-coord">' + loc.lng.toFixed(4) + '</td>' +
+      '<td class="lt-coord">' + loc.radius + ' km</td>' +
+      '<td><button class="lt-edit" onclick="openLocForm(' + wsIdx + ')">Edit</button></td>' +
+    '</tr>';
+  }).join('');
+
+  updatePendingUI();
+}
+
+function updatePendingUI() {
+  var ws   = locWorkingSet();
+  var orig = locationsData || [];
+  // Count: adds + edits
+  var changed = 0;
+  if (pendingLocs) {
+    var origNames = new Set(orig.map(function(l){ return l.name; }));
+    var pendNames = new Set(pendingLocs.map(function(l){ return l.name; }));
+    // New additions
+    pendingLocs.forEach(function(l){ if (!origNames.has(l.name)) changed++; });
+    // Edits: same name but different fields
+    pendingLocs.forEach(function(l) {
+      var o = orig.find(function(x){ return x.name === l.name; });
+      if (o && (o.description !== l.description || o.lat !== l.lat || o.lng !== l.lng || o.radius !== l.radius || o.difficulty !== l.difficulty)) changed++;
+    });
+    // Deletions would go here if we add delete support later
+  }
+  var btn = document.getElementById('commit-btn');
+  btn.hidden = !pendingLocs || changed === 0;
+  document.getElementById('pending-count').textContent = changed;
+  document.getElementById('pending-s').textContent = changed === 1 ? '' : 's';
+}
+
+function openLocForm(wsIndex) {
+  locEditingIndex = wsIndex;
+  var isAdd = wsIndex === null;
+  document.getElementById('loc-form-title').textContent = isAdd ? 'Add Location' : 'Edit Location';
+
+  if (isAdd) {
+    document.getElementById('lf-name').value   = '';
+    document.getElementById('lf-desc').value   = '';
+    document.getElementById('lf-lat').value    = '';
+    document.getElementById('lf-lng').value    = '';
+    document.getElementById('lf-radius').value = '30';
+    document.getElementById('lf-diff').value   = '3';
+  } else {
+    var loc = locWorkingSet()[wsIndex];
+    document.getElementById('lf-name').value   = loc.name;
+    document.getElementById('lf-desc').value   = loc.description;
+    document.getElementById('lf-lat').value    = loc.lat;
+    document.getElementById('lf-lng').value    = loc.lng;
+    document.getElementById('lf-radius').value = loc.radius;
+    document.getElementById('lf-diff').value   = String(loc.difficulty);
+  }
+  document.getElementById('loc-form-error').hidden = true;
+  document.getElementById('geocode-status').textContent = '';
+  document.getElementById('loc-form-card').hidden = false;
+  document.getElementById('lf-name').focus();
+}
+
+function closeLocForm() {
+  document.getElementById('loc-form-card').hidden = true;
+  document.getElementById('loc-form-error').hidden = true;
+  locEditingIndex = null;
+}
+
+async function geocodeName() {
+  var q = document.getElementById('lf-name').value.trim();
+  if (!q) { document.getElementById('geocode-status').textContent = 'Enter a name first'; return; }
+  var statusEl = document.getElementById('geocode-status');
+  statusEl.textContent = 'Geocoding…';
+  try {
+    var r = await fetch('/api/admin?action=geocode', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: q })
+    });
+    var d = await r.json();
+    if (d.lat !== undefined) {
+      document.getElementById('lf-lat').value = d.lat.toFixed(4);
+      document.getElementById('lf-lng').value = d.lng.toFixed(4);
+      statusEl.textContent = '✓ ' + d.placeName;
+      statusEl.style.color = 'var(--green)';
+    } else {
+      statusEl.textContent = '✗ ' + (d.error || 'Not found');
+      statusEl.style.color = 'var(--red)';
+    }
+  } catch(err) {
+    statusEl.textContent = '✗ ' + err.message;
+    statusEl.style.color = 'var(--red)';
+  }
+}
+
+function showLocFormError(msg) {
+  var el = document.getElementById('loc-form-error');
+  el.textContent = msg;
+  el.hidden = false;
+}
+
+function saveLocForm() {
+  var name   = document.getElementById('lf-name').value.trim();
+  var desc   = document.getElementById('lf-desc').value.trim();
+  var lat    = parseFloat(document.getElementById('lf-lat').value);
+  var lng    = parseFloat(document.getElementById('lf-lng').value);
+  var radius = parseInt(document.getElementById('lf-radius').value, 10);
+  var diff   = parseInt(document.getElementById('lf-diff').value, 10);
+
+  if (!name)              { showLocFormError('Name is required.'); return; }
+  if (!desc)              { showLocFormError('Description is required.'); return; }
+  if (isNaN(lat) || isNaN(lng)) { showLocFormError('Latitude and Longitude are required.'); return; }
+  if (lat < -90 || lat > 90)    { showLocFormError('Latitude must be between -90 and 90.'); return; }
+  if (lng < -180 || lng > 180)  { showLocFormError('Longitude must be between -180 and 180.'); return; }
+  if (isNaN(radius) || radius < 1 || radius > 500) { showLocFormError('Radius must be 1–500 km.'); return; }
+  if (diff < 1 || diff > 5)     { showLocFormError('Difficulty must be 1–5.'); return; }
+
+  // Duplicate name check (case-insensitive, excluding the entry being edited)
+  var ws = locWorkingSet();
+  var nameLower = name.toLowerCase();
+  var dup = ws.findIndex(function(l, i) {
+    return l.name.toLowerCase() === nameLower && i !== locEditingIndex;
+  });
+  if (dup !== -1) { showLocFormError('A location named "' + ws[dup].name + '" already exists.'); return; }
+
+  // Apply change to working copy
+  if (!pendingLocs) pendingLocs = ws.map(function(l){ return Object.assign({}, l); });
+
+  var entry = { name: name, description: desc, lat: lat, lng: lng, radius: radius, difficulty: diff };
+  if (locEditingIndex === null) {
+    pendingLocs.push(entry);
+  } else {
+    pendingLocs[locEditingIndex] = entry;
+  }
+
+  closeLocForm();
+  renderLocTable();
+}
+
+async function commitLocations() {
+  if (!pendingLocs) return;
+  var btn = document.getElementById('commit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Committing…';
+  try {
+    var r = await fetch('/api/admin?action=save-locations', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locations: pendingLocs })
+    });
+    var d = await r.json();
+    if (d.commitSha) {
+      locationsData = pendingLocs.map(function(l){ return Object.assign({}, l); });
+      pendingLocs = null;
+      renderLocTable();
+      alert('Committed! SHA: ' + d.commitSha.slice(0, 7) + '\n\nVercel will redeploy automatically in ~30 seconds.');
+    } else {
+      alert('Commit failed: ' + (d.error || 'unknown error'));
+    }
+  } catch(err) {
+    alert('Commit error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    updatePendingUI();
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 </script>
 </body>
