@@ -53,7 +53,7 @@
     "description": "Fairy-tale Bavarian castle that inspired Disney's Sleeping Beauty",
     "lat": 47.5576,
     "lng": 10.7498,
-    "radius": 30
+    "radius": 2
   },
   {
     "name": "Santorini Caldera, Greece",
@@ -144,7 +144,7 @@
     "description": "World's smallest country, home to St. Peter's Basilica and the Sistine Chapel",
     "lat": 41.9029,
     "lng": 12.4534,
-    "radius": 2
+    "radius": 3
   },
   {
     "name": "Charles Bridge, Prague",
@@ -214,7 +214,7 @@
     "description": "Japan's highest peak, a near-perfect volcanic cone visible from Tokyo",
     "lat": 35.3606,
     "lng": 138.7274,
-    "radius": 2
+    "radius": 25
   },
   {
     "name": "Taj Mahal, India",
@@ -361,7 +361,7 @@
     "description": "Africa's highest peak, a freestanding volcanic mountain capped in snow",
     "lat": -3.0674,
     "lng": 37.3556,
-    "radius": 2
+    "radius": 25
   },
   {
     "name": "Sossusvlei, Namibia",
