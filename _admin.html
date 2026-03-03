@@ -117,7 +117,8 @@
       white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .loc-meta{flex-shrink:0;text-align:right}
     .loc-coords{font-family:monospace;font-size:11px;color:var(--muted)}
-    .loc-radius{font-size:11px;color:rgba(71,200,255,.6);margin-top:2px}
+    .loc-radius{font-size:11px;color:var(--muted);margin-top:2px}
+    .loc-radius-custom{color:rgba(71,200,255,.8)!important;font-weight:600}
 
     .prox-warn-row{padding:6px 18px 10px}
     .prox-warn{display:inline-flex;align-items:center;gap:6px;
@@ -410,7 +411,7 @@ function renderUpcoming(days, container) {
         '</div>' +
         '<div class="loc-meta">' +
           '<div class="loc-coords">' + loc.lat.toFixed(3) + ', ' + loc.lng.toFixed(3) + '</div>' +
-          (loc.perfectRadius !== 30 ? '<div class="loc-radius">&#9679; ' + loc.perfectRadius + ' km radius</div>' : '') +
+          '<div class="loc-radius' + (loc.perfectRadius !== 30 ? ' loc-radius-custom' : '') + '">&#9679; ' + loc.perfectRadius + ' km radius</div>' +
         '</div>' +
       '</div>';
     }).join('');
