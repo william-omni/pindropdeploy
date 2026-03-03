@@ -14,7 +14,7 @@ const LOCATIONS = [
 
   ["Stonehenge, England",          "Prehistoric ring of standing stones on Salisbury Plain",                         51.1789,  -1.8262, 2],
 
-  ["Big Ben, London",              "Iconic clock tower at the north end of the Houses of Parliament",                51.5007,  -0.1246, 2],
+  ["Big Ben, UK",                  "Iconic clock tower at the north end of the Houses of Parliament",                51.5007,  -0.1246, 2],
 
   ["Hagia Sophia, Istanbul",       "6th-century cathedral turned mosque, a symbol of two great empires",             41.0086,  28.9802, 2],
 
@@ -49,7 +49,7 @@ const LOCATIONS = [
   // ── ASIA ────────────────────────────────────────────────
   ["Mount Fuji, Japan",            "Japan's highest peak, a near-perfect volcanic cone visible from Tokyo",          35.3606, 138.7274, 2],
 
-  ["Taj Mahal, Agra",              "Ivory-white marble mausoleum on the south bank of the Yamuna River",            27.1751,  78.0421, 2],
+  ["Taj Mahal, India",             "Ivory-white marble mausoleum on the south bank of the Yamuna River",            27.1751,  78.0421, 2],
 
   ["Angkor Wat, Cambodia",         "World's largest religious monument, ancient Khmer capital",                      13.4125, 103.8670, 2],
 
@@ -102,7 +102,7 @@ const LOCATIONS = [
 
   ["Chichén Itzá, Mexico",         "Mayan pyramid dedicated to Kukulcan, built circa 600 AD",                       20.6843, -88.5678, 2],
 
-  ["Statue of Liberty, New York",  "French gift to the US standing in New York Harbor since 1886",                  40.6892, -74.0445, 2],
+  ["Statue of Liberty, USA",       "French gift to the US standing in New York Harbor since 1886",                  40.6892, -74.0445, 2],
 
   ["Golden Gate Bridge",           "Iconic suspension bridge spanning the entrance to San Francisco Bay",            37.8199,-122.4783, 2],
 
@@ -473,9 +473,9 @@ const LOCATIONS = [
 
 
   // ── SPECIAL / ANNIVERSARY LOCATIONS ─────────────────────────────────────
-  ["Detroit, Michigan",            "Motor City on the Detroit River — birthplace of Motown, the assembly line and American rock", 42.3314, -83.0458, 1],
+  ["Detroit, USA",                 "Motor City on the Detroit River — birthplace of Motown, the assembly line and American rock", 42.3314, -83.0458, 1],
 
-  ["Mount Mitchell, North Carolina","Highest peak east of the Mississippi at 6,684 ft, deep in the Black Mountains of Appalachia", 35.7648, -82.2650, 5],
+  ["Mount Mitchell, USA",          "Highest peak east of the Mississippi at 6,684 ft, deep in the Black Mountains of Appalachia", 35.7648, -82.2650, 5],
 
   ["The Matterhorn, Switzerland",  "The iconic pyramid-shaped Alpine peak straddling the Swiss-Italian border above Zermatt",    45.9766,   7.6586, 5],
 
@@ -708,15 +708,15 @@ const DIFFICULTY_MAP = {
 
   // ── D2: World-famous landmarks & iconic destinations ──────────────────────
   'Eiffel Tower, Paris':2,'Colosseum, Rome':2,'Sagrada Família, Barcelona':2,
-  'Acropolis, Athens':2,'Stonehenge, England':2,'Big Ben, London':2,
+  'Acropolis, Athens':2,'Stonehenge, England':2,'Big Ben, UK':2,
   'Hagia Sophia, Istanbul':2,'Mont Saint-Michel, France':2,
   'Dubrovnik Old City, Croatia':2,'Vatican City':2,
-  'Mount Fuji, Japan':2,'Taj Mahal, Agra':2,'Angkor Wat, Cambodia':2,
+  'Mount Fuji, Japan':2,'Taj Mahal, India':2,'Angkor Wat, Cambodia':2,
   'Great Wall of China':2,'Petra, Jordan':2,'Burj Khalifa, Dubai':2,
   'Great Pyramid of Giza':2,'Victoria Falls, Zambia':2,
   'Mount Kilimanjaro, Tanzania':2,'Machu Picchu, Peru':2,
   'Grand Canyon, USA':2,'Iguazu Falls, Argentina':2,
-  'Chichén Itzá, Mexico':2,'Statue of Liberty, New York':2,
+  'Chichén Itzá, Mexico':2,'Statue of Liberty, USA':2,
   'Golden Gate Bridge':2,'Christ the Redeemer, Rio':2,
   'Easter Island, Chile':2,'Niagara Falls, Canada':2,
   'Sydney Opera House':2,'Uluru, Australia':2,
@@ -776,8 +776,8 @@ const DIFFICULTY_MAP = {
   'Deception Island, Antarctica':5,
 
   // ── Special / anniversary locations ───────────────────────────────────────
-  'Detroit, Michigan':1,
-  'Mount Mitchell, North Carolina':3,
+  'Detroit, USA':1,
+  'Mount Mitchell, USA':3,
   'The Matterhorn, Switzerland':2,
   'Salisbury Cathedral':3,
 
@@ -797,8 +797,8 @@ function getCountry(locName) {
   const OVERRIDES = {
     'Hong Kong': 'China',
     'Singapore': 'Singapore',
-    'Detroit, Michigan': 'USA',
-    'Mount Mitchell, North Carolina': 'USA',
+    'Detroit, USA': 'USA',
+    'Mount Mitchell, USA': 'USA',
     'Edinburgh, Scotland': 'UK',
   };
   if (OVERRIDES[locName]) return OVERRIDES[locName];
@@ -881,8 +881,8 @@ function getTodayLocations(dateStr) {
       'Svalbard Global Seed Vault',
     ],
     '2026-03-04': [                          // Launch day — parents' anniversary
-      'Detroit, Michigan',
-      'Mount Mitchell, North Carolina',
+      'Detroit, USA',
+      'Mount Mitchell, USA',
       'Mont Saint-Michel, France',
       'The Matterhorn, Switzerland',
       'Salisbury Cathedral',

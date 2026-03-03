@@ -1344,7 +1344,7 @@ function getDeviceType() {
 // Day counter for share text (non-sensitive)
 function getDayNumber() {
   const epoch = new Date('2026-03-04T00:00:00Z'); // Official launch day (Day 1)
-  return Math.max(1, Math.floor((new Date() - epoch) / 86400000) + 1);
+  return Math.floor((new Date() - epoch) / 86400000) + 1;
 }
 
 // ─────────────────────────────────────────────────────────
@@ -1360,6 +1360,9 @@ let   previewDate    = _urlParams.get('date') || (() => {
 })();
 
 if (PREVIEW_MODE) {
+  if (!localStorage.getItem('pd-admin-token')) {
+    window.location.replace('/admin');
+  }
   document.body.classList.add('preview-mode');
   const banner = document.getElementById('preview-banner');
   const dateInput = document.getElementById('preview-date-input');

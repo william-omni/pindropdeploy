@@ -179,7 +179,7 @@
     <div class="nav-brand">&#128205; PinDrop Admin</div>
     <button class="nav-tab"        data-tab="dashboard"   onclick="switchTab('dashboard',this)">Dashboard</button>
     <button class="nav-tab active" data-tab="upcoming"    onclick="switchTab('upcoming',this)">Upcoming</button>
-    <button class="nav-tab"        data-tab="analytics"   onclick="switchTab('analytics',this)">Analytics</button>
+    <button class="nav-tab"        data-tab="preview"     onclick="switchTab('preview',this)">Preview</button>
     <button id="btn-logout" onclick="logout()">Logout</button>
   </nav>
 
@@ -215,13 +215,16 @@
         <div id="upcoming-grid"><div class="loading"><span class="spinner"></span>Loading&hellip;</div></div>
       </div>
 
-      <!-- ANALYTICS -->
-      <div id="tab-analytics" class="tab-pane" hidden>
+      <!-- PREVIEW -->
+      <div id="tab-preview" class="tab-pane" hidden>
         <div class="tab-header">
-          <h2>Location Analytics</h2>
-          <button class="btn btn-ghost" onclick="loadAnalytics(true)">&#8635; Refresh</button>
+          <h2>Preview Game</h2>
+          <div class="tab-controls">
+            <label>Date <input type="date" id="preview-date-input"></label>
+            <button class="btn btn-primary" onclick="loadPreview()">Load</button>
+          </div>
         </div>
-        <div id="analytics-content"><div class="loading"><span class="spinner"></span>Loading&hellip;</div></div>
+        <iframe id="preview-iframe" src="" style="width:100%;flex:1;border:none;min-height:600px"></iframe>
       </div>
 
     </div>
@@ -231,8 +234,6 @@
 <script>
 /* ── State ── */
 var TOKEN        = localStorage.getItem('pd-admin-token') || '';
-var analyticsData = null;
-var sortKey = 'plays', sortAsc = false;
 var embedLoaded  = false;  // true once iframe src has been set
 
 /* ── Bootstrap ── */
@@ -288,7 +289,6 @@ async function doLogin(e) {
 function logout() {
   TOKEN = '';
   embedLoaded = false;
-  analyticsData = null;
   localStorage.removeItem('pd-admin-token');
   // Reset iframe
   document.getElementById('omni-iframe').src = '';
@@ -306,14 +306,17 @@ function showApp() {
   var upcomingBtn = document.querySelector('.nav-tab[data-tab="upcoming"]');
   _activateTab('upcoming', upcomingBtn);
   loadUpcoming();
+  // Initialize preview date input to today
+  var today = new Date();
+  document.getElementById('preview-date-input').value =
+    today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
 }
 
 /* ── Tabs ── */
 function switchTab(name, btn) {
   _activateTab(name, btn);
-  if (name === 'analytics' && !analyticsData) loadAnalytics(false);
-  if (name === 'upcoming')   loadUpcoming();
-  if (name === 'dashboard')  loadEmbed();
+  if (name === 'upcoming')  loadUpcoming();
+  if (name === 'dashboard') loadEmbed();
 }
 
 function _activateTab(name, btn) {
@@ -407,7 +410,7 @@ function renderUpcoming(days, container) {
         '</div>' +
         '<div class="loc-meta">' +
           '<div class="loc-coords">' + loc.lat.toFixed(3) + ', ' + loc.lng.toFixed(3) + '</div>' +
-          (loc.perfectRadius !== 5 ? '<div class="loc-radius">&#9679; ' + loc.perfectRadius + ' km radius</div>' : '') +
+          (loc.perfectRadius !== 30 ? '<div class="loc-radius">&#9679; ' + loc.perfectRadius + ' km radius</div>' : '') +
         '</div>' +
       '</div>';
     }).join('');
@@ -429,96 +432,11 @@ function renderUpcoming(days, container) {
   container.innerHTML = '<div class="days-grid">' + html + '</div>';
 }
 
-/* ── Analytics ── */
-async function loadAnalytics(forceRefresh) {
-  if (analyticsData && !forceRefresh) { renderAnalytics(analyticsData); return; }
-  var content = document.getElementById('analytics-content');
-  content.innerHTML = '<div class="loading"><span class="spinner"></span>Loading&hellip;</div>';
-  try {
-    var res = await fetch('/api/admin?action=analytics', {
-      headers: {'Authorization': 'Bearer ' + TOKEN}
-    });
-    if (res.status === 401) { logout(); return; }
-    var json = await res.json();
-    analyticsData = json;
-    renderAnalytics(json);
-  } catch(err) {
-    content.innerHTML = '<div class="loading">Error loading analytics</div>';
-  }
-}
-
-function renderAnalytics(json) {
-  var content = document.getElementById('analytics-content');
-  if (!json.configured) {
-    content.innerHTML =
-      '<div class="no-data">' +
-        '<h3>Analytics not yet configured</h3>' +
-        '<p>Connect a Vercel KV (Redis) store to start tracking play data:</p>' +
-        '<ol>' +
-          '<li>In your <strong>Vercel</strong> project, go to the <strong>Storage</strong> tab</li>' +
-          '<li>Click <strong>Create Database</strong> and choose <strong>KV (Redis)</strong></li>' +
-          '<li>Connect it to this project &mdash; env vars are added automatically</li>' +
-          '<li>Redeploy the project</li>' +
-          '<li>Play stats will appear here as users complete rounds</li>' +
-        '</ol>' +
-      '</div>';
-    return;
-  }
-  var data = json.data;
-  if (!data || data.length === 0) {
-    content.innerHTML = '<div class="no-data"><h3>No plays recorded yet</h3><p>Analytics will appear once players complete rounds.</p></div>';
-    return;
-  }
-  var totalPlays    = data.reduce(function(s,r){ return s + r.plays; }, 0);
-  var totalWgtScore = data.reduce(function(s,r){ return s + r.avgScore * r.plays; }, 0);
-  var overallAvg    = totalPlays ? Math.round(totalWgtScore / totalPlays) : 0;
-
-  var sorted = data.slice().sort(function(a,b){
-    return sortAsc ? a[sortKey] - b[sortKey] : b[sortKey] - a[sortKey];
-  });
-
-  function sortHeader(label, key) {
-    var active = sortKey === key ? ' active' : '';
-    var arrow  = sortKey === key ? (sortAsc ? ' &#9650;' : ' &#9660;') : '';
-    return '<button class="sort-btn' + active + '" onclick="setSort(\'' + key + '\')">' + label + arrow + '</button>';
-  }
-
-  var rows = sorted.map(function(r) {
-    var pct      = Math.round((r.avgScore / 200) * 100);
-    var barColor = pct >= 85 ? 'var(--d1)' : pct >= 65 ? 'var(--accent)' : pct >= 40 ? 'var(--d3)' : 'var(--d5)';
-    var distStr  = r.avgDist >= 1000 ? (r.avgDist/1000).toFixed(1) + 'k km' : r.avgDist + ' km';
-    return '<tr>' +
-      '<td>' + r.name + '</td>' +
-      '<td>' + r.plays.toLocaleString() + '</td>' +
-      '<td><div class="score-wrap">' +
-        '<span>' + r.avgScore + '</span>' +
-        '<div class="score-bar-bg"><div class="score-bar-fg" style="width:' + pct + '%;background:' + barColor + '"></div></div>' +
-      '</div></td>' +
-      '<td>' + distStr + '</td>' +
-    '</tr>';
-  }).join('');
-
-  content.innerHTML =
-    '<div class="stat-cards">' +
-      '<div class="stat-card"><div class="stat-label">Total Plays</div><div class="stat-val">' + totalPlays.toLocaleString() + '</div></div>' +
-      '<div class="stat-card"><div class="stat-label">Locations Played</div><div class="stat-val">' + data.length + '</div></div>' +
-      '<div class="stat-card"><div class="stat-label">Overall Avg Score</div><div class="stat-val">' + overallAvg + '</div></div>' +
-    '</div>' +
-    '<div class="tbl-wrap"><table>' +
-      '<thead><tr>' +
-        '<th>Location</th>' +
-        '<th>' + sortHeader('Plays','plays') + '</th>' +
-        '<th>' + sortHeader('Avg Score / 200','avgScore') + '</th>' +
-        '<th>' + sortHeader('Avg Distance','avgDist') + '</th>' +
-      '</tr></thead>' +
-      '<tbody>' + rows + '</tbody>' +
-    '</table></div>';
-}
-
-function setSort(key) {
-  if (sortKey === key) sortAsc = !sortAsc;
-  else { sortKey = key; sortAsc = false; }
-  if (analyticsData) renderAnalytics(analyticsData);
+/* ── Preview ── */
+function loadPreview() {
+  var date = document.getElementById('preview-date-input').value;
+  var src  = date ? '/?preview&date=' + date : '/?preview';
+  document.getElementById('preview-iframe').src = src;
 }
 </script>
 </body>

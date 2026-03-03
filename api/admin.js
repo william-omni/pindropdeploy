@@ -85,7 +85,7 @@ function getUpcomingDays(fromDateStr, numDays) {
         description:   loc[1],
         lat:           loc[2],
         lng:           loc[3],
-        perfectRadius: loc[4] || 5,
+        perfectRadius: loc[4] || 30,
         difficulty:    getLocDifficulty(loc),
       })),
     });

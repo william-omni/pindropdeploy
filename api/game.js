@@ -52,7 +52,7 @@ module.exports = async function handler(req, res) {
       if (!isNaN(r) && r >= 0 && r < locs.length
           && typeof guessLat === 'number' && typeof guessLng === 'number') {
         const loc = locs[r];
-        const [name, description, targetLat, targetLng, perfectRadius = 5] = loc;
+        const [name, description, targetLat, targetLng, perfectRadius = 30] = loc;
         const distKm = haversineKm(guessLat, guessLng, targetLat, targetLng);
         const pts    = scoreFromDistance(distKm, perfectRadius);
 
