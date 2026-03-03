@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Daily geography challenge",
   "dependencies": {
-    "@duckdb/node-api": "^1.4.4-r.2"
+    "@duckdb/node-api": "^1.4.4-r.2",
+    "@omni-co/embed": "^0.17.0"
   }
 }
