@@ -14,9 +14,18 @@ const {
 } = require('./_game-data');
 
 // ── Auth helpers ─────────────────────────────────────────────────────────────
+function normalizeEnvPassword() {
+  // Strip surrounding quotes — common when pasting values into Vercel's UI
+  let pw = (process.env.ADMIN_PASSWORD || '').trim();
+  if (pw.length >= 2 &&
+      ((pw[0] === '"'  && pw[pw.length - 1] === '"')  ||
+       (pw[0] === '\'' && pw[pw.length - 1] === '\''))) {
+    pw = pw.slice(1, -1);
+  }
+  return pw;
+}
 function getExpectedToken() {
-  const pw = (process.env.ADMIN_PASSWORD || '').trim();
-  return crypto.createHash('sha256').update(pw + ':pindrop-admin').digest('hex');
+  return crypto.createHash('sha256').update(normalizeEnvPassword() + ':pindrop-admin').digest('hex');
 }
 function isAuthorized(req) {
   if (!process.env.ADMIN_PASSWORD) return false;
@@ -137,7 +146,7 @@ module.exports = async function handler(req, res) {
 
   // ── POST /api/admin?action=auth ──────────────────────────────────────────
   if (action === 'auth' && req.method === 'POST') {
-    const adminPw = (process.env.ADMIN_PASSWORD || '').trim();
+    const adminPw = normalizeEnvPassword();
     if (!adminPw) return res.status(503).json({ error: 'ADMIN_PASSWORD env var not set on server' });
     const body = await parseJsonBody(req);
     const pw = (body && body.password) || '';
