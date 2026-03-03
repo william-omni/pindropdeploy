@@ -272,6 +272,11 @@
       color: var(--text);
     }
     .hud-round span { color: var(--accent); }
+    .hud-day {
+      font-size: 9px; letter-spacing: 0.15em;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: 2px;
+    }
     .hud-score-wrap { flex: 1; }
     .hud-score-label {
       font-size: 9px; letter-spacing: 0.15em;
@@ -1109,6 +1114,7 @@
   <!-- HUD -->
   <div class="hud">
     <div class="hud-card">
+      <div class="hud-day">Day #<span id="hud-day-num">1</span></div>
       <div class="hud-round">Round <span id="hud-round-num">1</span>/5</div>
     </div>
     <div class="hud-card hud-score-wrap">
@@ -1253,7 +1259,7 @@
   <div class="review-panel">
     <div class="review-header">
       <div class="review-title-block">
-        <div class="review-eyebrow">Today's Results</div>
+        <div class="review-eyebrow" id="review-eyebrow">Today's Results</div>
         <div class="review-title" id="review-title">—</div>
       </div>
       <div class="review-score-badge">
@@ -2334,6 +2340,7 @@ function showReview(returnScreen = 'home') {
 
   document.getElementById('review-score-num').textContent = score;
   document.getElementById('review-title').textContent = formatDate(new Date());
+  document.getElementById('review-eyebrow').textContent = 'Day #' + getDayNumber();
 
   // Build round chips
   const chipsEl = document.getElementById('review-rounds');
@@ -2473,6 +2480,7 @@ document.getElementById('btn-view-map-from-summary').addEventListener('click', (
 mapboxgl.accessToken = MAPBOX_TOKEN;
 initHome();
 showScreen('home');
+document.getElementById('hud-day-num').textContent = getDayNumber();
 </script>
 </body>
 </html>
