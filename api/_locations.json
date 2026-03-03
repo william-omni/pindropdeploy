@@ -1355,7 +1355,7 @@
     "description": "India's city of dreams, home to Bollywood, the Gateway of India and teeming street life",
     "lat": 19.076,
     "lng": 72.8777,
-    "radius": 1
+    "radius": 30
   },
   {
     "name": "Kolkata, India",
@@ -1523,7 +1523,7 @@
     "description": "Egypt's Mediterranean jewel, founded by Alexander the Great and home to the ancient library",
     "lat": 31.2001,
     "lng": 29.9187,
-    "radius": 1
+    "radius": 30
   },
   {
     "name": "Johannesburg, South Africa",
@@ -1572,7 +1572,7 @@
     "description": "Gaudí's city on the Mediterranean, a carnival of modernist architecture and beach culture",
     "lat": 41.3851,
     "lng": 2.1734,
-    "radius": 1
+    "radius": 30
   },
   {
     "name": "Vienna, Austria",
@@ -1677,7 +1677,7 @@
     "description": "Canada's largest city, one of the world's most multicultural urban centres on Lake Ontario",
     "lat": 43.6532,
     "lng": -79.3832,
-    "radius": 1
+    "radius": 30
   },
   {
     "name": "Guadalajara, Mexico",
@@ -1845,7 +1845,7 @@
     "description": "Motor City on the Detroit River — birthplace of Motown, the assembly line and American rock",
     "lat": 42.3314,
     "lng": -83.0458,
-    "radius": 1
+    "radius": 30
   },
   {
     "name": "Mount Mitchell, NC, USA",
