@@ -59,7 +59,7 @@ function getCountry(locName) {
     'Hong Kong': 'China',
     'Singapore': 'Singapore',
     'Detroit, USA': 'USA',
-    'Mount Mitchell, USA': 'USA',
+    'Mount Mitchell, NC, USA': 'USA',
     'Edinburgh, Scotland': 'UK',
   };
   if (OVERRIDES[locName]) return OVERRIDES[locName];
@@ -143,7 +143,7 @@ function getTodayLocations(dateStr) {
     ],
     '2026-03-04': [                          // Launch day — parents' anniversary
       'Detroit, USA',
-      'Mount Mitchell, USA',
+      'Mount Mitchell, NC, USA',
       'Mont Saint-Michel, France',
       'The Matterhorn, Switzerland',
       'Salisbury Cathedral',
