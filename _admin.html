@@ -366,7 +366,7 @@ function renderAnalytics(json) {
   function sortHeader(label, key) {
     var active = sortKey === key ? ' active' : '';
     var arrow  = sortKey === key ? (sortAsc ? ' &#9650;' : ' &#9660;') : '';
-    return '<button class="sort-btn' + active + '" onclick="setSort('' + key + '')">' + label + arrow + '</button>';
+    return '<button class="sort-btn' + active + '" onclick="setSort(\'' + key + '\')">' + label + arrow + '</button>';
   }
 
   var rows = sorted.map(function(r) {
