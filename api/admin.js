@@ -2,7 +2,7 @@
 const crypto  = require('crypto');
 const fs      = require('fs');
 const path    = require('path');
-const { embedSsoDashboard } = require('@omni-co/embed');
+const { embedSsoDashboard, embedSsoContentDiscovery } = require('@omni-co/embed');
 const {
   LOCATIONS,
   getDayNumber,
@@ -189,10 +189,32 @@ module.exports = async function handler(req, res) {
         organizationName: 'williamwatkins',
         secret,
         prefersDark:      'true',
+        accessBoost:      true,
       });
       return res.status(200).json({ url });
     } catch (e) {
       return res.status(500).json({ error: 'Failed to generate embed URL: ' + e.message });
+    }
+  }
+
+  // ── GET Omni AI chat embed URL ───────────────────────────────────────────
+  if (action === 'embed-chat-url') {
+    const secret = process.env.OMNI_EMBED_SECRET;
+    if (!secret) return res.status(503).json({ error: 'OMNI_EMBED_SECRET env var not configured' });
+    try {
+      const url = await embedSsoContentDiscovery({
+        path:             '/chat',
+        externalId:       'pd-admin-user',
+        name:             'PinDrop Admin',
+        organizationName: 'williamwatkins',
+        secret,
+        prefersDark:      'true',
+        accessBoost:      true,
+        connectionRoles:  { 'aeb200a8-bf3b-4590-82aa-02e4fde504a3': 'QUERIER' },
+      });
+      return res.status(200).json({ url });
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to generate chat URL: ' + e.message });
     }
   }
 
