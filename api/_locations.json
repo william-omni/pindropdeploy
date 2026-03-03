@@ -2525,5 +2525,12 @@
     "lat": -1.5044,
     "lng": 35.1444,
     "radius": 10
+  },
+  {
+    "name": "Zion National Park, USA",
+    "description": "A dramatic red-rock canyon carved by the Virgin River, known for its towering sandstone cliffs, narrow slot canyons, and breathtaking desert vistas in southwestern Utah.",
+    "lat": 37.2061,
+    "lng": -112.9834,
+    "radius": 50
   }
 ]
