@@ -1782,11 +1782,13 @@ async function lockPin() {
     if (!res.ok) throw new Error('Network error');
     ({ name, description, targetLat, targetLng, distKm, pts } = await res.json());
   } catch (e) {
-    state.lockingPin = false;
+    state.lockingPin = false;  // release guard only on error so user can retry
     showToast('Failed to submit guess — check your connection', 3000);
     return;
   }
-  state.lockingPin = false;
+  // Do NOT reset lockingPin here — keep it true until the next round loads.
+  // Resetting early (before the button is hidden) allows a fast second tap to
+  // slip through the guard and submit a duplicate round to the server.
   state.totalScore += pts;
 
   state.roundResults.push({ name, description, pts, distKm, userLat: lat, userLng: lng, targetLat, targetLng });
@@ -2062,6 +2064,7 @@ function nextRound() {
 })();
 
 async function loadRound() {
+  state.lockingPin = false;    // safe to lock in again for this fresh round
   roundStartTime = Date.now(); // stamp when player sees the clue
   // Fetch today's clue for this round from the server (no coordinates exposed)
   try {

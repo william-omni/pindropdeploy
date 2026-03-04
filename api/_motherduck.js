@@ -127,6 +127,24 @@ async function trackPlay({
     const conn = await inst.connect();
     try {
       await ensureTables(conn);
+
+      // Server-side idempotency guard — reject duplicate (player_id, game_date, round)
+      // submissions that can occur from rapid double-taps on the "Lock it in" button.
+      // Anonymous plays (null player_id) cannot be deduplicated so they pass through.
+      if (playerId) {
+        const dupCheck = await conn.runAndReadAll(
+          `SELECT EXISTS(
+             SELECT 1 FROM pindrop.plays
+             WHERE player_id = ? AND game_date = ? AND round = ?
+           ) AS already_recorded`,
+          [playerId, gameDate, round]
+        );
+        const rows = dupCheck.getRowObjects();
+        if (rows[0] && rows[0].already_recorded === true) {
+          return; // duplicate round — silently skip, client already has the result
+        }
+      }
+
       await conn.run(
         `INSERT INTO pindrop.plays
            (game_date, day_number, round, location,
