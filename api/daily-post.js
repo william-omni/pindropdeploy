@@ -195,17 +195,25 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: 'Missing X credentials', missing });
   }
 
-  // Mask helper: show first 4 + last 4 chars so we can confirm the right values loaded
   const mask = s => (!s ? '(empty)' : s.length <= 8 ? '***' : `${s.slice(0, 4)}…${s.slice(-4)}`);
-  console.log('[daily-post] Credentials loaded:', {
+  const maskedCreds = {
     X_API_KEY:             mask(process.env.X_API_KEY),
     X_API_SECRET:          mask(process.env.X_API_SECRET),
     X_ACCESS_TOKEN:        mask(process.env.X_ACCESS_TOKEN),
     X_ACCESS_TOKEN_SECRET: mask(process.env.X_ACCESS_TOKEN_SECRET),
-  });
+  };
+
+  // ?check=1 — test OAuth 1.0a against GET /2/users/me (read-only, no write perm needed)
+  const url = req.url || '';
+  if (url.includes('check=1')) {
+    const meUrl = 'https://api.twitter.com/2/users/me';
+    const auth  = buildOAuthHeader('GET', meUrl);
+    const r     = await fetch(meUrl, { headers: { Authorization: auth } });
+    const data  = await r.json();
+    return res.status(r.status).json({ check: true, xStatus: r.status, credentials: maskedCreds, data });
+  }
 
   // ?dry_run=1 — build tweet + OAuth header but skip the actual X API call
-  const url = req.url || '';
   const dryRun = url.includes('dry_run=1');
 
   try {
