@@ -1519,6 +1519,37 @@ function hasPlayedToday() {
   return store.lastPlayedDay === getTodayKey();
 }
 
+// ── Mid-game state persistence ──────────────────────────────────────────────
+// Saves the player's in-progress game so they can resume after leaving.
+// Only called after a round is confirmed (not on error or preview).
+function saveMidGameState() {
+  if (PREVIEW_MODE) return;
+  const store = loadStorage();
+  store.midGame = {
+    date:         getLocalDateStr(),     // today's date key (YYYY-MM-DD)
+    round:        state.round,           // 0-indexed round just completed
+    totalScore:   state.totalScore,
+    roundResults: state.roundResults,
+  };
+  saveStorage(store);
+}
+
+// Removes the mid-game save — called when the game finishes normally.
+function clearMidGameState() {
+  const store = loadStorage();
+  if (store.midGame) {
+    delete store.midGame;
+    saveStorage(store);
+  }
+}
+
+// Returns a saved mid-game for today (or null).
+function getMidGameState() {
+  if (PREVIEW_MODE) return null;
+  const store = loadStorage();
+  return (store.midGame && store.midGame.date === getLocalDateStr()) ? store.midGame : null;
+}
+
 // ─────────────────────────────────────────────────────────
 // SCREENS
 // ─────────────────────────────────────────────────────────
@@ -1541,12 +1572,15 @@ function initHome() {
   document.getElementById('home-played').textContent = store.played || 0;
 
   const played = hasPlayedToday();
+  const mid    = getMidGameState(); // in-progress game for today (null if none)
   const btn = document.getElementById('btn-play');
 
-  // Progress pips
+  // Progress pips — show completed rounds (full game or in-progress)
   const pips = document.querySelectorAll('#home-progress .progress-pip');
   if (played && store.lastRoundResults) {
     store.lastRoundResults.forEach((_, i) => pips[i]?.classList.add('done'));
+  } else if (mid) {
+    mid.roundResults.forEach((_, i) => pips[i]?.classList.add('done'));
   }
   // Remove any stale played-state UI from previous initHome calls
   const existingBanner = document.getElementById('played-banner');
@@ -1556,6 +1590,7 @@ function initHome() {
   const existingCountdown = document.getElementById('comeback-msg');
   if (existingCountdown) existingCountdown.remove();
   btn.style.display = 'block';
+  btn.textContent = mid ? `Resume — Round ${mid.round + 2} of 5` : 'Drop Today\'s Pins →';
 
   if (played) {
     // Hide the play button
@@ -1943,6 +1978,7 @@ function nextRound() {
     return;
   }
 
+  saveMidGameState(); // persist progress — lets player resume if they leave now
   state.round++;
   loadRound();
 }
@@ -2079,6 +2115,9 @@ async function loadRound() {
     return;
   }
 
+  // Keep HUD score in sync — important when resuming a mid-game session
+  document.getElementById('hud-score').textContent = state.totalScore;
+
   // Update dots
   const dotsEl = document.getElementById('hud-dots');
   dotsEl.innerHTML = '';
@@ -2100,6 +2139,7 @@ async function loadRound() {
 
 function finishGame() {
   updateStats(state.totalScore);
+  clearMidGameState(); // game is over — no in-progress save needed
 
   // Save for home screen progress
   const store = loadStorage();
@@ -2426,18 +2466,36 @@ function startGame() {
     showToast("You've already played today — come back tomorrow!", 3000);
     return;
   }
-  state = {
-    round: 0,
-    totalScore: 0,
-    roundResults: [],
-    pendingPin: null,
-    pinMarker: null,
-    answerMarker: null,
-    answerLine: null,
-    gameComplete: false,
-    lockingPin: false,
-    currentClue: null,
-  };
+
+  // Restore an in-progress game if one was saved for today
+  const mid = getMidGameState();
+  if (mid) {
+    state = {
+      round:        mid.round + 1,    // jump straight to the next unplayed round
+      totalScore:   mid.totalScore,
+      roundResults: mid.roundResults,
+      pendingPin:   null,
+      pinMarker:    null,
+      answerMarker: null,
+      answerLine:   null,
+      gameComplete: false,
+      lockingPin:   false,
+      currentClue:  null,
+    };
+  } else {
+    state = {
+      round:        0,
+      totalScore:   0,
+      roundResults: [],
+      pendingPin:   null,
+      pinMarker:    null,
+      answerMarker: null,
+      answerLine:   null,
+      gameComplete: false,
+      lockingPin:   false,
+      currentClue:  null,
+    };
+  }
   gameStartTime = Date.now();
 
   showScreen('game');
