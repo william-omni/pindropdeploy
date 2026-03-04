@@ -584,6 +584,7 @@
     #summary {
       background: var(--bg);
       overflow-y: auto;
+      justify-content: flex-start; /* content starts at top — never clips upward */
     }
     .summary-bg {
       position: absolute; inset: 0;
@@ -593,7 +594,7 @@
     .summary-inner {
       position: relative; z-index: 1;
       width: 100%; max-width: 400px;
-      padding: 32px 24px calc(var(--safe-bot) + 24px);
+      padding: max(48px, calc(var(--safe-top) + 24px)) 24px calc(var(--safe-bot) + 24px);
     }
 
     .summary-logo {
