@@ -57,6 +57,9 @@ async function postTweet(text) {
   const url  = 'https://api.twitter.com/2/tweets';
   const auth = buildOAuthHeader('POST', url);
 
+  // Log first 80 chars of the header so we can verify it looks well-formed
+  console.log('[daily-post] OAuth header (truncated):', auth.slice(0, 80) + '…');
+
   const res  = await fetch(url, {
     method:  'POST',
     headers: { Authorization: auth, 'Content-Type': 'application/json' },
@@ -184,6 +187,27 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ skipped: true, reason: 'Non-production environment' });
   }
 
+  // ── Credential pre-flight ──────────────────────────────────────────────────
+  const credKeys = ['X_API_KEY', 'X_API_SECRET', 'X_ACCESS_TOKEN', 'X_ACCESS_TOKEN_SECRET'];
+  const missing  = credKeys.filter(k => !process.env[k]);
+  if (missing.length) {
+    console.error('[daily-post] Missing env vars:', missing);
+    return res.status(500).json({ error: 'Missing X credentials', missing });
+  }
+
+  // Mask helper: show first 4 + last 4 chars so we can confirm the right values loaded
+  const mask = s => (!s ? '(empty)' : s.length <= 8 ? '***' : `${s.slice(0, 4)}…${s.slice(-4)}`);
+  console.log('[daily-post] Credentials loaded:', {
+    X_API_KEY:             mask(process.env.X_API_KEY),
+    X_API_SECRET:          mask(process.env.X_API_SECRET),
+    X_ACCESS_TOKEN:        mask(process.env.X_ACCESS_TOKEN),
+    X_ACCESS_TOKEN_SECRET: mask(process.env.X_ACCESS_TOKEN_SECRET),
+  });
+
+  // ?dry_run=1 — build tweet + OAuth header but skip the actual X API call
+  const url = req.url || '';
+  const dryRun = url.includes('dry_run=1');
+
   try {
     const stats = await getYesterdayStats();
     const tweet = formatTweet(stats);
@@ -194,6 +218,12 @@ module.exports = async function handler(req, res) {
     }
 
     console.log('[daily-post] Posting tweet:\n', tweet);
+
+    if (dryRun) {
+      console.log('[daily-post] dry_run=1 — skipping actual POST to X');
+      return res.status(200).json({ dry_run: true, tweet });
+    }
+
     const result = await postTweet(tweet);
     console.log('[daily-post] Posted:', result.data?.id);
 
