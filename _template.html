@@ -1829,6 +1829,11 @@ async function lockPin() {
   state.roundResults.push({ name, description, pts, distKm, userLat: lat, userLng: lng, targetLat, targetLng });
   state.roundBounds = { pinLng: lng, pinLat: lat, targetLng, targetLat };
 
+  // Save progress as soon as the score is locked in — the player can now see
+  // the answer and refresh without getting a second shot at the same round.
+  // Skip on the final round; finishGame() will clear the mid-game save instead.
+  if (state.round < ROUNDS_PER_GAME - 1) saveMidGameState();
+
   // Show answer marker
   const ansEl = document.createElement('div');
   ansEl.style.cssText = `
@@ -1978,7 +1983,6 @@ function nextRound() {
     return;
   }
 
-  saveMidGameState(); // persist progress — lets player resume if they leave now
   state.round++;
   loadRound();
 }
