@@ -223,16 +223,19 @@ function haversineKm(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-function scoreFromDistance(km, perfectRadius = 5) {
-  const d = Math.max(0, km - perfectRadius);
-  if (d <= 0)    return 200;
-  if (d <= 25)   return Math.round(200 - (d / 25) * 10);    // 200→190 perfect zone
-  if (d <= 2000) {
-    // Accelerating power curve: high reward for precision, 0 at 2000 km
-    const t = (2000 - d) / (2000 - 25);                     // 1.0 at d=25, 0 at d=2000
-    return Math.round(190 * Math.pow(t, 3.4));
+function scoreFromDistance(km, perfectRadius = 30) {
+  if (km <= perfectRadius) return 200;           // inside perfect radius → 200 pts
+  if (km <= 500) {
+    // Inner zone: perfectRadius → 500 km maps 200 → 100 pts
+    const t = (500 - km) / (500 - perfectRadius);
+    return Math.round(100 + 100 * t);
   }
-  return 0;
+  if (km <= 5000) {
+    // Outer zone: 500 → 5000 km maps 100 → 0 pts
+    const t = (5000 - km) / 4500;
+    return Math.round(100 * t);
+  }
+  return 0;                                      // beyond 5000 km → 0 pts
 }
 
 // ── Vercel Handler ────────────────────────────────────────────────────────

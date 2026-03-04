@@ -1399,32 +1399,32 @@ function formatDist(km) {
 }
 
 function scoreToEmoji(pts) {
-  if (pts >= 190) return '🎯'; // Exact
-  if (pts >= 150) return '🟢'; // Great
-  if (pts >= 100) return '🟡'; // Good
-  if (pts >= 50)  return '🟠'; // Okay
-  if (pts >= 20)  return '🔴'; // Bad
-  return '⚫';                  // Way Off
+  if (pts >= 200) return '🎯'; // Perfect — within radius
+  if (pts >= 150) return '🟢'; // Great   — inner zone upper half
+  if (pts >= 100) return '🟡'; // Good    — inner zone lower half / 500 km boundary
+  if (pts >= 50)  return '🟠'; // Okay    — outer zone upper half
+  if (pts >= 1)   return '🔴'; // Bad     — outer zone lower half
+  return '⚫';                  // Way Off — beyond 5000 km
 }
 
 function scoreToLabel(pts) {
-  if (pts >= 190) return 'Exact!';
+  if (pts >= 200) return 'Exact!';
   if (pts >= 150) return 'Great';
   if (pts >= 100) return 'Good';
   if (pts >= 50)  return 'Okay';
-  if (pts >= 20)  return 'Bad';
+  if (pts >= 1)   return 'Bad';
   return 'Way Off';
 }
 
 function scoreToColor(pts) {
   // Use darker, higher-contrast colours in light mode
   const light = document.documentElement.classList.contains('light-mode');
-  if (pts >= 190) return light ? '#0891b2' : '#47ffff';  // cyan   / teal
-  if (pts >= 150) return light ? '#059669' : '#47ff9e';  // green  / emerald
-  if (pts >= 100) return light ? '#ca8a04' : '#e8ff47';  // yellow / amber
-  if (pts >= 50)  return light ? '#ea580c' : '#ffaa47';  // orange
-  if (pts >= 20)  return light ? '#dc2626' : '#ff8c47';  // red-orange / red
-  return light ? '#b91c1c' : '#ff5c5c';                  // dark red
+  if (pts >= 200) return light ? '#0891b2' : '#47ffff';  // cyan   / teal  — perfect
+  if (pts >= 150) return light ? '#059669' : '#47ff9e';  // green  / emerald — great
+  if (pts >= 100) return light ? '#ca8a04' : '#e8ff47';  // yellow / amber  — good
+  if (pts >= 50)  return light ? '#ea580c' : '#ffaa47';  // orange          — okay
+  if (pts >= 1)   return light ? '#dc2626' : '#ff8c47';  // red             — bad
+  return light ? '#b91c1c' : '#ff5c5c';                  // dark red        — way off
 }
 
 function showToast(msg, duration = 2000) {
