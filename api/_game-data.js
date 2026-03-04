@@ -81,7 +81,9 @@ function getTodayLocations(dateStr) {
     const usedToday = new Set();
     const countryCount = {}; // tracks how many times each country appears today
     function pick(pool, excludeCountry) {
-      let avail = pool.filter(l => !usedToday.has(l[0]));
+      // Name-dedup is always applied first and preserved through all fallbacks
+      const noDup = pool.filter(l => !usedToday.has(l[0]));
+      let avail = noDup;
       if (excludeCountry) {
         const noSameCountry = avail.filter(l => getCountry(l[0]) !== excludeCountry);
         if (noSameCountry.length > 0) avail = noSameCountry; // only apply if non-empty (safety)
@@ -93,7 +95,8 @@ function getTodayLocations(dateStr) {
         return (countryCount[c] || 0) < limit;
       });
       if (countryFiltered.length > 0) avail = countryFiltered; // only apply if non-empty (safety)
-      const src = avail.length ? avail : pool; // safety fallback
+      // Fallback order: drop country constraints → drop name-dedup (absolute last resort)
+      const src = avail.length ? avail : (noDup.length ? noDup : pool);
       const loc = src[Math.floor(rand() * src.length)];
       usedToday.add(loc[0]);
       const c = getCountry(loc[0]);
