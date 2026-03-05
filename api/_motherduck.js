@@ -132,6 +132,7 @@ async function ensureTables(conn) {
   await conn.run(`ALTER TABLE pindrop.games ADD COLUMN IF NOT EXISTS timezone VARCHAR`);
   await conn.run(`ALTER TABLE pindrop.games ADD COLUMN IF NOT EXISTS locale   VARCHAR`);
   await conn.run(`ALTER TABLE pindrop.games ADD COLUMN IF NOT EXISTS referrer VARCHAR`);
+  await conn.run(`ALTER TABLE pindrop.games ADD COLUMN IF NOT EXISTS source   VARCHAR`);
 
   _tablesReady = true;
 }
@@ -194,7 +195,7 @@ async function trackGame({
   gameDate, dayNumber, playerId, totalScore,
   gameDurationSeconds, streakAtTime, gamesPlayedLifetime,
   deviceType, darkMode,
-  timezone, locale, referrer,
+  timezone, locale, referrer, source,
 }) {
   try {
     const inst = await getInstance();
@@ -208,8 +209,8 @@ async function trackGame({
            (game_date, day_number, player_id, total_score,
             game_duration_seconds, streak_at_time, games_played_lifetime,
             device_type, dark_mode,
-            timezone, locale, referrer)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            timezone, locale, referrer, source)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [gameDate, dayNumber, playerId ?? null, totalScore,
          gameDurationSeconds ?? null,
          streakAtTime ?? null,
@@ -218,7 +219,8 @@ async function trackGame({
          darkMode ?? null,
          timezone ?? null,
          locale ?? null,
-         referrer ?? null]
+         referrer ?? null,
+         source ?? null]
       );
     } finally {
       conn.closeSync();

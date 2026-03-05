@@ -1351,6 +1351,22 @@ function getDeviceType() {
   return ('ontouchstart' in window || window.innerWidth < 768) ? 'mobile' : 'desktop';
 }
 
+// Captures UTM/referral source from URL params and persists in sessionStorage so
+// it survives in-game navigation. Supports ?utm_source=linkedin, ?ref=instagram, etc.
+// Called once on load and again at game completion to retrieve the stored value.
+function getUtmSource() {
+  try {
+    const cached = sessionStorage.getItem('pd_source');
+    if (cached) return cached;
+    const params = new URLSearchParams(window.location.search);
+    const src = params.get('utm_source') || params.get('ref') || params.get('s') || null;
+    if (src) sessionStorage.setItem('pd_source', src.toLowerCase().slice(0, 64));
+    return src ? src.toLowerCase().slice(0, 64) : null;
+  } catch (e) { return null; }
+}
+// Capture immediately on page load so the param is stored before any navigation
+getUtmSource();
+
 
 // Day counter for share text (non-sensitive)
 function getDayNumber() {
@@ -2176,6 +2192,7 @@ function finishGame() {
       timezone:             Intl.DateTimeFormat().resolvedOptions().timeZone || null,
       locale:               navigator.language || null,
       referrer:             document.referrer || null,
+      source:               getUtmSource(),   // utm_source / ?ref param captured on page load
       preview:              PREVIEW_MODE || undefined,
     }),
   }).catch(() => {}); // non-blocking — never delay the screen transition
