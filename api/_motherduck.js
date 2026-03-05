@@ -334,6 +334,92 @@ async function getLockedDailyCombo(dateStr) {
   }
 }
 
+// Returns { 'YYYY-MM-DD': ['R1','R2','R3','R4','R5'] } for every locked date in range.
+// Used by _game-data.js to incorporate admin overrides into the 28-day cooldown loop.
+async function getLockedCombosForRange(fromDateStr, toDateStr) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return {};
+    const conn = await inst.connect();
+    try {
+      const res = await conn.runAndReadAll(
+        `SELECT CAST(game_date AS VARCHAR) AS game_date,
+                round_1, round_2, round_3, round_4, round_5
+         FROM pindrop.daily_combinations
+         WHERE game_date BETWEEN ? AND ?`,
+        [fromDateStr, toDateStr]
+      );
+      const result = {};
+      res.getRowObjects().forEach(r => {
+        result[r.game_date] = [r.round_1, r.round_2, r.round_3, r.round_4, r.round_5];
+      });
+      return result;
+    } finally {
+      conn.closeSync();
+    }
+  } catch (e) {
+    console.error('[MotherDuck] getLockedCombosForRange error:', e.message);
+    return {};
+  }
+}
+
+// Returns { [locationName]: 'YYYY-MM-DD' } with the most recent game_date each
+// location was played.  Names never played are absent from the result.
+async function getLastUsedDates(locationNames) {
+  if (!locationNames || locationNames.length === 0) return {};
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return {};
+    const conn = await inst.connect();
+    try {
+      const placeholders = locationNames.map(() => '?').join(', ');
+      const res = await conn.runAndReadAll(
+        `SELECT location, CAST(MAX(game_date) AS VARCHAR) AS last_date
+         FROM pindrop.plays
+         WHERE location IN (${placeholders})
+         GROUP BY location`,
+        locationNames
+      );
+      const result = {};
+      res.getRowObjects().forEach(r => { result[r.location] = r.last_date; });
+      return result;
+    } finally {
+      conn.closeSync();
+    }
+  } catch (e) {
+    console.error('[MotherDuck] getLastUsedDates error:', e.message);
+    return {};
+  }
+}
+
+// Write (or overwrite) the 5-location combo for a given date.
+// Unlike storeDailyCombo (ON CONFLICT DO NOTHING), this uses DO UPDATE so admin
+// overrides can replace a combo that was already locked by player activity.
+async function setDayOverride({ gameDate, dayNumber, locationNames }) {
+  const inst = await getDataInstance();
+  if (!inst) throw new Error('MotherDuck not available');
+  const conn = await inst.connect();
+  try {
+    await conn.run(
+      `INSERT INTO pindrop.daily_combinations
+         (game_date, day_number, round_1, round_2, round_3, round_4, round_5)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT (game_date) DO UPDATE SET
+         round_1   = EXCLUDED.round_1,
+         round_2   = EXCLUDED.round_2,
+         round_3   = EXCLUDED.round_3,
+         round_4   = EXCLUDED.round_4,
+         round_5   = EXCLUDED.round_5,
+         stored_at = now()`,
+      [gameDate, dayNumber,
+       locationNames[0], locationNames[1], locationNames[2],
+       locationNames[3], locationNames[4]]
+    );
+  } finally {
+    conn.closeSync();
+  }
+}
+
 // Returns a Set of date strings (YYYY-MM-DD) that have a locked combo in the range.
 // Used by the admin upcoming view to display the lock icon.
 async function getLockedDates(fromDateStr, toDateStr) {
@@ -446,5 +532,6 @@ async function replaceAllLocations(locations) {
 module.exports = {
   trackPlay, trackGame, trackShare, storeDailyCombo,
   getAllLocations, getLockedDailyCombo, getLockedDates,
+  getLockedCombosForRange, getLastUsedDates, setDayOverride,
   upsertLocation, deleteLocation, replaceAllLocations,
 };

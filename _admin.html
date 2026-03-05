@@ -218,6 +218,37 @@
       border-radius:6px;color:var(--text);cursor:pointer;transition:all .15s;white-space:nowrap}
     .lt-edit:hover{border-color:var(--accent);color:var(--accent)}
     #loc-load-msg{padding:48px 24px;text-align:center;color:var(--muted)}
+    /* Delete-pending rows */
+    #loc-table tr.del-row td{opacity:.45;text-decoration:line-through}
+    #loc-table tr.del-row td:first-child{border-left:3px solid var(--red)}
+    .lt-del{color:var(--red)!important;border-color:rgba(248,113,113,.3)!important}
+    .lt-del:hover{background:rgba(248,113,113,.12)!important;border-color:var(--red)!important}
+    .lt-restore{color:var(--green)!important;border-color:rgba(74,222,128,.3)!important}
+    /* Days-since-last-use badge in upcoming */
+    .last-used-badge{font-size:10px;font-weight:700;margin-left:5px;white-space:nowrap;
+      padding:1px 5px;border-radius:4px;background:rgba(255,255,255,.06)}
+    /* Override button in upcoming header */
+    .btn-override{font-size:12px!important;padding:4px 10px!important}
+    /* Override modal */
+    .override-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;
+      display:flex;align-items:center;justify-content:center;padding:24px}
+    .override-card{background:var(--s1);border:1px solid var(--border);border-radius:16px;
+      padding:24px 28px;width:100%;max-width:580px;max-height:90vh;overflow-y:auto}
+    .override-card h3{font-size:16px;font-weight:700;margin-bottom:3px}
+    .override-subtitle{font-size:12px;color:var(--muted);margin-bottom:10px}
+    .override-hint{font-size:11px;color:var(--muted);margin-bottom:16px;line-height:1.5}
+    .override-slots{display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
+    .override-slot{display:flex;align-items:center;gap:10px}
+    .override-slot-label{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;
+      width:28px;flex-shrink:0;text-align:right}
+    .override-slot input{flex:1;background:var(--s2);border:1px solid rgba(255,255,255,.1);
+      border-radius:8px;color:var(--text);padding:8px 10px;font-size:13px;outline:none;
+      transition:border .15s}
+    .override-slot input:focus{border-color:var(--accent)}
+    .override-slot input.invalid{border-color:var(--red)}
+    .override-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+    .override-error{color:var(--red);font-size:13px;margin-bottom:12px;
+      background:rgba(248,113,113,.08);border-radius:6px;padding:8px 12px}
   </style>
 </head>
 <body>
@@ -382,6 +413,27 @@
   </div>
 </div>
 
+<!-- ── Override Modal ── -->
+<div id="override-modal" hidden>
+  <div class="override-backdrop" onclick="if(event.target===this)closeOverrideModal()">
+    <div class="override-card">
+      <h3 id="override-title">Override Day</h3>
+      <p class="override-subtitle" id="override-subtitle"></p>
+      <p class="override-hint">
+        Type to search — pick from the dropdown or type an exact location name.<br>
+        Saving will lock this day and exclude these locations from the 28-day cooldown window for adjacent days.
+      </p>
+      <div class="override-slots" id="override-slots"></div>
+      <div id="override-error" class="override-error" hidden></div>
+      <div class="override-actions">
+        <button class="btn btn-ghost" onclick="closeOverrideModal()">Cancel</button>
+        <button class="btn btn-primary" id="override-save-btn" onclick="saveOverride()">Save Override</button>
+      </div>
+    </div>
+  </div>
+</div>
+<datalist id="all-locs-datalist"></datalist>
+
 <script>
 /* ── State ── */
 var TOKEN        = localStorage.getItem('pd-admin-token') || '';
@@ -389,7 +441,10 @@ var embedLoaded  = false;  // true once dashboard iframe src has been set
 var chatLoaded   = false;  // true once chat iframe src has been set
 var locationsData   = null;  // array loaded from server (committed state)
 var pendingLocs     = null;  // working copy — null means no unsaved changes
+var pendingDeletes  = new Set(); // names staged for deletion
 var locEditingIndex = null;  // null = add mode, integer = edit mode
+var upcomingData    = [];    // last loaded upcoming days (for override modal)
+var overrideState   = null;  // { dateStr, dayNum } while override modal is open
 
 /* ── Bootstrap ── */
 window.addEventListener('DOMContentLoaded', async function() {
@@ -594,17 +649,27 @@ var DIFF_DESC  = ['','Major world city','Famous landmark','Default','Obscure loc
 
 function renderUpcoming(days, container) {
   if (!days.length) { container.innerHTML = '<div class="loading">No data</div>'; return; }
-  var html = days.map(function(day) {
+  upcomingData = days; // store for override modal
+  var html = days.map(function(day, dayIdx) {
     var warnHtml = day.proximityWarnings.map(function(w) {
       return '<div class="prox-warn">&#9888; <strong>' + w.a + '</strong> &amp; <strong>' +
              w.b + '</strong> are only ' + w.dist.toLocaleString() + ' km apart</div>';
     }).join('');
 
     var locRows = day.locations.map(function(loc) {
+      // Days-since-last-use badge
+      var dslu = '';
+      if (loc.daysSinceLastUse !== null && loc.daysSinceLastUse !== undefined) {
+        var dv = loc.daysSinceLastUse;
+        var dc = dv < 14 ? 'var(--red)' : dv < 28 ? 'var(--d4)' : 'var(--muted)';
+        dslu = '<span class="last-used-badge" style="color:' + dc + '" title="Last used ' + dv + ' days ago">' + dv + 'd ago</span>';
+      } else {
+        dslu = '<span class="last-used-badge" style="color:var(--d1)" title="Never used in game">new</span>';
+      }
       return '<div class="loc-row">' +
         '<div class="diff-badge diff-' + loc.difficulty + '" title="' + DIFF_LABEL[loc.difficulty] + ' — ' + DIFF_DESC[loc.difficulty] + '">' + loc.difficulty + '</div>' +
         '<div class="loc-info">' +
-          '<div class="loc-name">' + loc.name + '</div>' +
+          '<div class="loc-name">' + loc.name + dslu + '</div>' +
           '<div class="loc-desc">' + (loc.description || '') + '</div>' +
         '</div>' +
         '<div class="loc-meta">' +
@@ -614,14 +679,17 @@ function renderUpcoming(days, container) {
       '</div>';
     }).join('');
 
-    var diffColor = day.avgDiff <= 2 ? 'var(--d1)' : day.avgDiff <= 3.5 ? 'var(--d3)' : 'var(--d5)';
-    var hasWarn   = day.proximityWarnings.length > 0;
+    var diffColor    = day.avgDiff <= 2 ? 'var(--d1)' : day.avgDiff <= 3.5 ? 'var(--d3)' : 'var(--d5)';
+    var hasWarn      = day.proximityWarnings.length > 0;
+    var overrideBtn  = day.locked ? '' :
+      '<button class="btn btn-ghost btn-override" onclick="openOverrideModal(' + dayIdx + ')">&#9998; Override</button>';
 
     return '<div class="day-card' + (day.locked ? ' day-card-locked' : '') + '">' +
       '<div class="day-card-header">' +
         '<div class="day-num">Day #' + day.dayNum + '</div>' +
         '<div class="day-date">' + day.dateStr + '</div>' +
         (day.locked ? '<div class="lock-badge" title="This day has been played — locations are locked">🔒 Locked</div>' : '') +
+        overrideBtn +
         '<div class="day-avg">avg difficulty <span style="color:' + diffColor + '">' + day.avgDiff + '</span></div>' +
         (hasWarn ? '<div class="prox-badge">&#9888; ' + day.proximityWarnings.length + ' proximity issue' + (day.proximityWarnings.length > 1 ? 's' : '') + '</div>' : '') +
       '</div>' +
@@ -652,8 +720,9 @@ async function loadLocations() {
     });
     if (res.status === 401) { logout(); return; }
     var d = await res.json();
-    locationsData = d.locations;
-    pendingLocs   = null;
+    locationsData  = d.locations;
+    pendingLocs    = null;
+    pendingDeletes = new Set();
     renderLocTable();
     document.getElementById('loc-load-msg').hidden = true;
     document.getElementById('loc-table-wrap').hidden = false;
@@ -676,18 +745,22 @@ function renderLocTable() {
 
   var tbody = document.getElementById('loc-tbody');
   tbody.innerHTML = rows.map(function(loc) {
-    var wsIdx = ws.indexOf(loc);
-    var isNew = pendingLocs && !orig.has(loc.name);
-    var isPending = pendingLocs !== null;
-    var rowClass = (isPending && isNew) ? ' class="pending-row"' : '';
-    return '<tr' + rowClass + '>' +
+    var wsIdx  = ws.indexOf(loc);
+    var isNew  = pendingLocs && !orig.has(loc.name);
+    var isDel  = pendingDeletes.has(loc.name);
+    var rowCls = isDel ? ' class="del-row"' : (pendingLocs && isNew) ? ' class="pending-row"' : '';
+    var actionBtns = isDel
+      ? '<button class="lt-edit lt-restore" onclick="restoreLocEntry(' + wsIdx + ')">Restore</button>'
+      : '<button class="lt-edit" onclick="openLocForm(' + wsIdx + ')">Edit</button>'
+        + ' <button class="lt-edit lt-del" onclick="deleteLocEntry(' + wsIdx + ')">Delete</button>';
+    return '<tr' + rowCls + '>' +
       '<td><div class="diff-badge diff-' + loc.difficulty + '">' + loc.difficulty + '</div></td>' +
       '<td><div class="lt-name">' + escHtml(loc.name) + '</div></td>' +
       '<td><div class="lt-desc" title="' + escHtml(loc.description) + '">' + escHtml(loc.description) + '</div></td>' +
       '<td class="lt-coord">' + loc.lat.toFixed(4) + '</td>' +
       '<td class="lt-coord">' + loc.lng.toFixed(4) + '</td>' +
       '<td class="lt-coord">' + loc.radius + ' km</td>' +
-      '<td><button class="lt-edit" onclick="openLocForm(' + wsIdx + ')">Edit</button></td>' +
+      '<td>' + actionBtns + '</td>' +
     '</tr>';
   }).join('');
 
@@ -695,26 +768,27 @@ function renderLocTable() {
 }
 
 function updatePendingUI() {
-  var ws   = locWorkingSet();
   var orig = locationsData || [];
-  // Count: adds + edits
   var changed = 0;
   if (pendingLocs) {
     var origNames = new Set(orig.map(function(l){ return l.name; }));
-    var pendNames = new Set(pendingLocs.map(function(l){ return l.name; }));
-    // New additions
-    pendingLocs.forEach(function(l){ if (!origNames.has(l.name)) changed++; });
-    // Edits: same name but different fields
+    // New additions (skip pending deletes)
+    pendingLocs.forEach(function(l){
+      if (pendingDeletes.has(l.name)) return;
+      if (!origNames.has(l.name)) changed++;
+    });
+    // Edits: same name but different fields (skip pending deletes)
     pendingLocs.forEach(function(l) {
+      if (pendingDeletes.has(l.name)) return;
       var o = orig.find(function(x){ return x.name === l.name; });
       if (o && (o.description !== l.description || o.lat !== l.lat || o.lng !== l.lng || o.radius !== l.radius || o.difficulty !== l.difficulty)) changed++;
     });
-    // Deletions would go here if we add delete support later
   }
+  var total = changed + pendingDeletes.size;
   var btn = document.getElementById('commit-btn');
-  btn.hidden = !pendingLocs || changed === 0;
-  document.getElementById('pending-count').textContent = changed;
-  document.getElementById('pending-s').textContent = changed === 1 ? '' : 's';
+  btn.hidden = total === 0;
+  document.getElementById('pending-count').textContent = total;
+  document.getElementById('pending-s').textContent = total === 1 ? '' : 's';
 }
 
 function openLocForm(wsIndex) {
@@ -822,22 +896,54 @@ function saveLocForm() {
 }
 
 async function commitLocations() {
-  if (!pendingLocs) return;
+  var orig    = locationsData || [];
+  var origMap = {};
+  orig.forEach(function(l){ origMap[l.name] = l; });
+
+  // Build upserts: new entries + changed entries (skip pending deletes)
+  var upserts = [];
+  if (pendingLocs) {
+    pendingLocs.forEach(function(l) {
+      if (pendingDeletes.has(l.name)) return;
+      var o = origMap[l.name];
+      var isNew     = !o;
+      var isChanged = o && (o.description !== l.description || o.lat !== l.lat ||
+        o.lng !== l.lng || o.radius !== l.radius || o.difficulty !== l.difficulty);
+      if (isNew || isChanged) upserts.push(l);
+    });
+  }
+  var deletes = Array.from(pendingDeletes);
+  if (upserts.length === 0 && deletes.length === 0) return;
+
   var btn = document.getElementById('commit-btn');
   btn.disabled = true;
   document.getElementById('commit-btn-label').textContent = 'Saving…';
   try {
-    var r = await fetch('/api/admin?action=save-locations', {
+    var r = await fetch('/api/admin?action=save-locations-delta', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ locations: pendingLocs })
+      body: JSON.stringify({ upserts: upserts, deletes: deletes })
     });
     var d = await r.json();
-    if (d.saved !== undefined && !d.error) {
-      locationsData = pendingLocs.map(function(l){ return Object.assign({}, l); });
-      pendingLocs = null;
+    if ((d.upserted !== undefined || d.deleted !== undefined) && !d.error) {
+      // Reconstruct locationsData: remove deleted, add/update upserted
+      var newData = orig.filter(function(l){ return !pendingDeletes.has(l.name); });
+      if (pendingLocs) {
+        pendingLocs.forEach(function(l) {
+          if (pendingDeletes.has(l.name)) return;
+          var idx = newData.findIndex(function(x){ return x.name === l.name; });
+          if (idx >= 0) newData[idx] = Object.assign({}, l);
+          else newData.push(Object.assign({}, l));
+        });
+      }
+      locationsData  = newData;
+      pendingLocs    = null;
+      pendingDeletes = new Set();
       renderLocTable();
-      alert('Saved ' + d.saved + ' locations to database successfully!');
+      var parts = [];
+      if (d.upserted) parts.push(d.upserted + ' updated/added');
+      if (d.deleted)  parts.push(d.deleted  + ' deleted');
+      alert('Saved: ' + parts.join(', ') + '.');
     } else {
       alert('Save failed: ' + (d.error || 'unknown error'));
     }
@@ -848,6 +954,132 @@ async function commitLocations() {
     document.getElementById('commit-btn-label').textContent = 'Save';
     updatePendingUI();
   }
+}
+
+/* ── Delete / Restore location entries ── */
+function deleteLocEntry(wsIdx) {
+  var ws  = locWorkingSet();
+  var loc = ws[wsIdx];
+  // Ensure pendingLocs exists before we add to pendingDeletes
+  if (!pendingLocs) pendingLocs = ws.map(function(l){ return Object.assign({}, l); });
+  var origNames = new Set((locationsData || []).map(function(l){ return l.name; }));
+  if (!origNames.has(loc.name)) {
+    // Brand-new entry not yet in DB — just remove from pendingLocs
+    pendingLocs.splice(pendingLocs.findIndex(function(l){ return l.name === loc.name; }), 1);
+  } else {
+    pendingDeletes.add(loc.name);
+  }
+  renderLocTable();
+}
+
+function restoreLocEntry(wsIdx) {
+  var ws  = locWorkingSet();
+  var loc = ws[wsIdx];
+  pendingDeletes.delete(loc.name);
+  renderLocTable();
+}
+
+/* ── Override modal ── */
+function openOverrideModal(dayIdx) {
+  var day = upcomingData[dayIdx];
+  if (!day) return;
+
+  // Ensure locationsData is loaded so the datalist works
+  if (!locationsData) {
+    loadLocations().then(function(){ openOverrideModal(dayIdx); });
+    return;
+  }
+
+  overrideState = { dateStr: day.dateStr, dayNum: day.dayNum };
+
+  document.getElementById('override-title').textContent = 'Override Day #' + day.dayNum;
+  document.getElementById('override-subtitle').textContent =
+    day.dateStr + ' — choose 5 locations (changes will lock this day)';
+
+  // Populate datalist with all location names
+  var dl = document.getElementById('all-locs-datalist');
+  dl.innerHTML = locationsData.map(function(l){
+    return '<option value="' + escHtml(l.name) + '">';
+  }).join('');
+
+  // Build 5 slot inputs pre-filled with current locations
+  var labels = ['R1','R2','R3','R4','R5'];
+  document.getElementById('override-slots').innerHTML = labels.map(function(lbl, i) {
+    var cur = day.locations[i] ? day.locations[i].name : '';
+    return '<div class="override-slot">' +
+      '<span class="override-slot-label">' + lbl + '</span>' +
+      '<input type="text" list="all-locs-datalist" id="ovr-slot-' + i + '"' +
+        ' value="' + escHtml(cur) + '"' +
+        ' placeholder="Start typing…"' +
+        ' oninput="validateOverrideSlot(' + i + ')">' +
+    '</div>';
+  }).join('');
+
+  document.getElementById('override-error').hidden = true;
+  document.getElementById('override-save-btn').disabled = false;
+  document.getElementById('override-save-btn').textContent = 'Save Override';
+  document.getElementById('override-modal').hidden = false;
+}
+
+function closeOverrideModal() {
+  document.getElementById('override-modal').hidden = true;
+  overrideState = null;
+}
+
+function validateOverrideSlot(i) {
+  var input    = document.getElementById('ovr-slot-' + i);
+  var val      = input.value.trim();
+  var allNames = locationsData ? new Set(locationsData.map(function(l){ return l.name; })) : new Set();
+  if (val && !allNames.has(val)) input.classList.add('invalid');
+  else                           input.classList.remove('invalid');
+}
+
+async function saveOverride() {
+  if (!overrideState) return;
+  var allNames = new Set((locationsData || []).map(function(l){ return l.name; }));
+  var locationNames = [];
+  for (var i = 0; i < 5; i++) {
+    var val = document.getElementById('ovr-slot-' + i).value.trim();
+    if (!val) { showOverrideError('All 5 slots must be filled in.'); return; }
+    if (!allNames.has(val)) { showOverrideError('Unknown location: "' + val + '"'); return; }
+    locationNames.push(val);
+  }
+  if (new Set(locationNames).size !== 5) {
+    showOverrideError('All 5 locations must be different.');
+    return;
+  }
+
+  var btn = document.getElementById('override-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  document.getElementById('override-error').hidden = true;
+
+  try {
+    var r = await fetch('/api/admin?action=set-day-override', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dateStr: overrideState.dateStr, locationNames: locationNames })
+    });
+    var d = await r.json();
+    if (d.saved) {
+      closeOverrideModal();
+      loadUpcoming(); // reload — day now shows as locked
+    } else {
+      showOverrideError(d.error || 'Unknown error');
+      btn.disabled = false;
+      btn.textContent = 'Save Override';
+    }
+  } catch(err) {
+    showOverrideError(err.message);
+    btn.disabled = false;
+    btn.textContent = 'Save Override';
+  }
+}
+
+function showOverrideError(msg) {
+  var el = document.getElementById('override-error');
+  el.textContent = msg;
+  el.hidden = false;
 }
 
 function escHtml(s) {

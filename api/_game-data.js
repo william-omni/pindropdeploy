@@ -2,7 +2,7 @@
 // Location data is fetched from MotherDuck at runtime and cached in memory
 // so it is never bundled into the repo or exposed in the client HTML.
 
-const { getAllLocations, getLockedDailyCombo } = require('./_motherduck');
+const { getAllLocations, getLockedCombosForRange } = require('./_motherduck');
 
 // ── Module-level location cache ───────────────────────────────────────────────
 // _locs    : array of [name, description, lat, lng, radius] tuples
@@ -14,10 +14,23 @@ let _cacheExp = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000; // refresh location list every 5 minutes
 
 // ── Module-level locked-combo cache ──────────────────────────────────────────
-// Once a date is locked in daily_combinations it never changes, so we cache
-// indefinitely for the lifetime of the warm Lambda instance.
+// Populated via a single batch DB query covering all dates from FIRST_DAY to
+// the requested date.  Refreshed on the same 5-minute TTL as the location list
+// so admin overrides propagate quickly.
 // { 'YYYY-MM-DD': ['R1','R2','R3','R4','R5'] }
 const _lockedComboCache = {};
+let _lockedCacheUpTo = ''; // max dateStr currently loaded into _lockedComboCache
+let _lockedCacheExp  = 0;  // expiry timestamp for the locked-combo batch
+
+// Ensures _lockedComboCache is populated from the first game day up to upToDateStr.
+async function _ensureLockedLoaded(upToDateStr) {
+  const now = Date.now();
+  if (now < _lockedCacheExp && _lockedCacheUpTo >= upToDateStr) return; // still fresh
+  const locked = await getLockedCombosForRange('2026-02-28', upToDateStr);
+  Object.assign(_lockedComboCache, locked);
+  _lockedCacheExp  = now + CACHE_TTL_MS;
+  if (upToDateStr > _lockedCacheUpTo) _lockedCacheUpTo = upToDateStr;
+}
 
 async function _ensureLoaded() {
   const now = Date.now();
@@ -106,13 +119,13 @@ async function getTodayLocations(dateStr) {
   // Ensure location data is loaded from MotherDuck (uses cache after first call)
   await _ensureLoaded();
 
-  // ── Locking: if this date's combo was recorded in daily_combinations, use it ─
-  // This prevents location-list edits from altering already-played days.
-  // Once locked, the value is cached permanently for the lifetime of this Lambda.
-  if (dateStr && !_lockedComboCache[dateStr]) {
-    const locked = await getLockedDailyCombo(dateStr);
-    if (locked) _lockedComboCache[dateStr] = locked;
-  }
+  // ── Batch-load all locked combos up to this date ─────────────────────────────
+  // One DB call (cached 5 min) covers the full history range so:
+  //   (a) admin overrides applied to past dates are respected by the cooldown loop
+  //   (b) the early-exit below returns the locked combo for this exact date
+  if (dateStr) await _ensureLockedLoaded(dateStr);
+
+  // ── Early exit: this date is already locked in daily_combinations ─────────
   if (dateStr && _lockedComboCache[dateStr]) {
     const names = _lockedComboCache[dateStr];
     return names.map(name => _locs.find(l => l[0] === name)).filter(Boolean);
@@ -211,9 +224,17 @@ async function getTodayLocations(dateStr) {
              + String(dt.getUTCMonth() + 1).padStart(2, '0') + '-'
              + String(dt.getUTCDate()).padStart(2, '0');
 
-    // If this date has a pinned override, use it directly and skip RNG
+    // If this date has a pinned hard-coded override, use it directly and skip RNG
     if (DATE_OVERRIDES[ds]) {
       history[ds] = DATE_OVERRIDES[ds].map(entry => Array.isArray(entry) ? entry : _locs.find(l => l[0] === entry));
+      continue;
+    }
+
+    // If this date was admin-overridden (stored in daily_combinations), use it.
+    // This also makes those locations count against the 28-day cooldown for
+    // subsequent RNG-generated days.
+    if (_lockedComboCache[ds]) {
+      history[ds] = _lockedComboCache[ds].map(name => _locs.find(l => l[0] === name)).filter(Boolean);
       continue;
     }
 

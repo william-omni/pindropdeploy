@@ -12,7 +12,10 @@ const {
   getDailySeed,
   ROUNDS_PER_GAME,
 } = require('./_game-data');
-const { getAllLocations, replaceAllLocations, getLockedDates } = require('./_motherduck');
+const {
+  getAllLocations, replaceAllLocations, getLockedDates,
+  upsertLocation, deleteLocation, getLastUsedDates, setDayOverride,
+} = require('./_motherduck');
 
 // ── Auth helpers ─────────────────────────────────────────────────────────────
 function normalizeEnvPassword() {
@@ -96,9 +99,34 @@ async function getUpcomingDays(fromDateStr, numDays) {
         lng:           loc[3],
         perfectRadius: loc[4] || 30,
         difficulty:    getLocDifficulty(loc),
+        daysSinceLastUse: null, // populated below
       })),
     });
   }
+
+  // ── Annotate each location with days-since-last-use ───────────────────────
+  try {
+    const allNames = [...new Set(
+      results.flatMap(day => day.locations.map(l => l.name))
+    )];
+    const lastUsed  = await getLastUsedDates(allNames);
+    const todayMs   = new Date(fromDateStr + 'T00:00:00Z').getTime();
+    for (const day of results) {
+      for (const loc of day.locations) {
+        const lastDate = lastUsed[loc.name];
+        if (lastDate) {
+          loc.daysSinceLastUse = Math.round(
+            (todayMs - new Date(lastDate + 'T00:00:00Z').getTime()) / 86400000
+          );
+        }
+        // else null = never played (set above)
+      }
+    }
+  } catch (e) {
+    console.warn('[Admin] getLastUsedDates skipped:', e.message);
+    // non-fatal — badge simply won't show
+  }
+
   return results;
 }
 
@@ -294,6 +322,80 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ saved: normalised.length });
     } catch (e) {
       return res.status(500).json({ error: 'Failed to save locations: ' + e.message });
+    }
+  }
+
+  // ── POST save-locations-delta (upsert changed/new + delete removed) ─────────
+  // Accepts { upserts: [...], deletes: ['name1','name2',...] }
+  // Only touches the rows that actually changed — far faster than replaceAll.
+  if (action === 'save-locations-delta' && req.method === 'POST') {
+    const body = await parseJsonBody(req);
+    const upserts = Array.isArray(body && body.upserts) ? body.upserts : [];
+    const deletes = Array.isArray(body && body.deletes) ? body.deletes : [];
+
+    if (upserts.length === 0 && deletes.length === 0) {
+      return res.status(400).json({ error: 'Nothing to save' });
+    }
+
+    // Validate upsert rows
+    for (const l of upserts) {
+      if (!l.name || !l.description || l.lat == null || l.lng == null || !l.radius || !l.difficulty) {
+        return res.status(400).json({ error: 'Missing required fields on: ' + (l.name || '(unnamed)') });
+      }
+    }
+
+    try {
+      for (const l of upserts) {
+        await upsertLocation({
+          name:        String(l.name).trim(),
+          description: String(l.description).trim(),
+          lat:         Number(l.lat),
+          lng:         Number(l.lng),
+          radius:      Number(l.radius),
+          difficulty:  Number(l.difficulty),
+        });
+      }
+      for (const name of deletes) {
+        await deleteLocation(String(name).trim());
+      }
+      return res.status(200).json({ upserted: upserts.length, deleted: deletes.length });
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to save delta: ' + e.message });
+    }
+  }
+
+  // ── POST set-day-override (write/overwrite daily_combinations for a date) ───
+  // Accepts { dateStr: 'YYYY-MM-DD', locationNames: ['R1','R2','R3','R4','R5'] }
+  if (action === 'set-day-override' && req.method === 'POST') {
+    const body = await parseJsonBody(req);
+    const { dateStr, locationNames } = body || {};
+
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return res.status(400).json({ error: 'Valid dateStr (YYYY-MM-DD) required' });
+    }
+    if (!Array.isArray(locationNames) || locationNames.length !== 5) {
+      return res.status(400).json({ error: 'Exactly 5 locationNames required' });
+    }
+    if (new Set(locationNames).size !== 5) {
+      return res.status(400).json({ error: 'All 5 locations must be different' });
+    }
+
+    // Validate every name exists in the master list
+    const allLocs = await getAllLocations();
+    if (!allLocs) return res.status(503).json({ error: 'MotherDuck unavailable' });
+    const locSet  = new Set(allLocs.map(l => l.name));
+    for (const name of locationNames) {
+      if (!locSet.has(name)) {
+        return res.status(400).json({ error: 'Unknown location: ' + name });
+      }
+    }
+
+    try {
+      const dayNum = getDayNumber(dateStr);
+      await setDayOverride({ gameDate: dateStr, dayNumber: dayNum, locationNames });
+      return res.status(200).json({ saved: true });
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to save override: ' + e.message });
     }
   }
 
