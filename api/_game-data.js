@@ -2,7 +2,7 @@
 // Location data is fetched from MotherDuck at runtime and cached in memory
 // so it is never bundled into the repo or exposed in the client HTML.
 
-const { getAllLocations } = require('./_motherduck');
+const { getAllLocations, getLockedDailyCombo } = require('./_motherduck');
 
 // ── Module-level location cache ───────────────────────────────────────────────
 // _locs    : array of [name, description, lat, lng, radius] tuples
@@ -12,6 +12,12 @@ let _locs     = null;
 let _diffMap  = null;
 let _cacheExp = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000; // refresh location list every 5 minutes
+
+// ── Module-level locked-combo cache ──────────────────────────────────────────
+// Once a date is locked in daily_combinations it never changes, so we cache
+// indefinitely for the lifetime of the warm Lambda instance.
+// { 'YYYY-MM-DD': ['R1','R2','R3','R4','R5'] }
+const _lockedComboCache = {};
 
 async function _ensureLoaded() {
   const now = Date.now();
@@ -99,6 +105,18 @@ function getCountry(locName) {
 async function getTodayLocations(dateStr) {
   // Ensure location data is loaded from MotherDuck (uses cache after first call)
   await _ensureLoaded();
+
+  // ── Locking: if this date's combo was recorded in daily_combinations, use it ─
+  // This prevents location-list edits from altering already-played days.
+  // Once locked, the value is cached permanently for the lifetime of this Lambda.
+  if (dateStr && !_lockedComboCache[dateStr]) {
+    const locked = await getLockedDailyCombo(dateStr);
+    if (locked) _lockedComboCache[dateStr] = locked;
+  }
+  if (dateStr && _lockedComboCache[dateStr]) {
+    const names = _lockedComboCache[dateStr];
+    return names.map(name => _locs.find(l => l[0] === name)).filter(Boolean);
+  }
 
   // ── Build full difficulty pools ───────────────────────────────────────────
   const allPools = { 1: [], 2: [], 3: [], 4: [], 5: [] };

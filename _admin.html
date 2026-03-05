@@ -112,6 +112,8 @@
     .day-date{font-weight:700;font-size:15px}
     .day-avg{margin-left:auto;font-size:13px;color:var(--muted)}
     .day-avg span{font-weight:700}
+    .lock-badge{background:rgba(251,191,36,.12);color:#fbbf24;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;border:1px solid rgba(251,191,36,.25)}
+    .day-card-locked{border-color:rgba(251,191,36,.3)}
     .prox-badge{background:rgba(248,113,113,.15);color:var(--red);
       border:1px solid rgba(248,113,113,.3);border-radius:6px;
       padding:2px 9px;font-size:11px;font-weight:700}
@@ -615,10 +617,11 @@ function renderUpcoming(days, container) {
     var diffColor = day.avgDiff <= 2 ? 'var(--d1)' : day.avgDiff <= 3.5 ? 'var(--d3)' : 'var(--d5)';
     var hasWarn   = day.proximityWarnings.length > 0;
 
-    return '<div class="day-card">' +
+    return '<div class="day-card' + (day.locked ? ' day-card-locked' : '') + '">' +
       '<div class="day-card-header">' +
         '<div class="day-num">Day #' + day.dayNum + '</div>' +
         '<div class="day-date">' + day.dateStr + '</div>' +
+        (day.locked ? '<div class="lock-badge" title="This day has been played — locations are locked">🔒 Locked</div>' : '') +
         '<div class="day-avg">avg difficulty <span style="color:' + diffColor + '">' + day.avgDiff + '</span></div>' +
         (hasWarn ? '<div class="prox-badge">&#9888; ' + day.proximityWarnings.length + ' proximity issue' + (day.proximityWarnings.length > 1 ? 's' : '') + '</div>' : '') +
       '</div>' +

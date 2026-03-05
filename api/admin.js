@@ -12,7 +12,7 @@ const {
   getDailySeed,
   ROUNDS_PER_GAME,
 } = require('./_game-data');
-const { getAllLocations, replaceAllLocations } = require('./_motherduck');
+const { getAllLocations, replaceAllLocations, getLockedDates } = require('./_motherduck');
 
 // ── Auth helpers ─────────────────────────────────────────────────────────────
 function normalizeEnvPassword() {
@@ -56,6 +56,14 @@ async function parseJsonBody(req) {
 // ── Upcoming challenges ──────────────────────────────────────────────────────
 async function getUpcomingDays(fromDateStr, numDays) {
   const [fy, fm, fd] = fromDateStr.split('-').map(Number);
+
+  // Compute the last date in the range for the lock query
+  const toD = new Date(Date.UTC(fy, fm - 1, fd + numDays - 1));
+  const toDateStr = toD.getUTCFullYear() + '-'
+    + String(toD.getUTCMonth() + 1).padStart(2,'0') + '-'
+    + String(toD.getUTCDate()).padStart(2,'0');
+  const lockedSet = await getLockedDates(fromDateStr, toDateStr);
+
   const results = [];
   for (let i = 0; i < numDays; i++) {
     const d = new Date(Date.UTC(fy, fm - 1, fd + i));
@@ -79,6 +87,7 @@ async function getUpcomingDays(fromDateStr, numDays) {
 
     results.push({
       dateStr, dayNum, avgDiff,
+      locked: lockedSet.has(dateStr),
       proximityWarnings,
       locations: locs.map(loc => ({
         name:          loc[0],

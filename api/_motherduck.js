@@ -284,7 +284,8 @@ async function storeDailyCombo({ gameDate, dayNumber, locationNames }) {
 // They use the data instance which works in all environments.
 
 // Returns array of { name, description, lat, lng, radius, difficulty } objects,
-// or null if MotherDuck is unavailable.
+// ordered by order_idx (preserving original insertion order for RNG determinism).
+// Returns null if MotherDuck is unavailable.
 async function getAllLocations() {
   try {
     const inst = await getDataInstance();
@@ -294,7 +295,7 @@ async function getAllLocations() {
       const res = await conn.runAndReadAll(
         `SELECT name, description, lat, lng, radius, difficulty
          FROM pindrop.locations
-         ORDER BY name`
+         ORDER BY order_idx ASC NULLS LAST, name ASC`
       );
       return res.getRowObjects();
     } finally {
@@ -303,6 +304,57 @@ async function getAllLocations() {
   } catch (e) {
     console.error('[MotherDuck] getAllLocations error:', e.message);
     return null;
+  }
+}
+
+// Returns the locked 5-location names for a given date (from daily_combinations),
+// or null if the date has not yet been played / locked.
+async function getLockedDailyCombo(dateStr) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return null;
+    const conn = await inst.connect();
+    try {
+      const res = await conn.runAndReadAll(
+        `SELECT round_1, round_2, round_3, round_4, round_5
+         FROM pindrop.daily_combinations
+         WHERE game_date = ?`,
+        [dateStr]
+      );
+      const rows = res.getRowObjects();
+      if (!rows.length) return null;
+      const r = rows[0];
+      return [r.round_1, r.round_2, r.round_3, r.round_4, r.round_5];
+    } finally {
+      conn.closeSync();
+    }
+  } catch (e) {
+    console.error('[MotherDuck] getLockedDailyCombo error:', e.message);
+    return null;
+  }
+}
+
+// Returns a Set of date strings (YYYY-MM-DD) that have a locked combo in the range.
+// Used by the admin upcoming view to display the lock icon.
+async function getLockedDates(fromDateStr, toDateStr) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return new Set();
+    const conn = await inst.connect();
+    try {
+      const res = await conn.runAndReadAll(
+        `SELECT CAST(game_date AS VARCHAR) AS game_date
+         FROM pindrop.daily_combinations
+         WHERE game_date BETWEEN ? AND ?`,
+        [fromDateStr, toDateStr]
+      );
+      return new Set(res.getRowObjects().map(r => r.game_date));
+    } finally {
+      conn.closeSync();
+    }
+  } catch (e) {
+    console.error('[MotherDuck] getLockedDates error:', e.message);
+    return new Set();
   }
 }
 
@@ -369,18 +421,21 @@ async function replaceAllLocations(locations) {
     } else {
       await conn.run(`DELETE FROM pindrop.locations`);
     }
-    // Upsert each row
-    for (const loc of locations) {
+    // Upsert each row (order_idx = array position to preserve RNG determinism)
+    for (let i = 0; i < locations.length; i++) {
+      const loc = locations[i];
+      const orderIdx = loc.order_idx !== undefined ? loc.order_idx : i;
       await conn.run(
-        `INSERT INTO pindrop.locations (name, description, lat, lng, radius, difficulty)
-         VALUES (?, ?, ?, ?, ?, ?)
+        `INSERT INTO pindrop.locations (name, description, lat, lng, radius, difficulty, order_idx)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (name) DO UPDATE SET
            description = EXCLUDED.description,
            lat         = EXCLUDED.lat,
            lng         = EXCLUDED.lng,
            radius      = EXCLUDED.radius,
-           difficulty  = EXCLUDED.difficulty`,
-        [loc.name, loc.description, loc.lat, loc.lng, loc.radius, loc.difficulty]
+           difficulty  = EXCLUDED.difficulty,
+           order_idx   = EXCLUDED.order_idx`,
+        [loc.name, loc.description, loc.lat, loc.lng, loc.radius, loc.difficulty, orderIdx]
       );
     }
   } finally {
@@ -388,4 +443,8 @@ async function replaceAllLocations(locations) {
   }
 }
 
-module.exports = { trackPlay, trackGame, trackShare, storeDailyCombo, getAllLocations, upsertLocation, deleteLocation, replaceAllLocations };
+module.exports = {
+  trackPlay, trackGame, trackShare, storeDailyCombo,
+  getAllLocations, getLockedDailyCombo, getLockedDates,
+  upsertLocation, deleteLocation, replaceAllLocations,
+};
