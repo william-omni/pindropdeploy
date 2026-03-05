@@ -1,13 +1,15 @@
 // api/_motherduck.js — MotherDuck analytics writer for PinDrop
 //
-// Four tables in my_db.pindrop:
+// Five tables in my_db.pindrop:
 //   plays               — one row per scored round
 //   games               — one row per completed game
 //   shares              — one row each time a player shares their score
 //   daily_combinations  — one row per calendar day (location set for that day)
+//   locations           — master location list (name, description, lat, lng, radius, difficulty)
 //
 // Gracefully no-ops if MOTHERDUCK_TOKEN is not set.
 
+// ── Analytics instance (production-only to keep test plays out of stats) ──────
 let _instance    = null;   // singleton DuckDB instance (reused across warm Vercel invocations)
 let _tablesReady = false;  // only run CREATE/ALTER TABLE once per warm instance
 
@@ -30,6 +32,26 @@ async function getInstance() {
     `md:my_db?motherduck_token=${token}`
   );
   return _instance;
+}
+
+// ── Data instance (all environments — used for reading game locations) ─────────
+let _dataInstance = null;  // separate singleton for read operations
+
+async function getDataInstance() {
+  if (_dataInstance) return _dataInstance;
+
+  const token = process.env.MOTHERDUCK_TOKEN;
+  if (!token) return null;
+
+  // Allow HOME to be set for DuckDB temp files
+  if (!process.env.HOME) process.env.HOME = '/tmp';
+  else process.env.HOME = '/tmp'; // always use /tmp on Lambda
+
+  const { DuckDBInstance } = require('@duckdb/node-api');
+  _dataInstance = await DuckDBInstance.create(
+    `md:my_db?motherduck_token=${token}`
+  );
+  return _dataInstance;
 }
 
 async function ensureTables(conn) {
@@ -257,4 +279,113 @@ async function storeDailyCombo({ gameDate, dayNumber, locationNames }) {
   }
 }
 
-module.exports = { trackPlay, trackGame, trackShare, storeDailyCombo };
+// ── Location CRUD ─────────────────────────────────────────────────────────────
+// These functions read/write pindrop.locations (the master location list).
+// They use the data instance which works in all environments.
+
+// Returns array of { name, description, lat, lng, radius, difficulty } objects,
+// or null if MotherDuck is unavailable.
+async function getAllLocations() {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return null;
+    const conn = await inst.connect();
+    try {
+      const res = await conn.runAndReadAll(
+        `SELECT name, description, lat, lng, radius, difficulty
+         FROM pindrop.locations
+         ORDER BY name`
+      );
+      return res.getRowObjects();
+    } finally {
+      conn.closeSync();
+    }
+  } catch (e) {
+    console.error('[MotherDuck] getAllLocations error:', e.message);
+    return null;
+  }
+}
+
+// Insert or update a single location.
+async function upsertLocation({ name, description, lat, lng, radius, difficulty }) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return;
+    const conn = await inst.connect();
+    try {
+      await conn.run(
+        `INSERT INTO pindrop.locations (name, description, lat, lng, radius, difficulty)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT (name) DO UPDATE SET
+           description = EXCLUDED.description,
+           lat         = EXCLUDED.lat,
+           lng         = EXCLUDED.lng,
+           radius      = EXCLUDED.radius,
+           difficulty  = EXCLUDED.difficulty`,
+        [name, description, lat, lng, radius, difficulty]
+      );
+    } finally {
+      conn.closeSync();
+    }
+  } catch (e) {
+    console.error('[MotherDuck] upsertLocation error:', e.message);
+    throw e;
+  }
+}
+
+// Delete a location by name.
+async function deleteLocation(name) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return;
+    const conn = await inst.connect();
+    try {
+      await conn.run(`DELETE FROM pindrop.locations WHERE name = ?`, [name]);
+    } finally {
+      conn.closeSync();
+    }
+  } catch (e) {
+    console.error('[MotherDuck] deleteLocation error:', e.message);
+    throw e;
+  }
+}
+
+// Replace the entire location list atomically (used by admin save-locations).
+// Deletes any location not present in the new list, upserts all provided rows.
+async function replaceAllLocations(locations) {
+  const inst = await getDataInstance();
+  if (!inst) throw new Error('MotherDuck not available');
+  const conn = await inst.connect();
+  try {
+    // Delete rows whose name is not in the new list
+    const names = locations.map(l => l.name);
+    if (names.length > 0) {
+      // Build parameterised NOT IN clause
+      const placeholders = names.map(() => '?').join(', ');
+      await conn.run(
+        `DELETE FROM pindrop.locations WHERE name NOT IN (${placeholders})`,
+        names
+      );
+    } else {
+      await conn.run(`DELETE FROM pindrop.locations`);
+    }
+    // Upsert each row
+    for (const loc of locations) {
+      await conn.run(
+        `INSERT INTO pindrop.locations (name, description, lat, lng, radius, difficulty)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT (name) DO UPDATE SET
+           description = EXCLUDED.description,
+           lat         = EXCLUDED.lat,
+           lng         = EXCLUDED.lng,
+           radius      = EXCLUDED.radius,
+           difficulty  = EXCLUDED.difficulty`,
+        [loc.name, loc.description, loc.lat, loc.lng, loc.radius, loc.difficulty]
+      );
+    }
+  } finally {
+    conn.closeSync();
+  }
+}
+
+module.exports = { trackPlay, trackGame, trackShare, storeDailyCombo, getAllLocations, upsertLocation, deleteLocation, replaceAllLocations };

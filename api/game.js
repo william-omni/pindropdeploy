@@ -22,7 +22,7 @@ module.exports = async function handler(req, res) {
     ? req.query.date
     : (req.body && req.body.date)) || null;
 
-  const locs = getTodayLocations(clientDate);
+  const locs = await getTodayLocations(clientDate);
 
   // ── GET /api/game?action=clue&round=N ──────────────────────────────────
   if (req.method === 'GET') {

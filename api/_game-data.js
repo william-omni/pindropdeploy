@@ -1,9 +1,37 @@
-// api/game.js — Server-side game logic (Vercel serverless function)
-// LOCATIONS, seed functions, and scoring are kept here so they are never
-// exposed in the client HTML.
+// api/_game-data.js — Server-side game logic (Vercel serverless function)
+// Location data is fetched from MotherDuck at runtime and cached in memory
+// so it is never bundled into the repo or exposed in the client HTML.
 
-const LOCATIONS_DATA = require('./_locations.json');
-const LOCATIONS = LOCATIONS_DATA.map(l => [l.name, l.description, l.lat, l.lng, l.radius]);
+const { getAllLocations } = require('./_motherduck');
+
+// ── Module-level location cache ───────────────────────────────────────────────
+// _locs    : array of [name, description, lat, lng, radius] tuples
+// _diffMap : { name → difficulty } used by getLocDifficulty()
+// _cacheExp: timestamp (ms) after which cache is considered stale
+let _locs     = null;
+let _diffMap  = null;
+let _cacheExp = 0;
+const CACHE_TTL_MS = 5 * 60 * 1000; // refresh location list every 5 minutes
+
+async function _ensureLoaded() {
+  const now = Date.now();
+  if (_locs && _diffMap && now < _cacheExp) return; // cache still fresh
+
+  const rows = await getAllLocations();
+
+  if (!rows || rows.length === 0) {
+    // MotherDuck unavailable — keep using stale cache if we have one
+    if (_locs) {
+      console.warn('[PinDrop] MotherDuck unavailable, using stale location cache');
+      return;
+    }
+    throw new Error('[PinDrop] No location data available — MotherDuck returned no rows');
+  }
+
+  _locs    = rows.map(r => [r.name, r.description, r.lat, r.lng, r.radius]);
+  _diffMap = Object.fromEntries(rows.map(r => [r.name, r.difficulty]));
+  _cacheExp = now + CACHE_TTL_MS;
+}
 
 
 const ROUNDS_PER_GAME = 5;
@@ -41,15 +69,16 @@ function getDayNumber(dateStr) {
   return Math.floor((nowMs - epoch) / 86400000) + 1;
 }
 
-// ── Difficulty map ────────────────────────────────────────────────────────────
-// Override difficulty per location name. Anything not listed → 3 (medium).
+// ── Difficulty lookup ─────────────────────────────────────────────────────────
+// Reads from _diffMap (populated by _ensureLoaded from MotherDuck).
+// Anything not listed → 3 (medium).
 // 1 = Major world city   2 = World-famous landmark
 // 3 = Well-known dest.   4 = Needs real geo knowledge   5 = Obscure / remote
-const DIFFICULTY_MAP = require('./_difficulty.json');
 
 // Difficulty: 1=major city  2=famous landmark  3=medium (default)  4=hard  5=very hard
 function getLocDifficulty(loc) {
-  return DIFFICULTY_MAP[loc[0]] !== undefined ? DIFFICULTY_MAP[loc[0]] : 3;
+  if (!_diffMap) return 3; // cache not yet loaded — default
+  return _diffMap[loc[0]] !== undefined ? _diffMap[loc[0]] : 3;
 }
 
 // Extract the country name from a location string (e.g. "Paris, France" → "France").
@@ -67,10 +96,13 @@ function getCountry(locName) {
   return parts.length > 1 ? parts[parts.length - 1] : locName;
 }
 
-function getTodayLocations(dateStr) {
+async function getTodayLocations(dateStr) {
+  // Ensure location data is loaded from MotherDuck (uses cache after first call)
+  await _ensureLoaded();
+
   // ── Build full difficulty pools ───────────────────────────────────────────
   const allPools = { 1: [], 2: [], 3: [], 4: [], 5: [] };
-  LOCATIONS.forEach(loc => {
+  _locs.forEach(loc => {
     const d = getLocDifficulty(loc);
     if (allPools[d]) allPools[d].push(loc);
   });
@@ -163,7 +195,7 @@ function getTodayLocations(dateStr) {
 
     // If this date has a pinned override, use it directly and skip RNG
     if (DATE_OVERRIDES[ds]) {
-      history[ds] = DATE_OVERRIDES[ds].map(entry => Array.isArray(entry) ? entry : LOCATIONS.find(l => l[0] === entry));
+      history[ds] = DATE_OVERRIDES[ds].map(entry => Array.isArray(entry) ? entry : _locs.find(l => l[0] === entry));
       continue;
     }
 
@@ -244,7 +276,6 @@ function scoreFromDistance(km, perfectRadius = 30) {
 // ── Vercel Handler ────────────────────────────────────────────────────────
 
 module.exports = {
-  LOCATIONS,
   ROUNDS_PER_GAME,
   seededRand,
   getDailySeed,

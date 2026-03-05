@@ -1,3 +1,9 @@
 node_modules/
 .env.local
 .vercel
+.env*.local
+
+# Location data is stored in MotherDuck — these files must not be committed
+# to a public repo as they reveal future puzzle answers
+api/_locations.json
+api/_difficulty.json

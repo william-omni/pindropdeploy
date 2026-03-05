@@ -4,7 +4,6 @@ const fs      = require('fs');
 const path    = require('path');
 const { embedSsoDashboard, embedSsoContentDiscovery } = require('@omni-co/embed');
 const {
-  LOCATIONS,
   getDayNumber,
   getLocDifficulty,
   getTodayLocations,
@@ -13,6 +12,7 @@ const {
   getDailySeed,
   ROUNDS_PER_GAME,
 } = require('./_game-data');
+const { getAllLocations, replaceAllLocations } = require('./_motherduck');
 
 // ── Auth helpers ─────────────────────────────────────────────────────────────
 function normalizeEnvPassword() {
@@ -54,7 +54,7 @@ async function parseJsonBody(req) {
 }
 
 // ── Upcoming challenges ──────────────────────────────────────────────────────
-function getUpcomingDays(fromDateStr, numDays) {
+async function getUpcomingDays(fromDateStr, numDays) {
   const [fy, fm, fd] = fromDateStr.split('-').map(Number);
   const results = [];
   for (let i = 0; i < numDays; i++) {
@@ -64,7 +64,7 @@ function getUpcomingDays(fromDateStr, numDays) {
     const day = d.getUTCDate();
     const dateStr = y + '-' + String(m).padStart(2,'0') + '-' + String(day).padStart(2,'0');
     const dayNum  = getDayNumber(dateStr);
-    const locs    = getTodayLocations(dateStr);
+    const locs    = await getTodayLocations(dateStr);
 
     // Pairwise proximity check
     const proximityWarnings = [];
@@ -167,7 +167,7 @@ module.exports = async function handler(req, res) {
         String(d.getUTCMonth() + 1).padStart(2,'0') + '-' +
         String(d.getUTCDate()).padStart(2,'0');
     })();
-    return res.status(200).json(getUpcomingDays(from, days));
+    return res.status(200).json(await getUpcomingDays(from, days));
   }
 
   // ── GET analytics ────────────────────────────────────────────────────────
@@ -221,21 +221,8 @@ module.exports = async function handler(req, res) {
   // ── GET locations list ───────────────────────────────────────────────────
   if (action === 'locations' && req.method === 'GET') {
     try {
-      // Clear require cache so edits are reflected after a save-locations commit+redeploy
-      const locsPath = require.resolve('./_locations.json');
-      const diffPath = require.resolve('./_difficulty.json');
-      delete require.cache[locsPath];
-      delete require.cache[diffPath];
-      const locsRaw = require('./_locations.json');
-      const diffMap = require('./_difficulty.json');
-      const locations = locsRaw.map(l => ({
-        name:        l.name,
-        description: l.description,
-        lat:         l.lat,
-        lng:         l.lng,
-        radius:      l.radius,
-        difficulty:  diffMap[l.name] !== undefined ? diffMap[l.name] : 3,
-      }));
+      const locations = await getAllLocations();
+      if (!locations) return res.status(503).json({ error: 'MotherDuck unavailable' });
       return res.status(200).json({ locations });
     } catch (e) {
       return res.status(500).json({ error: 'Failed to load locations: ' + e.message });
@@ -264,18 +251,15 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // ── POST save-locations (commit both JSON files via GitHub API) ──────────
+  // ── POST save-locations (write to MotherDuck) ────────────────────────────
   if (action === 'save-locations' && req.method === 'POST') {
-    const githubToken = process.env.GITHUB_TOKEN;
-    if (!githubToken) return res.status(503).json({ error: 'GITHUB_TOKEN env var not configured' });
-
     const body = await parseJsonBody(req);
     const locations = body && body.locations;
     if (!Array.isArray(locations) || locations.length === 0) {
       return res.status(400).json({ error: 'locations array is required' });
     }
 
-    // Validate
+    // Validate all rows before touching the DB
     const names = new Set();
     for (const l of locations) {
       if (!l.name || !l.description || l.lat == null || l.lng == null || !l.radius || !l.difficulty) {
@@ -286,65 +270,21 @@ module.exports = async function handler(req, res) {
       names.add(key);
     }
 
-    // Build JSON file contents
-    const locsJson = JSON.stringify(
-      locations.map(({ difficulty, ...l }) => l), null, 2
-    ) + '\n';
-    const diffJson = JSON.stringify(
-      Object.fromEntries(locations.map(l => [l.name, Number(l.difficulty)])), null, 2
-    ) + '\n';
-
-    // GitHub Git Trees API helper
-    const REPO = process.env.GITHUB_REPO || 'william-omni/pindropdeploy';
-    async function ghApi(method, apiPath, ghBody) {
-      const r = await fetch('https://api.github.com' + apiPath, {
-        method,
-        headers: {
-          Authorization: 'token ' + githubToken,
-          'Content-Type': 'application/json',
-          'User-Agent': 'pindrop-admin',
-          'Accept': 'application/vnd.github+json',
-        },
-        body: ghBody ? JSON.stringify(ghBody) : undefined,
-      });
-      if (!r.ok) {
-        const txt = await r.text();
-        throw new Error('GitHub ' + method + ' ' + apiPath + ' → ' + r.status + ': ' + txt);
-      }
-      return r.json();
-    }
+    // Normalise types before writing
+    const normalised = locations.map(l => ({
+      name:        String(l.name).trim(),
+      description: String(l.description).trim(),
+      lat:         Number(l.lat),
+      lng:         Number(l.lng),
+      radius:      Number(l.radius),
+      difficulty:  Number(l.difficulty),
+    }));
 
     try {
-      // 1. Get current HEAD commit SHA
-      const ref    = await ghApi('GET', `/repos/${REPO}/git/ref/heads/main`);
-      const sha    = ref.object.sha;
-      // 2. Get current commit tree SHA
-      const commit = await ghApi('GET', `/repos/${REPO}/git/commits/${sha}`);
-      const treeSha = commit.tree.sha;
-      // 3. Create blobs
-      const [blob1, blob2] = await Promise.all([
-        ghApi('POST', `/repos/${REPO}/git/blobs`, { content: locsJson, encoding: 'utf-8' }),
-        ghApi('POST', `/repos/${REPO}/git/blobs`, { content: diffJson, encoding: 'utf-8' }),
-      ]);
-      // 4. Create new tree
-      const newTree = await ghApi('POST', `/repos/${REPO}/git/trees`, {
-        base_tree: treeSha,
-        tree: [
-          { path: 'api/_locations.json', mode: '100644', type: 'blob', sha: blob1.sha },
-          { path: 'api/_difficulty.json', mode: '100644', type: 'blob', sha: blob2.sha },
-        ],
-      });
-      // 5. Create commit
-      const newCommit = await ghApi('POST', `/repos/${REPO}/git/commits`, {
-        message: 'admin: update locations (' + locations.length + ' entries)',
-        tree: newTree.sha,
-        parents: [sha],
-      });
-      // 6. Update HEAD ref
-      await ghApi('PATCH', `/repos/${REPO}/git/refs/heads/main`, { sha: newCommit.sha });
-      return res.status(200).json({ commitSha: newCommit.sha });
+      await replaceAllLocations(normalised);
+      return res.status(200).json({ saved: normalised.length });
     } catch (e) {
-      return res.status(500).json({ error: e.message });
+      return res.status(500).json({ error: 'Failed to save locations: ' + e.message });
     }
   }
 
