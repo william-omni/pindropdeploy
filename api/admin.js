@@ -13,7 +13,7 @@ const {
   ROUNDS_PER_GAME,
 } = require('./_game-data');
 const {
-  getAllLocations, replaceAllLocations, getLockedDates,
+  getAllLocations, replaceAllLocations, getLockedDates, getPlayedDates,
   upsertLocation, deleteLocation, getLastUsedDates, setDayOverride,
 } = require('./_motherduck');
 
@@ -65,7 +65,12 @@ async function getUpcomingDays(fromDateStr, numDays) {
   const toDateStr = toD.getUTCFullYear() + '-'
     + String(toD.getUTCMonth() + 1).padStart(2,'0') + '-'
     + String(toD.getUTCDate()).padStart(2,'0');
-  const lockedSet = await getLockedDates(fromDateStr, toDateStr);
+  // comboSet  = dates that have a daily_combinations row (admin override OR player-locked)
+  // playedSet = dates that have actual plays — these are truly immutable
+  const [comboSet, playedSet] = await Promise.all([
+    getLockedDates(fromDateStr, toDateStr),
+    getPlayedDates(fromDateStr, toDateStr),
+  ]);
 
   const results = [];
   for (let i = 0; i < numDays; i++) {
@@ -90,7 +95,8 @@ async function getUpcomingDays(fromDateStr, numDays) {
 
     results.push({
       dateStr, dayNum, avgDiff,
-      locked: lockedSet.has(dateStr),
+      locked:        playedSet.has(dateStr),                              // true only once someone plays
+      adminOverride: comboSet.has(dateStr) && !playedSet.has(dateStr),   // combo set but still editable
       proximityWarnings,
       locations: locs.map(loc => ({
         name:          loc[0],

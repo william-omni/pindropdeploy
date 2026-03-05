@@ -420,6 +420,28 @@ async function setDayOverride({ gameDate, dayNumber, locationNames }) {
   }
 }
 
+// Returns a Set of date strings (YYYY-MM-DD) that have at least one play row in the range.
+// A day is only truly locked (admin cannot re-override it) once a real player has played it.
+async function getPlayedDates(fromDateStr, toDateStr) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return new Set();
+    const conn = await inst.connect();
+    try {
+      const res = await conn.runAndReadAll(
+        `SELECT DISTINCT CAST(game_date AS VARCHAR) AS game_date
+         FROM pindrop.plays
+         WHERE game_date BETWEEN ? AND ?`,
+        [fromDateStr, toDateStr]
+      );
+      return new Set(res.getRowObjects().map(r => r.game_date));
+    } finally { conn.closeSync(); }
+  } catch (e) {
+    console.error('[MotherDuck] getPlayedDates error:', e.message);
+    return new Set();
+  }
+}
+
 // Returns a Set of date strings (YYYY-MM-DD) that have a locked combo in the range.
 // Used by the admin upcoming view to display the lock icon.
 async function getLockedDates(fromDateStr, toDateStr) {
@@ -531,7 +553,7 @@ async function replaceAllLocations(locations) {
 
 module.exports = {
   trackPlay, trackGame, trackShare, storeDailyCombo,
-  getAllLocations, getLockedDailyCombo, getLockedDates,
+  getAllLocations, getLockedDailyCombo, getLockedDates, getPlayedDates,
   getLockedCombosForRange, getLastUsedDates, setDayOverride,
   upsertLocation, deleteLocation, replaceAllLocations,
 };

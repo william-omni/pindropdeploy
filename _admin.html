@@ -113,7 +113,9 @@
     .day-avg{margin-left:auto;font-size:13px;color:var(--muted)}
     .day-avg span{font-weight:700}
     .lock-badge{background:rgba(251,191,36,.12);color:#fbbf24;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;border:1px solid rgba(251,191,36,.25)}
+    .override-set-badge{background:rgba(99,179,237,.1);color:#63b3ed;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;border:1px solid rgba(99,179,237,.25)}
     .day-card-locked{border-color:rgba(251,191,36,.3)}
+    .day-card-admin-override{border-color:rgba(99,179,237,.25)}
     .prox-badge{background:rgba(248,113,113,.15);color:var(--red);
       border:1px solid rgba(248,113,113,.3);border-radius:6px;
       padding:2px 9px;font-size:11px;font-weight:700}
@@ -681,14 +683,23 @@ function renderUpcoming(days, container) {
 
     var diffColor    = day.avgDiff <= 2 ? 'var(--d1)' : day.avgDiff <= 3.5 ? 'var(--d3)' : 'var(--d5)';
     var hasWarn      = day.proximityWarnings.length > 0;
+    // Override button shows for any day not yet played (locked = has plays)
     var overrideBtn  = day.locked ? '' :
       '<button class="btn btn-ghost btn-override" onclick="openOverrideModal(' + dayIdx + ')">&#9998; Override</button>';
+    // Card border: amber = played+locked, blue = admin override but still editable
+    var cardClass = day.locked ? ' day-card-locked' : (day.adminOverride ? ' day-card-admin-override' : '');
+    // Status badge
+    var statusBadge = day.locked
+      ? '<div class="lock-badge" title="This day has been played — locations are locked">🔒 Locked</div>'
+      : day.adminOverride
+        ? '<div class="override-set-badge" title="Admin override applied — still editable until someone plays">✏ Override set</div>'
+        : '';
 
-    return '<div class="day-card' + (day.locked ? ' day-card-locked' : '') + '">' +
+    return '<div class="day-card' + cardClass + '">' +
       '<div class="day-card-header">' +
         '<div class="day-num">Day #' + day.dayNum + '</div>' +
         '<div class="day-date">' + day.dateStr + '</div>' +
-        (day.locked ? '<div class="lock-badge" title="This day has been played — locations are locked">🔒 Locked</div>' : '') +
+        statusBadge +
         overrideBtn +
         '<div class="day-avg">avg difficulty <span style="color:' + diffColor + '">' + day.avgDiff + '</span></div>' +
         (hasWarn ? '<div class="prox-badge">&#9888; ' + day.proximityWarnings.length + ' proximity issue' + (day.proximityWarnings.length > 1 ? 's' : '') + '</div>' : '') +
@@ -994,7 +1005,7 @@ function openOverrideModal(dayIdx) {
 
   document.getElementById('override-title').textContent = 'Override Day #' + day.dayNum;
   document.getElementById('override-subtitle').textContent =
-    day.dateStr + ' — choose 5 locations (changes will lock this day)';
+    day.dateStr + ' — choose 5 locations (editable until the first player plays)';
 
   // Populate datalist with all location names
   var dl = document.getElementById('all-locs-datalist');
