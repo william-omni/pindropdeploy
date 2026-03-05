@@ -1354,8 +1354,12 @@ function getDeviceType() {
 
 // Day counter for share text (non-sensitive)
 function getDayNumber() {
-  const epoch = new Date('2026-03-04T00:00:00Z'); // Official launch day (Day 1)
-  return Math.floor((new Date() - epoch) / 86400000) + 1;
+  // Use the LOCAL date (same as the game date) so the day number always
+  // matches the puzzle being played, regardless of UTC offset.
+  const [y, m, d] = getLocalDateStr().split('-').map(Number);
+  const todayMs = Date.UTC(y, m - 1, d);
+  const epochMs = Date.UTC(2026, 2, 4); // March 4, 2026 = Day #1
+  return Math.floor((todayMs - epochMs) / 86400000) + 1;
 }
 
 // ─────────────────────────────────────────────────────────
