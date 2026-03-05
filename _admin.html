@@ -315,7 +315,7 @@
             <input class="loc-search" id="loc-search" type="text" placeholder="Search by name or description…" oninput="renderLocTable()">
             <button class="btn btn-primary" onclick="openLocForm(null)">+ Add Location</button>
             <button class="btn btn-success" id="commit-btn" onclick="commitLocations()" hidden>
-              <span id="commit-btn-label">Commit</span>&nbsp;<span id="pending-count">0</span>&nbsp;change<span id="pending-s">s</span>
+              <span id="commit-btn-label">Save</span>&nbsp;<span id="pending-count">0</span>&nbsp;change<span id="pending-s">s</span>
             </button>
           </div>
         </div>
@@ -825,7 +825,7 @@ async function commitLocations() {
   if (!pendingLocs) return;
   var btn = document.getElementById('commit-btn');
   btn.disabled = true;
-  document.getElementById('commit-btn-label').textContent = 'Committing…';
+  document.getElementById('commit-btn-label').textContent = 'Saving…';
   try {
     var r = await fetch('/api/admin?action=save-locations', {
       method: 'POST',
@@ -833,19 +833,19 @@ async function commitLocations() {
       body: JSON.stringify({ locations: pendingLocs })
     });
     var d = await r.json();
-    if (d.commitSha) {
+    if (d.saved !== undefined && !d.error) {
       locationsData = pendingLocs.map(function(l){ return Object.assign({}, l); });
       pendingLocs = null;
       renderLocTable();
-      alert('Committed! SHA: ' + d.commitSha.slice(0, 7) + '\n\nVercel will redeploy automatically in ~30 seconds.');
+      alert('Saved ' + d.saved + ' locations to database successfully!');
     } else {
-      alert('Commit failed: ' + (d.error || 'unknown error'));
+      alert('Save failed: ' + (d.error || 'unknown error'));
     }
   } catch(err) {
-    alert('Commit error: ' + err.message);
+    alert('Save error: ' + err.message);
   } finally {
     btn.disabled = false;
-    document.getElementById('commit-btn-label').textContent = 'Commit';
+    document.getElementById('commit-btn-label').textContent = 'Save';
     updatePendingUI();
   }
 }
