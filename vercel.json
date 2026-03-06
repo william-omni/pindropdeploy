@@ -21,6 +21,10 @@
     {
       "source": "/admin",
       "destination": "/api/admin"
+    },
+    {
+      "source": "/omni",
+      "destination": "/api/omni"
     }
   ],
   "headers": [

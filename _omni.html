@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PinDrop Demo</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    [hidden]{display:none!important}
+    :root{
+      --bg:#0d0f14;--s1:#161a22;--s2:#1e2330;--s3:#262c3a;
+      --accent:#47c8ff;--text:#e8eaf0;--muted:#6b7a94;--border:rgba(255,255,255,.07);
+      --red:#f87171;--green:#4ade80;
+    }
+    html,body{height:100%;background:var(--bg);color:var(--text);
+      font-family:system-ui,-apple-system,sans-serif;font-size:15px;overflow:hidden}
+
+    /* ── LOGIN ── */
+    #login-screen{display:flex;align-items:center;justify-content:center;
+      height:100%;padding:24px}
+    .login-card{background:var(--s1);border:1px solid var(--border);border-radius:20px;
+      padding:40px 36px;width:100%;max-width:380px;text-align:center}
+    .login-logo{font-size:52px;margin-bottom:14px}
+    .login-card h1{font-size:26px;font-weight:800;color:var(--accent);margin-bottom:4px}
+    .login-card p{color:var(--muted);font-size:13px;margin-bottom:28px}
+    .login-card input{width:100%;padding:13px 16px;background:var(--s2);
+      border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--text);
+      font-size:16px;margin-bottom:12px;outline:none;transition:border .2s}
+    .login-card input:focus{border-color:var(--accent)}
+    .login-card button[type=submit]{width:100%;padding:14px;background:var(--accent);
+      color:#0a0a0f;font-weight:700;font-size:16px;border:none;border-radius:10px;
+      cursor:pointer;transition:opacity .2s}
+    .login-card button[type=submit]:hover{opacity:.9}
+    #login-err{color:var(--red);font-size:13px;margin-top:12px}
+
+    /* ── LAYOUT ── */
+    #app{display:flex;flex-direction:column;height:100%}
+    nav{display:flex;align-items:center;gap:6px;padding:10px 20px;
+      background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;
+      min-height:52px}
+    .nav-brand{font-weight:800;font-size:17px;color:var(--accent);margin-right:8px;
+      white-space:nowrap}
+    .nav-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;
+      background:rgba(71,200,255,.12);color:var(--accent);border:1px solid rgba(71,200,255,.2);
+      margin-left:2px;white-space:nowrap}
+    .nav-tab{padding:7px 14px;border-radius:8px;border:none;background:transparent;
+      color:var(--muted);font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;
+      white-space:nowrap}
+    .nav-tab.active{background:var(--accent);color:#0a0a0f}
+    .nav-tab:not(.active):hover{background:var(--s2);color:var(--text)}
+    #btn-logout{margin-left:auto;padding:6px 13px;border:1px solid rgba(255,255,255,.12);
+      border-radius:8px;background:transparent;color:var(--muted);font-size:13px;cursor:pointer;
+      transition:all .2s;white-space:nowrap}
+    #btn-logout:hover{border-color:var(--red);color:var(--red)}
+
+    /* ── FULL-BLEED PANES (Dashboard / AI Chat) ── */
+    #tab-dashboard-pane,#tab-chat-pane{
+      flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden}
+    #tab-chat-pane{display:none}
+    .pane-loading{position:absolute;inset:0;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;gap:16px;background:var(--bg);z-index:10}
+    .pane-loading .spinner{width:32px;height:32px;border:3px solid var(--border);
+      border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+    .pane-loading p{color:var(--muted);font-size:14px}
+    .pane-error{position:absolute;inset:0;display:none;flex-direction:column;
+      align-items:center;justify-content:center;gap:12px;background:var(--bg);z-index:10}
+    .pane-error p{color:var(--muted);font-size:14px;text-align:center;max-width:360px;line-height:1.6}
+    .pane-error .err-code{font-size:12px;font-family:monospace;color:var(--red);
+      background:var(--s2);padding:8px 14px;border-radius:8px;max-width:480px;word-break:break-all}
+    .pane-error button{padding:9px 20px;background:var(--accent);color:#0a0a0f;
+      font-weight:700;border:none;border-radius:8px;cursor:pointer}
+    #omni-iframe,#chat-iframe{flex:1;width:100%;border:none;background:var(--bg)}
+
+    /* ── SCROLLABLE PANE (Preview) ── */
+    #main-content{flex:1;overflow-y:auto;padding:24px}
+    #main-inner{max-width:1100px;margin:0 auto;width:100%}
+    .tab-pane{display:block}
+    .tab-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+    .tab-header h2{font-size:20px;font-weight:700;flex:1}
+    .tab-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .tab-controls label{color:var(--muted);font-size:14px;display:flex;align-items:center;gap:6px}
+    .tab-controls input[type=date]{background:var(--s2);border:1px solid rgba(255,255,255,.1);
+      border-radius:8px;color:var(--text);padding:7px 10px;font-size:14px;outline:none;
+      color-scheme:dark}
+    .btn{padding:9px 18px;border-radius:8px;border:none;cursor:pointer;font-size:14px;
+      font-weight:600;transition:opacity .2s}
+    .btn:hover{opacity:.85}
+    .btn-primary{background:var(--accent);color:#0a0a0f}
+
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+
+<!-- ── LOGIN ── -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">&#128205;</div>
+    <h1>PinDrop</h1>
+    <p>Omni team demo &mdash; read-only access</p>
+    <form id="form-login" onsubmit="doLogin(event)">
+      <input type="password" id="pw-input" placeholder="Demo password"
+             autocomplete="current-password" required>
+      <button type="submit">View Dashboard</button>
+      <p id="login-err" hidden></p>
+    </form>
+  </div>
+</div>
+
+<!-- ── APP SHELL ── -->
+<div id="app" hidden>
+  <nav>
+    <div class="nav-brand">&#128205; PinDrop</div>
+    <span class="nav-badge">Demo</span>
+    <button class="nav-tab active" data-tab="dashboard" onclick="switchTab('dashboard',this)">Dashboard</button>
+    <button class="nav-tab"        data-tab="chat"      onclick="switchTab('chat',this)">AI Chat</button>
+    <button class="nav-tab"        data-tab="preview"   onclick="switchTab('preview',this)">Preview Game</button>
+    <button id="btn-logout" onclick="logout()">Logout</button>
+  </nav>
+
+  <!-- DASHBOARD — full-bleed Omni embed -->
+  <div id="tab-dashboard-pane">
+    <div class="pane-loading" id="embed-loading">
+      <div class="spinner"></div>
+      <p>Loading dashboard&hellip;</p>
+    </div>
+    <div class="pane-error" id="embed-error">
+      <p>Could not load the Omni dashboard.</p>
+      <div class="err-code" id="embed-err-msg"></div>
+      <button onclick="retryEmbed()">Retry</button>
+    </div>
+    <iframe id="omni-iframe" src="" allow="fullscreen" hidden></iframe>
+  </div>
+
+  <!-- AI CHAT — full-bleed Omni AI embed -->
+  <div id="tab-chat-pane">
+    <div class="pane-loading" id="chat-loading">
+      <div class="spinner"></div>
+      <p>Loading AI Chat&hellip;</p>
+    </div>
+    <div class="pane-error" id="chat-error">
+      <p>Could not load the Omni AI Chat.</p>
+      <div class="err-code" id="chat-err-msg"></div>
+      <button onclick="retryChat()">Retry</button>
+    </div>
+    <iframe id="chat-iframe" src="" allow="fullscreen" hidden></iframe>
+  </div>
+
+  <!-- PREVIEW — scrollable -->
+  <div id="main-content" hidden>
+    <div id="main-inner">
+      <div id="tab-preview" class="tab-pane" hidden>
+        <div class="tab-header">
+          <h2>Preview Game</h2>
+          <div class="tab-controls">
+            <label>Date
+              <input type="date" id="preview-date-input">
+            </label>
+            <button class="btn btn-primary" onclick="loadPreview()">Load</button>
+          </div>
+        </div>
+        <iframe id="preview-iframe" src="" style="width:100%;flex:1;border:none;min-height:600px"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── State ── */
+var TOKEN       = localStorage.getItem('pd-omni-token') || '';
+var embedLoaded = false;
+var chatLoaded  = false;
+
+/* ── Bootstrap ── */
+window.addEventListener('DOMContentLoaded', async function() {
+  // Cap preview date to today (no future spoilers)
+  var todayStr = todayDateString();
+  var dateInput = document.getElementById('preview-date-input');
+  dateInput.max   = todayStr;
+  dateInput.value = todayStr;
+
+  if (!TOKEN) return;
+  // Validate stored token with a lightweight ping
+  try {
+    var r = await fetch('/api/omni?action=ping', {
+      headers: { 'Authorization': 'Bearer ' + TOKEN }
+    });
+    if (r.ok) { showApp(); }
+    else { TOKEN = ''; localStorage.removeItem('pd-omni-token'); }
+  } catch(e) {
+    TOKEN = ''; localStorage.removeItem('pd-omni-token');
+  }
+});
+
+/* ── Helpers ── */
+function todayDateString() {
+  var d = new Date();
+  return d.getFullYear() + '-'
+    + String(d.getMonth() + 1).padStart(2, '0') + '-'
+    + String(d.getDate()).padStart(2, '0');
+}
+
+/* ── Auth ── */
+async function doLogin(e) {
+  e.preventDefault();
+  var pw    = document.getElementById('pw-input').value.trim();
+  var errEl = document.getElementById('login-err');
+  var btn   = document.querySelector('#form-login button[type=submit]');
+  errEl.setAttribute('hidden', '');
+  btn.disabled = true;
+  btn.textContent = 'Checking…';
+  try {
+    var res = await fetch('/api/omni?action=auth', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({password: pw})
+    });
+    if (!res.ok) {
+      var msg = 'Incorrect password';
+      try { var d = await res.json(); if (d.error) msg = d.error; } catch {}
+      errEl.textContent = msg;
+      errEl.removeAttribute('hidden');
+      return;
+    }
+    var d = await res.json();
+    TOKEN = d.token;
+    localStorage.setItem('pd-omni-token', TOKEN);
+    showApp();
+  } catch(err) {
+    errEl.textContent = 'Network error — ' + err.message;
+    errEl.removeAttribute('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'View Dashboard';
+  }
+}
+
+function logout() {
+  TOKEN = '';
+  embedLoaded = false;
+  chatLoaded  = false;
+  localStorage.removeItem('pd-omni-token');
+  document.getElementById('omni-iframe').src = '';
+  document.getElementById('omni-iframe').hidden = true;
+  document.getElementById('embed-loading').style.display = '';
+  document.getElementById('embed-error').style.display = 'none';
+  document.getElementById('chat-iframe').src = '';
+  document.getElementById('chat-iframe').hidden = true;
+  document.getElementById('chat-loading').style.display = '';
+  document.getElementById('chat-error').style.display = 'none';
+  document.getElementById('app').hidden = true;
+  document.getElementById('login-screen').hidden = false;
+}
+
+function showApp() {
+  document.getElementById('login-screen').hidden = true;
+  document.getElementById('app').hidden = false;
+  // Default to Dashboard — most impressive for demos
+  var dashBtn = document.querySelector('.nav-tab[data-tab="dashboard"]');
+  _activateTab('dashboard', dashBtn);
+  loadEmbed();
+}
+
+/* ── Tabs ── */
+function switchTab(name, btn) {
+  _activateTab(name, btn);
+  if (name === 'dashboard') loadEmbed();
+  if (name === 'chat')      loadChat();
+}
+
+function _activateTab(name, btn) {
+  document.querySelectorAll('.nav-tab').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+
+  var dashPane    = document.getElementById('tab-dashboard-pane');
+  var chatPane    = document.getElementById('tab-chat-pane');
+  var mainContent = document.getElementById('main-content');
+
+  dashPane.style.display = 'none';
+  chatPane.style.display = 'none';
+  mainContent.hidden = true;
+
+  if (name === 'dashboard') {
+    dashPane.style.display = '';
+  } else if (name === 'chat') {
+    chatPane.style.display = 'flex';
+  } else {
+    mainContent.hidden = false;
+    document.querySelectorAll('.tab-pane').forEach(function(p){ p.hidden = true; });
+    document.getElementById('tab-' + name).hidden = false;
+  }
+}
+
+/* ── Omni Dashboard embed ── */
+async function loadEmbed() {
+  if (embedLoaded) return;
+  document.getElementById('embed-loading').style.display = '';
+  document.getElementById('embed-error').style.display = 'none';
+  document.getElementById('omni-iframe').hidden = true;
+  try {
+    var res = await fetch('/api/omni?action=embed-url', {
+      headers: {'Authorization': 'Bearer ' + TOKEN}
+    });
+    if (res.status === 401) { logout(); return; }
+    var d = await res.json();
+    if (!d.url) throw new Error(d.error || 'No URL returned');
+    var iframe = document.getElementById('omni-iframe');
+    iframe.onload = function() {
+      document.getElementById('embed-loading').style.display = 'none';
+      iframe.hidden = false;
+      embedLoaded = true;
+    };
+    iframe.src = d.url;
+  } catch(err) {
+    document.getElementById('embed-loading').style.display = 'none';
+    document.getElementById('embed-err-msg').textContent = err.message;
+    document.getElementById('embed-error').style.display = 'flex';
+  }
+}
+
+function retryEmbed() {
+  embedLoaded = false;
+  document.getElementById('omni-iframe').src = '';
+  loadEmbed();
+}
+
+/* ── Omni AI Chat embed ── */
+async function loadChat() {
+  if (chatLoaded) return;
+  document.getElementById('chat-loading').style.display = '';
+  document.getElementById('chat-error').style.display = 'none';
+  document.getElementById('chat-iframe').hidden = true;
+  try {
+    var res = await fetch('/api/omni?action=embed-chat-url', {
+      headers: {'Authorization': 'Bearer ' + TOKEN}
+    });
+    if (res.status === 401) { logout(); return; }
+    var d = await res.json();
+    if (!d.url) throw new Error(d.error || 'No URL returned');
+    var iframe = document.getElementById('chat-iframe');
+    iframe.onload = function() {
+      document.getElementById('chat-loading').style.display = 'none';
+      iframe.hidden = false;
+      chatLoaded = true;
+    };
+    iframe.src = d.url;
+  } catch(err) {
+    document.getElementById('chat-loading').style.display = 'none';
+    document.getElementById('chat-err-msg').textContent = err.message;
+    document.getElementById('chat-error').style.display = 'flex';
+  }
+}
+
+function retryChat() {
+  chatLoaded = false;
+  document.getElementById('chat-iframe').src = '';
+  loadChat();
+}
+
+/* ── Preview (capped to today — no future spoilers) ── */
+function loadPreview() {
+  var input   = document.getElementById('preview-date-input');
+  var today   = todayDateString();
+  // Enforce the cap even if someone edits the input manually
+  var date    = input.value > today ? today : input.value;
+  input.value = date;
+  var src = date ? '/?preview&date=' + date : '/?preview';
+  document.getElementById('preview-iframe').src = src;
+}
+</script>
+</body>
+</html>
