@@ -227,7 +227,7 @@ module.exports = async function handler(req, res) {
         secret,
         prefersDark:      'true',
         accessBoost:      true,
-        connectionRoles:  { 'aeb200a8-bf3b-4590-82aa-02e4fde504a3': 'QUERIER' },
+        modelRoles:       { '597663fe-56fa-4cc6-84a1-d914da84bf4f': 'QUERIER' },
       });
       return res.status(200).json({ url });
     } catch (e) {
