@@ -10,14 +10,14 @@
     :root{
       --bg:#0d0f14;--s1:#161a22;--s2:#1e2330;--s3:#262c3a;
       --accent:#47c8ff;--text:#e8eaf0;--muted:#6b7a94;--border:rgba(255,255,255,.07);
+      --d1:#4ade80;--d2:#a3e635;--d3:#fbbf24;--d4:#fb923c;--d5:#f87171;
       --red:#f87171;--green:#4ade80;
     }
     html,body{height:100%;background:var(--bg);color:var(--text);
       font-family:system-ui,-apple-system,sans-serif;font-size:15px;overflow:hidden}
 
     /* ── LOGIN ── */
-    #login-screen{display:flex;align-items:center;justify-content:center;
-      height:100%;padding:24px}
+    #login-screen{display:flex;align-items:center;justify-content:center;height:100%;padding:24px}
     .login-card{background:var(--s1);border:1px solid var(--border);border-radius:20px;
       padding:40px 36px;width:100%;max-width:380px;text-align:center}
     .login-logo{font-size:52px;margin-bottom:14px}
@@ -36,16 +36,13 @@
     /* ── LAYOUT ── */
     #app{display:flex;flex-direction:column;height:100%}
     nav{display:flex;align-items:center;gap:6px;padding:10px 20px;
-      background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;
-      min-height:52px}
-    .nav-brand{font-weight:800;font-size:17px;color:var(--accent);margin-right:8px;
-      white-space:nowrap}
+      background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;min-height:52px}
+    .nav-brand{font-weight:800;font-size:17px;color:var(--accent);margin-right:4px;white-space:nowrap}
     .nav-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;
       background:rgba(71,200,255,.12);color:var(--accent);border:1px solid rgba(71,200,255,.2);
-      margin-left:2px;white-space:nowrap}
+      margin-right:6px;white-space:nowrap}
     .nav-tab{padding:7px 14px;border-radius:8px;border:none;background:transparent;
-      color:var(--muted);font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;
-      white-space:nowrap}
+      color:var(--muted);font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap}
     .nav-tab.active{background:var(--accent);color:#0a0a0f}
     .nav-tab:not(.active):hover{background:var(--s2);color:var(--text)}
     #btn-logout{margin-left:auto;padding:6px 13px;border:1px solid rgba(255,255,255,.12);
@@ -53,7 +50,7 @@
       transition:all .2s;white-space:nowrap}
     #btn-logout:hover{border-color:var(--red);color:var(--red)}
 
-    /* ── FULL-BLEED PANES (Dashboard / AI Chat) ── */
+    /* ── FULL-BLEED PANES ── */
     #tab-dashboard-pane,#tab-chat-pane{
       flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden}
     #tab-chat-pane{display:none}
@@ -71,7 +68,7 @@
       font-weight:700;border:none;border-radius:8px;cursor:pointer}
     #omni-iframe,#chat-iframe{flex:1;width:100%;border:none;background:var(--bg)}
 
-    /* ── SCROLLABLE PANE (Preview) ── */
+    /* ── SCROLLABLE PANE (Upcoming / Locations) ── */
     #main-content{flex:1;overflow-y:auto;padding:24px}
     #main-inner{max-width:1100px;margin:0 auto;width:100%}
     .tab-pane{display:block}
@@ -79,14 +76,71 @@
     .tab-header h2{font-size:20px;font-weight:700;flex:1}
     .tab-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
     .tab-controls label{color:var(--muted);font-size:14px;display:flex;align-items:center;gap:6px}
-    .tab-controls input[type=date]{background:var(--s2);border:1px solid rgba(255,255,255,.1);
-      border-radius:8px;color:var(--text);padding:7px 10px;font-size:14px;outline:none;
-      color-scheme:dark}
+    .tab-controls input[type=number]{background:var(--s2);border:1px solid rgba(255,255,255,.1);
+      border-radius:8px;color:var(--text);padding:7px 10px;font-size:14px;width:72px;outline:none}
     .btn{padding:9px 18px;border-radius:8px;border:none;cursor:pointer;font-size:14px;
       font-weight:600;transition:opacity .2s}
     .btn:hover{opacity:.85}
     .btn-primary{background:var(--accent);color:#0a0a0f}
 
+    /* ── DAY CARDS ── */
+    .days-grid{display:flex;flex-direction:column;gap:14px}
+    .day-card{background:var(--s1);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+    .day-card-locked{border-color:rgba(251,191,36,.3)}
+    .day-card-header{display:flex;align-items:center;gap:10px;padding:12px 18px;
+      background:var(--s2);border-bottom:1px solid var(--border);flex-wrap:wrap}
+    .day-num{background:var(--accent);color:#0a0a0f;font-weight:800;font-size:12px;
+      padding:3px 10px;border-radius:20px;white-space:nowrap}
+    .day-date{font-weight:700;font-size:15px}
+    .day-avg{margin-left:auto;font-size:13px;color:var(--muted)}
+    .day-avg span{font-weight:700}
+    .lock-badge{background:rgba(251,191,36,.12);color:#fbbf24;font-size:11px;font-weight:700;
+      padding:3px 8px;border-radius:6px;border:1px solid rgba(251,191,36,.25)}
+    .scramble-badge{background:rgba(71,200,255,.08);color:var(--muted);font-size:11px;
+      font-weight:600;padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.08);
+      font-style:italic}
+    .loc-rows{padding:2px 0}
+    .loc-row{display:flex;align-items:flex-start;gap:12px;padding:10px 18px;
+      border-bottom:1px solid rgba(255,255,255,.04)}
+    .loc-row:last-child{border-bottom:none}
+    .diff-badge{flex-shrink:0;width:22px;height:22px;border-radius:6px;display:flex;
+      align-items:center;justify-content:center;font-size:11px;font-weight:800;margin-top:2px}
+    .diff-1{background:rgba(74,222,128,.2);color:var(--d1)}
+    .diff-2{background:rgba(163,230,53,.2);color:var(--d2)}
+    .diff-3{background:rgba(251,191,36,.2);color:var(--d3)}
+    .diff-4{background:rgba(251,146,60,.2);color:var(--d4)}
+    .diff-5{background:rgba(248,113,113,.2);color:var(--d5)}
+    .loc-info{flex:1;min-width:0}
+    .loc-name{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .loc-desc{font-size:12px;color:var(--muted);margin-top:2px;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .loc-meta{flex-shrink:0;text-align:right}
+    .loc-radius{font-size:11px;color:var(--muted);margin-top:2px}
+    .loc-radius-custom{color:rgba(71,200,255,.8)!important;font-weight:600}
+
+    /* ── LOCATIONS TABLE ── */
+    .loc-search{flex:1;min-width:180px;padding:8px 12px;background:var(--s2);
+      border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text);
+      font-size:14px;outline:none;transition:border .15s}
+    .loc-search:focus{border-color:var(--accent)}
+    #loc-table-wrap{overflow-x:auto;background:var(--s1);border:1px solid var(--border);border-radius:12px}
+    #loc-count{font-size:14px;font-weight:400;color:var(--muted)}
+    #loc-table{width:100%;border-collapse:collapse;font-size:13px}
+    #loc-table th{text-align:left;padding:10px 12px;color:var(--muted);font-size:11px;
+      text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);white-space:nowrap}
+    #loc-table td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+    #loc-table tr:last-child td{border-bottom:none}
+    #loc-table tr:hover td{background:rgba(255,255,255,.03)}
+    .lt-name{font-weight:600;font-size:13px}
+    .lt-desc{font-size:12px;color:var(--muted);max-width:300px;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .lt-coord{font-family:monospace;font-size:11px;color:var(--muted)}
+    #loc-load-msg{padding:48px 24px;text-align:center;color:var(--muted)}
+
+    /* ── MISC ── */
+    .loading{text-align:center;padding:64px 24px;color:var(--muted)}
+    .spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);
+      border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin-right:8px}
     @keyframes spin{to{transform:rotate(360deg)}}
   </style>
 </head>
@@ -114,7 +168,8 @@
     <span class="nav-badge">Demo</span>
     <button class="nav-tab active" data-tab="dashboard" onclick="switchTab('dashboard',this)">Dashboard</button>
     <button class="nav-tab"        data-tab="chat"      onclick="switchTab('chat',this)">AI Chat</button>
-    <button class="nav-tab"        data-tab="preview"   onclick="switchTab('preview',this)">Preview Game</button>
+    <button class="nav-tab"        data-tab="upcoming"  onclick="switchTab('upcoming',this)">Upcoming</button>
+    <button class="nav-tab"        data-tab="locations" onclick="switchTab('locations',this)">Locations</button>
     <button id="btn-logout" onclick="logout()">Logout</button>
   </nav>
 
@@ -146,41 +201,67 @@
     <iframe id="chat-iframe" src="" allow="fullscreen" hidden></iframe>
   </div>
 
-  <!-- PREVIEW — scrollable -->
+  <!-- UPCOMING + LOCATIONS — scrollable -->
   <div id="main-content" hidden>
     <div id="main-inner">
-      <div id="tab-preview" class="tab-pane" hidden>
+
+      <!-- UPCOMING -->
+      <div id="tab-upcoming" class="tab-pane" hidden>
         <div class="tab-header">
-          <h2>Preview Game</h2>
+          <h2>Upcoming Challenges</h2>
           <div class="tab-controls">
-            <label>Date
-              <input type="date" id="preview-date-input">
+            <label>Days ahead
+              <input type="number" id="num-days" value="14" min="1" max="60">
             </label>
-            <button class="btn btn-primary" onclick="loadPreview()">Load</button>
+            <button class="btn btn-primary" onclick="loadUpcoming()">Load</button>
           </div>
         </div>
-        <iframe id="preview-iframe" src="" style="width:100%;flex:1;border:none;min-height:600px"></iframe>
+        <div id="upcoming-grid"><div class="loading"><span class="spinner"></span>Loading&hellip;</div></div>
       </div>
+
+      <!-- LOCATIONS -->
+      <div id="tab-locations" class="tab-pane" hidden>
+        <div class="tab-header">
+          <h2>Locations <span id="loc-count"></span></h2>
+          <div class="tab-controls">
+            <input class="loc-search" id="loc-search" type="text"
+                   placeholder="Search by name or description&hellip;" oninput="renderLocTable()">
+          </div>
+        </div>
+        <div id="loc-table-wrap" hidden>
+          <table id="loc-table">
+            <thead>
+              <tr>
+                <th>D</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Lat</th>
+                <th>Lng</th>
+                <th>Radius</th>
+              </tr>
+            </thead>
+            <tbody id="loc-tbody"></tbody>
+          </table>
+        </div>
+        <div id="loc-load-msg">Loading locations&hellip;</div>
+      </div>
+
     </div>
   </div>
 </div>
 
 <script>
 /* ── State ── */
-var TOKEN       = localStorage.getItem('pd-omni-token') || '';
-var embedLoaded = false;
-var chatLoaded  = false;
+var TOKEN        = localStorage.getItem('pd-omni-token') || '';
+var embedLoaded  = false;
+var chatLoaded   = false;
+var locationsData = null;
+
+var DIFF_LABEL = ['','Very Easy','Easy','Medium','Hard','Very Hard'];
 
 /* ── Bootstrap ── */
 window.addEventListener('DOMContentLoaded', async function() {
-  // Cap preview date to today (no future spoilers)
-  var todayStr = todayDateString();
-  var dateInput = document.getElementById('preview-date-input');
-  dateInput.max   = todayStr;
-  dateInput.value = todayStr;
-
   if (!TOKEN) return;
-  // Validate stored token with a lightweight ping
   try {
     var r = await fetch('/api/omni?action=ping', {
       headers: { 'Authorization': 'Bearer ' + TOKEN }
@@ -191,14 +272,6 @@ window.addEventListener('DOMContentLoaded', async function() {
     TOKEN = ''; localStorage.removeItem('pd-omni-token');
   }
 });
-
-/* ── Helpers ── */
-function todayDateString() {
-  var d = new Date();
-  return d.getFullYear() + '-'
-    + String(d.getMonth() + 1).padStart(2, '0') + '-'
-    + String(d.getDate()).padStart(2, '0');
-}
 
 /* ── Auth ── */
 async function doLogin(e) {
@@ -239,6 +312,7 @@ function logout() {
   TOKEN = '';
   embedLoaded = false;
   chatLoaded  = false;
+  locationsData = null;
   localStorage.removeItem('pd-omni-token');
   document.getElementById('omni-iframe').src = '';
   document.getElementById('omni-iframe').hidden = true;
@@ -255,7 +329,6 @@ function logout() {
 function showApp() {
   document.getElementById('login-screen').hidden = true;
   document.getElementById('app').hidden = false;
-  // Default to Dashboard — most impressive for demos
   var dashBtn = document.querySelector('.nav-tab[data-tab="dashboard"]');
   _activateTab('dashboard', dashBtn);
   loadEmbed();
@@ -266,6 +339,8 @@ function switchTab(name, btn) {
   _activateTab(name, btn);
   if (name === 'dashboard') loadEmbed();
   if (name === 'chat')      loadChat();
+  if (name === 'upcoming')  loadUpcoming();
+  if (name === 'locations' && !locationsData) loadLocations();
 }
 
 function _activateTab(name, btn) {
@@ -317,12 +392,7 @@ async function loadEmbed() {
     document.getElementById('embed-error').style.display = 'flex';
   }
 }
-
-function retryEmbed() {
-  embedLoaded = false;
-  document.getElementById('omni-iframe').src = '';
-  loadEmbed();
-}
+function retryEmbed() { embedLoaded = false; document.getElementById('omni-iframe').src = ''; loadEmbed(); }
 
 /* ── Omni AI Chat embed ── */
 async function loadChat() {
@@ -350,22 +420,99 @@ async function loadChat() {
     document.getElementById('chat-error').style.display = 'flex';
   }
 }
+function retryChat() { chatLoaded = false; document.getElementById('chat-iframe').src = ''; loadChat(); }
 
-function retryChat() {
-  chatLoaded = false;
-  document.getElementById('chat-iframe').src = '';
-  loadChat();
+/* ── Upcoming (scrambled server-side) ── */
+async function loadUpcoming() {
+  var days = document.getElementById('num-days').value || 14;
+  var grid = document.getElementById('upcoming-grid');
+  grid.innerHTML = '<div class="loading"><span class="spinner"></span>Loading&hellip;</div>';
+  try {
+    var res = await fetch('/api/omni?action=upcoming&days=' + days, {
+      headers: {'Authorization': 'Bearer ' + TOKEN}
+    });
+    if (res.status === 401) { logout(); return; }
+    var data = await res.json();
+    renderUpcoming(data, grid);
+  } catch(err) {
+    grid.innerHTML = '<div class="loading">Error loading — check connection</div>';
+  }
 }
 
-/* ── Preview (capped to today — no future spoilers) ── */
-function loadPreview() {
-  var input   = document.getElementById('preview-date-input');
-  var today   = todayDateString();
-  // Enforce the cap even if someone edits the input manually
-  var date    = input.value > today ? today : input.value;
-  input.value = date;
-  var src = date ? '/?preview&date=' + date : '/?preview';
-  document.getElementById('preview-iframe').src = src;
+function renderUpcoming(days, container) {
+  if (!days.length) { container.innerHTML = '<div class="loading">No data</div>'; return; }
+  var html = days.map(function(day) {
+    var locRows = day.locations.map(function(loc) {
+      return '<div class="loc-row">' +
+        '<div class="diff-badge diff-' + loc.difficulty + '" title="' + DIFF_LABEL[loc.difficulty] + '">' + loc.difficulty + '</div>' +
+        '<div class="loc-info">' +
+          '<div class="loc-name">' + loc.name + '</div>' +
+          '<div class="loc-desc">' + (loc.description || '') + '</div>' +
+        '</div>' +
+        '<div class="loc-meta">' +
+          '<div class="loc-radius' + (loc.perfectRadius !== 30 ? ' loc-radius-custom' : '') + '">&#9679; ' + loc.perfectRadius + ' km radius</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    var diffColor = day.avgDiff <= 2 ? 'var(--d1)' : day.avgDiff <= 3.5 ? 'var(--d3)' : 'var(--d5)';
+    var cardClass = day.locked ? ' day-card-locked' : '';
+    var statusBadge = day.locked
+      ? '<div class="lock-badge">&#128274; Played</div>'
+      : '<div class="scramble-badge">sample combination</div>';
+
+    return '<div class="day-card' + cardClass + '">' +
+      '<div class="day-card-header">' +
+        '<div class="day-num">Day #' + day.dayNum + '</div>' +
+        '<div class="day-date">' + day.dateStr + '</div>' +
+        statusBadge +
+        '<div class="day-avg">avg difficulty <span style="color:' + diffColor + '">' + day.avgDiff + '</span></div>' +
+      '</div>' +
+      '<div class="loc-rows">' + locRows + '</div>' +
+    '</div>';
+  }).join('');
+  container.innerHTML = '<div class="days-grid">' + html + '</div>';
+}
+
+/* ── Locations (read-only) ── */
+async function loadLocations() {
+  document.getElementById('loc-load-msg').textContent = 'Loading locations…';
+  document.getElementById('loc-load-msg').hidden = false;
+  document.getElementById('loc-table-wrap').hidden = true;
+  try {
+    var res = await fetch('/api/omni?action=locations', {
+      headers: { 'Authorization': 'Bearer ' + TOKEN }
+    });
+    if (res.status === 401) { logout(); return; }
+    var d = await res.json();
+    locationsData = d.locations;
+    renderLocTable();
+    document.getElementById('loc-load-msg').hidden = true;
+    document.getElementById('loc-table-wrap').hidden = false;
+  } catch(err) {
+    document.getElementById('loc-load-msg').textContent = 'Error loading locations: ' + err.message;
+  }
+}
+
+function renderLocTable() {
+  var q = (document.getElementById('loc-search').value || '').toLowerCase().trim();
+  var rows = q
+    ? locationsData.filter(function(l) {
+        return l.name.toLowerCase().includes(q) || (l.description||'').toLowerCase().includes(q);
+      })
+    : locationsData;
+  document.getElementById('loc-count').textContent = '(' + rows.length + ')';
+  var tbody = document.getElementById('loc-tbody');
+  tbody.innerHTML = rows.map(function(l) {
+    return '<tr>' +
+      '<td><div class="diff-badge diff-' + l.difficulty + '">' + l.difficulty + '</div></td>' +
+      '<td class="lt-name">' + l.name + '</td>' +
+      '<td class="lt-desc">' + (l.description || '') + '</td>' +
+      '<td class="lt-coord">' + (l.lat || '').toFixed(3) + '</td>' +
+      '<td class="lt-coord">' + (l.lng || '').toFixed(3) + '</td>' +
+      '<td class="lt-coord">' + (l.radius || l.perfectRadius || 30) + ' km</td>' +
+    '</tr>';
+  }).join('');
 }
 </script>
 </body>
