@@ -1045,6 +1045,21 @@
       color: var(--text);
     }
 
+    /* X social link */
+    .x-social-link {
+      position: fixed;
+      bottom: max(20px, calc(var(--safe-bot) + 16px));
+      right: 20px;
+      z-index: 900;
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0.35;
+      transition: opacity 0.2s;
+      text-decoration: none;
+    }
+    .x-social-link:hover { opacity: 0.75; }
+    .x-social-link svg { width: 18px; height: 18px; fill: var(--text); }
+
     /* Mapbox overrides */
     .mapboxgl-ctrl-bottom-left, .mapboxgl-ctrl-bottom-right,
     .mapboxgl-ctrl-top-left, .mapboxgl-ctrl-top-right { display: none !important; }
@@ -2542,7 +2557,7 @@ function startGame() {
 document.getElementById('btn-play').addEventListener('click', startGame);
 
 document.getElementById('btn-how').addEventListener('click', () => {
-  showToast('Tap the map → Lock It In → 5 rounds, score by accuracy!', 3000);
+  showToast('Tap the map → Zoom, pan & pin → Lock It In → 5 rounds, score by accuracy!', 3000);
 });
 
 document.getElementById('btn-lock').addEventListener('click', lockPin);
@@ -2587,5 +2602,11 @@ initHome();
 showScreen('home');
 document.getElementById('hud-day-num').textContent = getDayNumber();
 </script>
+
+<a class="x-social-link" href="https://x.com/PlayPinDrop" target="_blank" rel="noopener" aria-label="PinDrop on X">
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L2.25 2.25h6.638l4.262 5.636L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z"/>
+  </svg>
+</a>
 </body>
 </html>
