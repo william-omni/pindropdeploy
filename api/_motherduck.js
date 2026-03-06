@@ -553,9 +553,41 @@ async function replaceAllLocations(locations) {
   }
 }
 
+// ── getDailyAvgScore ──────────────────────────────────────────────────────────
+// Returns { avgScore: Number, playerCount: Number } for a given date,
+// or null if no games have been recorded yet (e.g. early in the day).
+// Reads from pindrop.games (one row per completed game).
+async function getDailyAvgScore(gameDate) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return null;
+    const conn = await inst.connect();
+    try {
+      const res = await conn.runAndReadAll(
+        `SELECT ROUND(AVG(total_score)) AS avg_score, COUNT(*) AS player_count
+         FROM pindrop.games
+         WHERE game_date = CAST(? AS DATE)`,
+        [gameDate]
+      );
+      const rows = res.getRowObjects();
+      if (!rows.length || !rows[0].player_count || Number(rows[0].player_count) === 0) return null;
+      return {
+        avgScore:    Math.round(Number(rows[0].avg_score)),
+        playerCount: Number(rows[0].player_count),
+      };
+    } finally {
+      conn.closeSync();
+    }
+  } catch (e) {
+    console.error('[MotherDuck] getDailyAvgScore error:', e.message);
+    return null;
+  }
+}
+
 module.exports = {
   trackPlay, trackGame, trackShare, storeDailyCombo,
   getAllLocations, getLockedDailyCombo, getLockedDates, getPlayedDates,
   getLockedCombosForRange, getLastUsedDates, setDayOverride,
   upsertLocation, deleteLocation, replaceAllLocations,
+  getDailyAvgScore,
 };

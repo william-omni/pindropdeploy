@@ -883,6 +883,19 @@
     .review-score-denom {
       font-size: 10px; color: var(--muted);
     }
+    .daily-avg-stat {
+      font-size: 11px; color: var(--muted);
+      text-align: center;
+      margin-top: -14px;
+      margin-bottom: 16px;
+      letter-spacing: 0.02em;
+    }
+    .daily-avg-stat-review {
+      font-size: 11px; color: var(--muted);
+      text-align: center;
+      margin-bottom: 10px;
+      letter-spacing: 0.02em;
+    }
 
     .review-legend {
       display: flex; gap: 16px;
@@ -1258,6 +1271,8 @@
 
     <div class="round-breakdown" id="round-breakdown"></div>
 
+    <div id="daily-avg" class="daily-avg-stat"></div>
+
     <div class="share-card">
       <div class="share-card-header">📍 PinDrop · <span id="share-day">Day #1</span></div>
       <div class="share-card-emoji" id="share-emojis"></div>
@@ -1296,6 +1311,8 @@
         <div class="review-score-denom">/ 1000</div>
       </div>
     </div>
+
+    <div id="daily-avg-review" class="daily-avg-stat-review"></div>
 
     <div class="review-legend">
       <div class="review-legend-item">
@@ -1363,6 +1380,9 @@ let state = {
 // Timing trackers — set on game/round start, used for analytics
 let gameStartTime  = null;
 let roundStartTime = null;
+
+// Daily stats cache — populated once per session, shared across summary + review
+let _dailyStats = null;
 
 // Detects mobile vs desktop for analytics (not shown to user)
 function getDeviceType() {
@@ -2219,6 +2239,28 @@ function finishGame() {
   showScreen('summary');
 }
 
+function renderDailyStats() {
+  if (!_dailyStats || _dailyStats.avgScore == null) return;
+  const text = `Today's avg · ${_dailyStats.avgScore}`;
+  const el1 = document.getElementById('daily-avg');
+  const el2 = document.getElementById('daily-avg-review');
+  if (el1) el1.textContent = text;
+  if (el2) el2.textContent = text;
+}
+
+function fetchDailyStats() {
+  const date = getLocalDateStr();
+  fetch(`/api/game?action=daily-stats&date=${date}`)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data && data.avgScore != null) {
+        _dailyStats = data;
+        renderDailyStats();
+      }
+    })
+    .catch(function() {});
+}
+
 function buildSummary() {
   const today = new Date();
   document.getElementById('summary-date').textContent = formatDate(today);
@@ -2259,6 +2301,10 @@ function buildSummary() {
   document.getElementById('share-emojis').textContent = emojis;
   document.getElementById('share-score-line').textContent =
     `${state.totalScore} / 1000`;
+
+  // Fetch daily avg (fire-and-forget; updates summary + review when it resolves)
+  if (!_dailyStats) fetchDailyStats();
+  else renderDailyStats();
 }
 
 function getShareText() {
@@ -2446,6 +2492,10 @@ function showReview(returnScreen = 'home') {
   document.getElementById('review-score-num').textContent = score;
   document.getElementById('review-title').textContent = formatDate(new Date());
   document.getElementById('review-eyebrow').textContent = 'Day #' + getDayNumber();
+
+  // Show daily avg (fetches if not yet cached)
+  if (!_dailyStats) fetchDailyStats();
+  else renderDailyStats();
 
   // Build round chips
   const chipsEl = document.getElementById('review-rounds');

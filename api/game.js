@@ -8,7 +8,7 @@ const {
   getLocDifficulty,
 } = require('./_game-data');
 
-const { trackPlay, trackGame, trackShare, storeDailyCombo } = require('./_motherduck');
+const { trackPlay, trackGame, trackShare, storeDailyCombo, getDailyAvgScore } = require('./_motherduck');
 
 // ── Handler ─────────────────────────────────────────────────────────────────
 module.exports = async function handler(req, res) {
@@ -35,6 +35,18 @@ module.exports = async function handler(req, res) {
         dayNumber:   getDayNumber(clientDate),
       });
     }
+
+    // ── GET /api/game?action=daily-stats&date=YYYY-MM-DD ────────────────
+    if (action === 'daily-stats') {
+      const gameDate = clientDate || new Date().toISOString().slice(0, 10);
+      try {
+        const stats = await getDailyAvgScore(gameDate);
+        return res.status(200).json(stats || { avgScore: null, playerCount: 0 });
+      } catch (e) {
+        return res.status(200).json({ avgScore: null, playerCount: 0 });
+      }
+    }
+
     return res.status(400).json({ error: 'Bad request' });
   }
 
