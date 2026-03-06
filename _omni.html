@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>PinDrop Demo</title>
+  <title>PinDrop</title>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     [hidden]{display:none!important}
@@ -21,8 +21,7 @@
     .login-card{background:var(--s1);border:1px solid var(--border);border-radius:20px;
       padding:40px 36px;width:100%;max-width:380px;text-align:center}
     .login-logo{font-size:52px;margin-bottom:14px}
-    .login-card h1{font-size:26px;font-weight:800;color:var(--accent);margin-bottom:4px}
-    .login-card p{color:var(--muted);font-size:13px;margin-bottom:28px}
+    .login-card h1{font-size:26px;font-weight:800;color:var(--accent);margin-bottom:28px}
     .login-card input{width:100%;padding:13px 16px;background:var(--s2);
       border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--text);
       font-size:16px;margin-bottom:12px;outline:none;transition:border .2s}
@@ -38,9 +37,6 @@
     nav{display:flex;align-items:center;gap:6px;padding:10px 20px;
       background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;min-height:52px}
     .nav-brand{font-weight:800;font-size:17px;color:var(--accent);margin-right:4px;white-space:nowrap}
-    .nav-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;
-      background:rgba(71,200,255,.12);color:var(--accent);border:1px solid rgba(71,200,255,.2);
-      margin-right:6px;white-space:nowrap}
     .nav-tab{padding:7px 14px;border-radius:8px;border:none;background:transparent;
       color:var(--muted);font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap}
     .nav-tab.active{background:var(--accent);color:#0a0a0f}
@@ -68,7 +64,7 @@
       font-weight:700;border:none;border-radius:8px;cursor:pointer}
     #omni-iframe,#chat-iframe{flex:1;width:100%;border:none;background:var(--bg)}
 
-    /* ── SCROLLABLE PANE (Upcoming / Locations) ── */
+    /* ── SCROLLABLE PANE ── */
     #main-content{flex:1;overflow-y:auto;padding:24px}
     #main-inner{max-width:1100px;margin:0 auto;width:100%}
     .tab-pane{display:block}
@@ -79,26 +75,34 @@
     .tab-controls input[type=number]{background:var(--s2);border:1px solid rgba(255,255,255,.1);
       border-radius:8px;color:var(--text);padding:7px 10px;font-size:14px;width:72px;outline:none}
     .btn{padding:9px 18px;border-radius:8px;border:none;cursor:pointer;font-size:14px;
-      font-weight:600;transition:opacity .2s}
+      font-weight:600;transition:opacity .2s;display:inline-flex;align-items:center;gap:6px}
     .btn:hover{opacity:.85}
+    .btn:disabled{opacity:.55;cursor:default}
     .btn-primary{background:var(--accent);color:#0a0a0f}
+    .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--muted)}
+    .btn-ghost:hover{border-color:rgba(255,255,255,.35);color:var(--text)}
+    .btn-sm{padding:6px 14px;font-size:13px}
 
     /* ── DAY CARDS ── */
     .days-grid{display:flex;flex-direction:column;gap:14px}
     .day-card{background:var(--s1);border:1px solid var(--border);border-radius:14px;overflow:hidden}
     .day-card-locked{border-color:rgba(251,191,36,.3)}
+    .day-card-override{border-color:rgba(71,200,255,.3)}
     .day-card-header{display:flex;align-items:center;gap:10px;padding:12px 18px;
       background:var(--s2);border-bottom:1px solid var(--border);flex-wrap:wrap}
     .day-num{background:var(--accent);color:#0a0a0f;font-weight:800;font-size:12px;
       padding:3px 10px;border-radius:20px;white-space:nowrap}
     .day-date{font-weight:700;font-size:15px}
-    .day-avg{margin-left:auto;font-size:13px;color:var(--muted)}
+    .day-avg{font-size:13px;color:var(--muted)}
     .day-avg span{font-weight:700}
     .lock-badge{background:rgba(251,191,36,.12);color:#fbbf24;font-size:11px;font-weight:700;
       padding:3px 8px;border-radius:6px;border:1px solid rgba(251,191,36,.25)}
-    .scramble-badge{background:rgba(71,200,255,.08);color:var(--muted);font-size:11px;
-      font-weight:600;padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.08);
-      font-style:italic}
+    .override-set-badge{background:rgba(71,200,255,.12);color:var(--accent);font-size:11px;
+      font-weight:700;padding:3px 8px;border-radius:6px;border:1px solid rgba(71,200,255,.25)}
+    .btn-override{padding:5px 12px;font-size:12px;font-weight:600;border:1px solid rgba(255,255,255,.15);
+      border-radius:6px;background:transparent;color:var(--muted);cursor:pointer;
+      transition:all .15s;white-space:nowrap;margin-left:auto}
+    .btn-override:hover{border-color:var(--accent);color:var(--accent)}
     .loc-rows{padding:2px 0}
     .loc-row{display:flex;align-items:flex-start;gap:12px;padding:10px 18px;
       border-bottom:1px solid rgba(255,255,255,.04)}
@@ -119,7 +123,7 @@
     .loc-radius-custom{color:rgba(71,200,255,.8)!important;font-weight:600}
 
     /* ── LOCATIONS TABLE ── */
-    .loc-search{flex:1;min-width:180px;padding:8px 12px;background:var(--s2);
+    .loc-search{min-width:180px;padding:8px 12px;background:var(--s2);
       border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text);
       font-size:14px;outline:none;transition:border .15s}
     .loc-search:focus{border-color:var(--accent)}
@@ -131,16 +135,71 @@
     #loc-table td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
     #loc-table tr:last-child td{border-bottom:none}
     #loc-table tr:hover td{background:rgba(255,255,255,.03)}
+    #loc-table tr.pending-row>td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
     .lt-name{font-weight:600;font-size:13px}
     .lt-desc{font-size:12px;color:var(--muted);max-width:300px;
       white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .lt-coord{font-family:monospace;font-size:11px;color:var(--muted)}
     #loc-load-msg{padding:48px 24px;text-align:center;color:var(--muted)}
+    .btn-row-edit{padding:4px 10px;font-size:12px;border:1px solid rgba(255,255,255,.15);
+      border-radius:6px;background:transparent;color:var(--muted);cursor:pointer;
+      transition:all .15s;white-space:nowrap}
+    .btn-row-edit:hover{border-color:var(--accent);color:var(--accent)}
+    .btn-row-del{padding:4px 8px;font-size:12px;border:1px solid rgba(248,113,113,.2);
+      border-radius:6px;background:transparent;color:rgba(248,113,113,.55);
+      cursor:pointer;transition:all .15s}
+    .btn-row-del:hover{color:var(--red);border-color:var(--red);background:rgba(248,113,113,.08)}
+
+    /* ── SAVE BAR ── */
+    #save-bar{display:flex;align-items:center;gap:10px;background:rgba(71,200,255,.07);
+      border:1px solid rgba(71,200,255,.2);border-radius:10px;
+      padding:10px 16px;margin-bottom:14px}
+    #save-bar-text{font-size:13px;color:var(--accent);flex:1}
+    .btn-discard{background:transparent;border:none;color:var(--muted);
+      font-size:13px;cursor:pointer;padding:4px 8px}
+    .btn-discard:hover{color:var(--red)}
+    .btn-commit{padding:7px 18px;background:var(--accent);color:#0a0a0f;font-weight:700;
+      font-size:13px;border:none;border-radius:8px;cursor:pointer;
+      display:inline-flex;align-items:center;gap:6px}
+    .btn-commit:disabled{opacity:.6;cursor:default}
+
+    /* ── FORM CARD ── */
+    .loc-form-card{background:var(--s2);border:1px solid var(--border);border-radius:12px;
+      padding:20px;margin-bottom:14px}
+    .loc-form-card h3{font-size:15px;font-weight:700;margin-bottom:14px}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .form-row-full{grid-column:1/-1}
+    .form-grid label{display:flex;flex-direction:column;gap:5px;
+      font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+    .form-grid input,.form-grid select{background:var(--s3);border:1px solid rgba(255,255,255,.1);
+      color:var(--text);padding:8px 10px;border-radius:8px;font-size:14px;
+      outline:none;transition:border .15s;width:100%}
+    .form-grid input:focus,.form-grid select:focus{border-color:var(--accent)}
+    .form-actions{display:flex;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap}
+    #form-geocode-status{font-size:12px;color:var(--muted);flex:1;min-width:0;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #form-error{font-size:12px;color:var(--red)}
+
+    /* ── MODAL ── */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;
+      align-items:center;justify-content:center;z-index:1000;padding:24px}
+    .modal-card{background:var(--s1);border:1px solid var(--border);border-radius:16px;
+      padding:28px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto}
+    .modal-card h3{font-size:17px;font-weight:700;margin-bottom:4px}
+    .modal-subtitle{color:var(--muted);font-size:13px;margin-bottom:20px}
+    .modal-field{margin-bottom:12px}
+    .modal-field label{display:block;font-size:11px;color:var(--muted);
+      text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+    .modal-field input{width:100%;background:var(--s3);border:1px solid rgba(255,255,255,.1);
+      color:var(--text);padding:9px 12px;border-radius:8px;font-size:14px;
+      outline:none;transition:border .15s}
+    .modal-field input:focus{border-color:var(--accent)}
+    .modal-actions{display:flex;gap:10px;margin-top:20px;justify-content:flex-end}
 
     /* ── MISC ── */
     .loading{text-align:center;padding:64px 24px;color:var(--muted)}
-    .spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);
-      border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin-right:8px}
+    .spinner{display:inline-block;border:2px solid var(--border);
+      border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
   </style>
 </head>
@@ -151,11 +210,10 @@
   <div class="login-card">
     <div class="login-logo">&#128205;</div>
     <h1>PinDrop</h1>
-    <p>Omni team demo &mdash; read-only access</p>
     <form id="form-login" onsubmit="doLogin(event)">
-      <input type="password" id="pw-input" placeholder="Demo password"
+      <input type="password" id="pw-input" placeholder="Password"
              autocomplete="current-password" required>
-      <button type="submit">View Dashboard</button>
+      <button type="submit">Sign In</button>
       <p id="login-err" hidden></p>
     </form>
   </div>
@@ -165,7 +223,6 @@
 <div id="app" hidden>
   <nav>
     <div class="nav-brand">&#128205; PinDrop</div>
-    <span class="nav-badge">Demo</span>
     <button class="nav-tab active" data-tab="dashboard" onclick="switchTab('dashboard',this)">Dashboard</button>
     <button class="nav-tab"        data-tab="chat"      onclick="switchTab('chat',this)">AI Chat</button>
     <button class="nav-tab"        data-tab="upcoming"  onclick="switchTab('upcoming',this)">Upcoming</button>
@@ -173,10 +230,10 @@
     <button id="btn-logout" onclick="logout()">Logout</button>
   </nav>
 
-  <!-- DASHBOARD — full-bleed Omni embed -->
+  <!-- DASHBOARD -->
   <div id="tab-dashboard-pane">
     <div class="pane-loading" id="embed-loading">
-      <div class="spinner"></div>
+      <div class="spinner" style="width:32px;height:32px;border-width:3px"></div>
       <p>Loading dashboard&hellip;</p>
     </div>
     <div class="pane-error" id="embed-error">
@@ -187,10 +244,10 @@
     <iframe id="omni-iframe" src="" allow="fullscreen" hidden></iframe>
   </div>
 
-  <!-- AI CHAT — full-bleed Omni AI embed -->
+  <!-- AI CHAT -->
   <div id="tab-chat-pane">
     <div class="pane-loading" id="chat-loading">
-      <div class="spinner"></div>
+      <div class="spinner" style="width:32px;height:32px;border-width:3px"></div>
       <p>Loading AI Chat&hellip;</p>
     </div>
     <div class="pane-error" id="chat-error">
@@ -201,7 +258,7 @@
     <iframe id="chat-iframe" src="" allow="fullscreen" hidden></iframe>
   </div>
 
-  <!-- UPCOMING + LOCATIONS — scrollable -->
+  <!-- UPCOMING + LOCATIONS (scrollable) -->
   <div id="main-content" hidden>
     <div id="main-inner">
 
@@ -216,7 +273,11 @@
             <button class="btn btn-primary" onclick="loadUpcoming()">Load</button>
           </div>
         </div>
-        <div id="upcoming-grid"><div class="loading"><span class="spinner"></span>Loading&hellip;</div></div>
+        <div id="upcoming-grid">
+          <div class="loading">
+            <span class="spinner" style="width:20px;height:20px;margin-right:8px;vertical-align:-4px"></span>Loading&hellip;
+          </div>
+        </div>
       </div>
 
       <!-- LOCATIONS -->
@@ -226,8 +287,50 @@
           <div class="tab-controls">
             <input class="loc-search" id="loc-search" type="text"
                    placeholder="Search by name or description&hellip;" oninput="renderLocTable()">
+            <button class="btn btn-primary btn-sm" onclick="openAddForm()">+ Add Location</button>
           </div>
         </div>
+
+        <!-- save bar -->
+        <div id="save-bar" hidden>
+          <span id="save-bar-text">Unsaved changes</span>
+          <button class="btn-discard" onclick="discardChanges()">Discard</button>
+          <button class="btn-commit" onclick="fakeCommitLocs()">Save changes</button>
+        </div>
+
+        <!-- edit / add form -->
+        <div id="loc-form-card" class="loc-form-card" hidden>
+          <h3 id="form-title">Add Location</h3>
+          <div class="form-grid">
+            <label class="form-row-full">Name
+              <input id="f-name" type="text" placeholder="Eiffel Tower, France">
+            </label>
+            <label class="form-row-full">Description
+              <input id="f-desc" type="text" placeholder="Iconic iron lattice tower in Paris">
+            </label>
+            <label>Latitude
+              <input id="f-lat" type="number" step="0.0001" placeholder="48.8584">
+            </label>
+            <label>Longitude
+              <input id="f-lng" type="number" step="0.0001" placeholder="2.2945">
+            </label>
+            <label>Radius (km)
+              <input id="f-radius" type="number" min="1" max="500" placeholder="30">
+            </label>
+            <label>Difficulty (1&ndash;5)
+              <input id="f-diff" type="number" min="1" max="5" placeholder="3">
+            </label>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-ghost btn-sm" onclick="geocodeName()">&#128205; Geocode Name</button>
+            <span id="form-geocode-status"></span>
+            <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="closeForm()">Cancel</button>
+            <button class="btn btn-primary btn-sm" onclick="saveFormEntry()">Save</button>
+            <span id="form-error"></span>
+          </div>
+        </div>
+
+        <!-- table -->
         <div id="loc-table-wrap" hidden>
           <table id="loc-table">
             <thead>
@@ -238,6 +341,7 @@
                 <th>Lat</th>
                 <th>Lng</th>
                 <th>Radius</th>
+                <th></th>
               </tr>
             </thead>
             <tbody id="loc-tbody"></tbody>
@@ -250,12 +354,39 @@
   </div>
 </div>
 
+<!-- ── OVERRIDE MODAL ── -->
+<div id="override-modal" class="modal-backdrop" hidden>
+  <div class="modal-card">
+    <h3>Set Date Override</h3>
+    <p class="modal-subtitle" id="override-subtitle"></p>
+    <div id="override-fields"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeOverrideModal()">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="btn-save-override" onclick="fakeCommitOverride()">Save Override</button>
+    </div>
+  </div>
+</div>
+
+<datalist id="loc-datalist"></datalist>
+
 <script>
+/* ── Helpers ── */
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function sleep(ms) { return new Promise(function(r){ setTimeout(r, ms); }); }
+
 /* ── State ── */
 var TOKEN        = localStorage.getItem('pd-omni-token') || '';
 var embedLoaded  = false;
 var chatLoaded   = false;
-var locationsData = null;
+var locationsData = null;   // array from server
+var pendingLocs   = null;   // null = no edits; array = working copy
+var editingIndex  = null;   // null = add mode, integer = edit index
+var upcomingData  = [];     // current upcoming days (client-side overrides applied locally)
+var overrideDayIdx = -1;
 
 var DIFF_LABEL = ['','Very Easy','Easy','Medium','Hard','Very Hard'];
 
@@ -268,9 +399,7 @@ window.addEventListener('DOMContentLoaded', async function() {
     });
     if (r.ok) { showApp(); }
     else { TOKEN = ''; localStorage.removeItem('pd-omni-token'); }
-  } catch(e) {
-    TOKEN = ''; localStorage.removeItem('pd-omni-token');
-  }
+  } catch(e) { TOKEN = ''; localStorage.removeItem('pd-omni-token'); }
 });
 
 /* ── Auth ── */
@@ -279,40 +408,34 @@ async function doLogin(e) {
   var pw    = document.getElementById('pw-input').value.trim();
   var errEl = document.getElementById('login-err');
   var btn   = document.querySelector('#form-login button[type=submit]');
-  errEl.setAttribute('hidden', '');
-  btn.disabled = true;
-  btn.textContent = 'Checking…';
+  errEl.setAttribute('hidden','');
+  btn.disabled = true; btn.textContent = 'Signing in\u2026';
   try {
     var res = await fetch('/api/omni?action=auth', {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({password: pw})
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw })
     });
     if (!res.ok) {
       var msg = 'Incorrect password';
       try { var d = await res.json(); if (d.error) msg = d.error; } catch {}
-      errEl.textContent = msg;
-      errEl.removeAttribute('hidden');
-      return;
+      errEl.textContent = msg; errEl.removeAttribute('hidden'); return;
     }
     var d = await res.json();
     TOKEN = d.token;
     localStorage.setItem('pd-omni-token', TOKEN);
     showApp();
   } catch(err) {
-    errEl.textContent = 'Network error — ' + err.message;
+    errEl.textContent = 'Network error \u2014 ' + err.message;
     errEl.removeAttribute('hidden');
   } finally {
-    btn.disabled = false;
-    btn.textContent = 'View Dashboard';
+    btn.disabled = false; btn.textContent = 'Sign In';
   }
 }
 
 function logout() {
-  TOKEN = '';
-  embedLoaded = false;
-  chatLoaded  = false;
-  locationsData = null;
+  TOKEN = ''; embedLoaded = chatLoaded = false;
+  locationsData = pendingLocs = null; editingIndex = null; upcomingData = [];
   localStorage.removeItem('pd-omni-token');
   document.getElementById('omni-iframe').src = '';
   document.getElementById('omni-iframe').hidden = true;
@@ -332,6 +455,15 @@ function showApp() {
   var dashBtn = document.querySelector('.nav-tab[data-tab="dashboard"]');
   _activateTab('dashboard', dashBtn);
   loadEmbed();
+  _prefetchLocations();
+}
+
+async function _prefetchLocations() {
+  if (locationsData) return;
+  try {
+    var r = await fetch('/api/omni?action=locations', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    if (r.ok) { var d = await r.json(); locationsData = d.locations; }
+  } catch(e) { /* ignore — will load on tab switch */ }
 }
 
 /* ── Tabs ── */
@@ -340,50 +472,48 @@ function switchTab(name, btn) {
   if (name === 'dashboard') loadEmbed();
   if (name === 'chat')      loadChat();
   if (name === 'upcoming')  loadUpcoming();
-  if (name === 'locations' && !locationsData) loadLocations();
+  if (name === 'locations') {
+    if (!locationsData) { loadLocations(); }
+    else {
+      renderLocTable();
+      document.getElementById('loc-load-msg').hidden = true;
+      document.getElementById('loc-table-wrap').hidden = false;
+      _updateSaveBar();
+    }
+  }
 }
 
 function _activateTab(name, btn) {
   document.querySelectorAll('.nav-tab').forEach(function(b){ b.classList.remove('active'); });
   btn.classList.add('active');
-
-  var dashPane    = document.getElementById('tab-dashboard-pane');
-  var chatPane    = document.getElementById('tab-chat-pane');
+  var dashPane = document.getElementById('tab-dashboard-pane');
+  var chatPane = document.getElementById('tab-chat-pane');
   var mainContent = document.getElementById('main-content');
-
-  dashPane.style.display = 'none';
-  chatPane.style.display = 'none';
-  mainContent.hidden = true;
-
-  if (name === 'dashboard') {
-    dashPane.style.display = '';
-  } else if (name === 'chat') {
-    chatPane.style.display = 'flex';
-  } else {
+  dashPane.style.display = 'none'; chatPane.style.display = 'none'; mainContent.hidden = true;
+  if (name === 'dashboard') { dashPane.style.display = ''; }
+  else if (name === 'chat') { chatPane.style.display = 'flex'; }
+  else {
     mainContent.hidden = false;
     document.querySelectorAll('.tab-pane').forEach(function(p){ p.hidden = true; });
     document.getElementById('tab-' + name).hidden = false;
   }
 }
 
-/* ── Omni Dashboard embed ── */
+/* ── Dashboard embed ── */
 async function loadEmbed() {
   if (embedLoaded) return;
   document.getElementById('embed-loading').style.display = '';
   document.getElementById('embed-error').style.display = 'none';
   document.getElementById('omni-iframe').hidden = true;
   try {
-    var res = await fetch('/api/omni?action=embed-url', {
-      headers: {'Authorization': 'Bearer ' + TOKEN}
-    });
+    var res = await fetch('/api/omni?action=embed-url', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
     if (res.status === 401) { logout(); return; }
     var d = await res.json();
     if (!d.url) throw new Error(d.error || 'No URL returned');
     var iframe = document.getElementById('omni-iframe');
     iframe.onload = function() {
       document.getElementById('embed-loading').style.display = 'none';
-      iframe.hidden = false;
-      embedLoaded = true;
+      iframe.hidden = false; embedLoaded = true;
     };
     iframe.src = d.url;
   } catch(err) {
@@ -394,24 +524,21 @@ async function loadEmbed() {
 }
 function retryEmbed() { embedLoaded = false; document.getElementById('omni-iframe').src = ''; loadEmbed(); }
 
-/* ── Omni AI Chat embed ── */
+/* ── AI Chat embed ── */
 async function loadChat() {
   if (chatLoaded) return;
   document.getElementById('chat-loading').style.display = '';
   document.getElementById('chat-error').style.display = 'none';
   document.getElementById('chat-iframe').hidden = true;
   try {
-    var res = await fetch('/api/omni?action=embed-chat-url', {
-      headers: {'Authorization': 'Bearer ' + TOKEN}
-    });
+    var res = await fetch('/api/omni?action=embed-chat-url', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
     if (res.status === 401) { logout(); return; }
     var d = await res.json();
     if (!d.url) throw new Error(d.error || 'No URL returned');
     var iframe = document.getElementById('chat-iframe');
     iframe.onload = function() {
       document.getElementById('chat-loading').style.display = 'none';
-      iframe.hidden = false;
-      chatLoaded = true;
+      iframe.hidden = false; chatLoaded = true;
     };
     iframe.src = d.url;
   } catch(err) {
@@ -422,51 +549,56 @@ async function loadChat() {
 }
 function retryChat() { chatLoaded = false; document.getElementById('chat-iframe').src = ''; loadChat(); }
 
-/* ── Upcoming (scrambled server-side) ── */
+/* ── Upcoming ── */
 async function loadUpcoming() {
   var days = document.getElementById('num-days').value || 14;
   var grid = document.getElementById('upcoming-grid');
-  grid.innerHTML = '<div class="loading"><span class="spinner"></span>Loading&hellip;</div>';
+  grid.innerHTML = '<div class="loading"><span class="spinner" style="width:20px;height:20px;margin-right:8px;vertical-align:-4px"></span>Loading\u2026</div>';
   try {
     var res = await fetch('/api/omni?action=upcoming&days=' + days, {
-      headers: {'Authorization': 'Bearer ' + TOKEN}
+      headers: { 'Authorization': 'Bearer ' + TOKEN }
     });
     if (res.status === 401) { logout(); return; }
     var data = await res.json();
     renderUpcoming(data, grid);
   } catch(err) {
-    grid.innerHTML = '<div class="loading">Error loading — check connection</div>';
+    grid.innerHTML = '<div class="loading">Error loading \u2014 check connection</div>';
   }
 }
 
 function renderUpcoming(days, container) {
+  upcomingData = days;
   if (!days.length) { container.innerHTML = '<div class="loading">No data</div>'; return; }
-  var html = days.map(function(day) {
+  var html = days.map(function(day, dayIdx) {
     var locRows = day.locations.map(function(loc) {
+      var r = loc.perfectRadius || 30;
       return '<div class="loc-row">' +
         '<div class="diff-badge diff-' + loc.difficulty + '" title="' + DIFF_LABEL[loc.difficulty] + '">' + loc.difficulty + '</div>' +
         '<div class="loc-info">' +
-          '<div class="loc-name">' + loc.name + '</div>' +
-          '<div class="loc-desc">' + (loc.description || '') + '</div>' +
+          '<div class="loc-name">' + esc(loc.name) + '</div>' +
+          '<div class="loc-desc">' + esc(loc.description || '') + '</div>' +
         '</div>' +
         '<div class="loc-meta">' +
-          '<div class="loc-radius' + (loc.perfectRadius !== 30 ? ' loc-radius-custom' : '') + '">&#9679; ' + loc.perfectRadius + ' km radius</div>' +
+          '<div class="loc-radius' + (r !== 30 ? ' loc-radius-custom' : '') + '">\u25cf ' + r + ' km</div>' +
         '</div>' +
       '</div>';
     }).join('');
 
     var diffColor = day.avgDiff <= 2 ? 'var(--d1)' : day.avgDiff <= 3.5 ? 'var(--d3)' : 'var(--d5)';
-    var cardClass = day.locked ? ' day-card-locked' : '';
+    var cardClass = day.locked ? ' day-card-locked' : day.adminOverride ? ' day-card-override' : '';
     var statusBadge = day.locked
-      ? '<div class="lock-badge">&#128274; Played</div>'
-      : '<div class="scramble-badge">sample combination</div>';
+      ? '<div class="lock-badge">\uD83D\uDD12 Played</div>'
+      : day.adminOverride ? '<div class="override-set-badge">\u270E Override set</div>' : '';
+    var overrideBtn = day.locked ? '' :
+      '<button class="btn-override" onclick="openOverrideModal(' + dayIdx + ')">Override</button>';
 
     return '<div class="day-card' + cardClass + '">' +
       '<div class="day-card-header">' +
         '<div class="day-num">Day #' + day.dayNum + '</div>' +
-        '<div class="day-date">' + day.dateStr + '</div>' +
+        '<div class="day-date">' + esc(day.dateStr) + '</div>' +
         statusBadge +
-        '<div class="day-avg">avg difficulty <span style="color:' + diffColor + '">' + day.avgDiff + '</span></div>' +
+        '<div class="day-avg" style="margin-left:auto">avg difficulty <span style="color:' + diffColor + '">' + day.avgDiff + '</span></div>' +
+        overrideBtn +
       '</div>' +
       '<div class="loc-rows">' + locRows + '</div>' +
     '</div>';
@@ -474,9 +606,64 @@ function renderUpcoming(days, container) {
   container.innerHTML = '<div class="days-grid">' + html + '</div>';
 }
 
-/* ── Locations (read-only) ── */
+/* ── Override modal (fake — applies only in-memory) ── */
+function openOverrideModal(dayIdx) {
+  overrideDayIdx = dayIdx;
+  var day = upcomingData[dayIdx];
+  document.getElementById('override-subtitle').textContent = day.dateStr + ' \u2014 Day #' + day.dayNum;
+  var fields = document.getElementById('override-fields');
+  fields.innerHTML = [0,1,2,3,4].map(function(i) {
+    var loc = day.locations[i];
+    var val = loc ? loc.name : '';
+    return '<div class="modal-field">' +
+      '<label>Round ' + (i+1) + '</label>' +
+      '<input type="text" id="or-' + i + '" value="' + esc(val) + '" list="loc-datalist" autocomplete="off">' +
+    '</div>';
+  }).join('');
+  // Populate datalist
+  var dl = document.getElementById('loc-datalist');
+  dl.innerHTML = '';
+  (locationsData || []).forEach(function(l) {
+    var opt = document.createElement('option'); opt.value = l.name; dl.appendChild(opt);
+  });
+  var saveBtn = document.getElementById('btn-save-override');
+  saveBtn.disabled = false; saveBtn.textContent = 'Save Override';
+  document.getElementById('override-modal').hidden = false;
+}
+
+function closeOverrideModal() {
+  overrideDayIdx = -1;
+  document.getElementById('override-modal').hidden = true;
+}
+
+async function fakeCommitOverride() {
+  var saveBtn = document.getElementById('btn-save-override');
+  saveBtn.disabled = true;
+  saveBtn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px;display:inline-block;vertical-align:-2px;margin-right:6px"></span>Saving\u2026';
+  var names = [0,1,2,3,4].map(function(i) {
+    return (document.getElementById('or-' + i).value || '').trim();
+  });
+  await sleep(1100);
+  var day  = upcomingData[overrideDayIdx];
+  var pool = pendingLocs || locationsData || [];
+  day.adminOverride = true; day.locked = false;
+  day.locations = names.map(function(n) {
+    var found = pool.find(function(l){ return l.name.toLowerCase() === n.toLowerCase(); });
+    return found
+      ? { name: found.name, description: found.description,
+          difficulty: found.difficulty, perfectRadius: found.radius || found.perfectRadius || 30 }
+      : { name: n || '(unknown)', description: '', difficulty: 3, perfectRadius: 30 };
+  });
+  day.avgDiff = day.locations.length
+    ? +(day.locations.reduce(function(s,l){ return s + (l.difficulty||3); }, 0) / day.locations.length).toFixed(1)
+    : 0;
+  closeOverrideModal();
+  renderUpcoming(upcomingData, document.getElementById('upcoming-grid'));
+}
+
+/* ── Locations ── */
 async function loadLocations() {
-  document.getElementById('loc-load-msg').textContent = 'Loading locations…';
+  document.getElementById('loc-load-msg').textContent = 'Loading locations\u2026';
   document.getElementById('loc-load-msg').hidden = false;
   document.getElementById('loc-table-wrap').hidden = true;
   try {
@@ -490,29 +677,173 @@ async function loadLocations() {
     document.getElementById('loc-load-msg').hidden = true;
     document.getElementById('loc-table-wrap').hidden = false;
   } catch(err) {
-    document.getElementById('loc-load-msg').textContent = 'Error loading locations: ' + err.message;
+    document.getElementById('loc-load-msg').textContent = 'Error loading: ' + err.message;
   }
 }
 
 function renderLocTable() {
+  if (!locationsData) return;
+  var working = pendingLocs || locationsData;
   var q = (document.getElementById('loc-search').value || '').toLowerCase().trim();
-  var rows = q
-    ? locationsData.filter(function(l) {
+  var filtered = q
+    ? working.filter(function(l) {
         return l.name.toLowerCase().includes(q) || (l.description||'').toLowerCase().includes(q);
       })
-    : locationsData;
-  document.getElementById('loc-count').textContent = '(' + rows.length + ')';
-  var tbody = document.getElementById('loc-tbody');
-  tbody.innerHTML = rows.map(function(l) {
-    return '<tr>' +
+    : working;
+  var origNames = new Set(locationsData.map(function(l){ return l.name.toLowerCase(); }));
+  document.getElementById('loc-count').textContent = '(' + filtered.length + ')';
+  document.getElementById('loc-tbody').innerHTML = filtered.map(function(l) {
+    var realIdx = working.indexOf(l);
+    var isNew = pendingLocs && !origNames.has(l.name.toLowerCase());
+    return '<tr' + (isNew ? ' class="pending-row"' : '') + '>' +
       '<td><div class="diff-badge diff-' + l.difficulty + '">' + l.difficulty + '</div></td>' +
-      '<td class="lt-name">' + l.name + '</td>' +
-      '<td class="lt-desc">' + (l.description || '') + '</td>' +
-      '<td class="lt-coord">' + (l.lat || '').toFixed(3) + '</td>' +
-      '<td class="lt-coord">' + (l.lng || '').toFixed(3) + '</td>' +
+      '<td class="lt-name">' + esc(l.name) + '</td>' +
+      '<td class="lt-desc">' + esc(l.description || '') + '</td>' +
+      '<td class="lt-coord">' + (+(l.lat||0)).toFixed(3) + '</td>' +
+      '<td class="lt-coord">' + (+(l.lng||0)).toFixed(3) + '</td>' +
       '<td class="lt-coord">' + (l.radius || l.perfectRadius || 30) + ' km</td>' +
+      '<td><div style="display:flex;gap:6px;align-items:center">' +
+        '<button class="btn-row-edit" onclick="openEditForm(' + realIdx + ')">Edit</button>' +
+        '<button class="btn-row-del"  onclick="deleteRow(' + realIdx + ')">\u2715</button>' +
+      '</div></td>' +
     '</tr>';
   }).join('');
+}
+
+function openAddForm() {
+  editingIndex = null;
+  document.getElementById('form-title').textContent = 'Add Location';
+  ['f-name','f-desc','f-lat','f-lng'].forEach(function(id){ document.getElementById(id).value = ''; });
+  document.getElementById('f-radius').value = '30';
+  document.getElementById('f-diff').value = '3';
+  document.getElementById('form-error').textContent = '';
+  document.getElementById('form-geocode-status').textContent = '';
+  document.getElementById('loc-form-card').hidden = false;
+  document.getElementById('f-name').focus();
+}
+
+function openEditForm(i) {
+  var working = pendingLocs || locationsData;
+  var loc = working[i];
+  editingIndex = i;
+  document.getElementById('form-title').textContent = 'Edit Location';
+  document.getElementById('f-name').value = loc.name;
+  document.getElementById('f-desc').value = loc.description || '';
+  document.getElementById('f-lat').value = loc.lat;
+  document.getElementById('f-lng').value = loc.lng;
+  document.getElementById('f-radius').value = loc.radius || loc.perfectRadius || 30;
+  document.getElementById('f-diff').value = loc.difficulty;
+  document.getElementById('form-error').textContent = '';
+  document.getElementById('form-geocode-status').textContent = '';
+  document.getElementById('loc-form-card').hidden = false;
+  document.getElementById('f-name').focus();
+}
+
+function closeForm() {
+  editingIndex = null;
+  document.getElementById('loc-form-card').hidden = true;
+  document.getElementById('form-error').textContent = '';
+  document.getElementById('form-geocode-status').textContent = '';
+}
+
+async function geocodeName() {
+  var name  = document.getElementById('f-name').value.trim();
+  if (!name) { document.getElementById('form-error').textContent = 'Enter a name first'; return; }
+  var status = document.getElementById('form-geocode-status');
+  var errEl  = document.getElementById('form-error');
+  status.textContent = 'Looking up\u2026'; errEl.textContent = '';
+  try {
+    var res = await fetch('/api/omni?action=geocode', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: name })
+    });
+    var d = await res.json();
+    if (!res.ok) { status.textContent = ''; errEl.textContent = d.error || 'Not found'; return; }
+    document.getElementById('f-lat').value = (+d.lat).toFixed(4);
+    document.getElementById('f-lng').value = (+d.lng).toFixed(4);
+    status.textContent = '\u2713 ' + d.placeName;
+  } catch(err) {
+    status.textContent = ''; errEl.textContent = 'Geocode error: ' + err.message;
+  }
+}
+
+function saveFormEntry() {
+  var name   = document.getElementById('f-name').value.trim();
+  var desc   = document.getElementById('f-desc').value.trim();
+  var lat    = parseFloat(document.getElementById('f-lat').value);
+  var lng    = parseFloat(document.getElementById('f-lng').value);
+  var radius = parseInt(document.getElementById('f-radius').value, 10);
+  var diff   = parseInt(document.getElementById('f-diff').value, 10);
+  var errEl  = document.getElementById('form-error');
+  errEl.textContent = '';
+  if (!name || !desc || isNaN(lat) || isNaN(lng) || isNaN(radius) || isNaN(diff)) {
+    errEl.textContent = 'All fields are required'; return;
+  }
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    errEl.textContent = 'Invalid coordinates'; return;
+  }
+  if (radius < 1 || radius > 500) { errEl.textContent = 'Radius must be 1\u2013500 km'; return; }
+  if (diff < 1 || diff > 5)       { errEl.textContent = 'Difficulty must be 1\u20135'; return; }
+  if (!pendingLocs) pendingLocs = locationsData.slice();
+  var nameLower = name.toLowerCase();
+  var dup = pendingLocs.findIndex(function(l, i) {
+    return l.name.toLowerCase() === nameLower && i !== editingIndex;
+  });
+  if (dup !== -1) { errEl.textContent = 'Duplicate name: ' + name; return; }
+  var entry = { name: name, description: desc, lat: lat, lng: lng, radius: radius, difficulty: diff };
+  if (editingIndex !== null) { pendingLocs[editingIndex] = entry; }
+  else { pendingLocs.push(entry); }
+  closeForm();
+  renderLocTable();
+  _updateSaveBar();
+}
+
+function deleteRow(i) {
+  if (!pendingLocs) pendingLocs = locationsData.slice();
+  pendingLocs.splice(i, 1);
+  renderLocTable();
+  _updateSaveBar();
+}
+
+function discardChanges() {
+  pendingLocs = null; editingIndex = null;
+  closeForm(); renderLocTable(); _updateSaveBar();
+}
+
+function _updateSaveBar() {
+  var bar = document.getElementById('save-bar');
+  if (!pendingLocs) { bar.hidden = true; return; }
+  var added   = Math.max(0, pendingLocs.length - locationsData.length);
+  var removed = Math.max(0, locationsData.length - pendingLocs.length);
+  var edited  = 0;
+  var minLen  = Math.min(pendingLocs.length, locationsData.length);
+  for (var i = 0; i < minLen; i++) {
+    if (JSON.stringify(pendingLocs[i]) !== JSON.stringify(locationsData[i])) edited++;
+  }
+  var parts = [];
+  if (added)   parts.push('+' + added + ' added');
+  if (removed) parts.push(removed + ' removed');
+  if (edited)  parts.push(edited + ' edited');
+  document.getElementById('save-bar-text').textContent = parts.length ? parts.join(', ') : 'Unsaved changes';
+  bar.hidden = false;
+}
+
+async function fakeCommitLocs() {
+  var commitBtn  = document.querySelector('#save-bar .btn-commit');
+  var discardBtn = document.querySelector('#save-bar .btn-discard');
+  commitBtn.disabled = discardBtn.disabled = true;
+  commitBtn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px;display:inline-block;vertical-align:-2px;margin-right:6px"></span>Saving\u2026';
+  await sleep(1300);
+  locationsData = pendingLocs.slice();
+  pendingLocs = null; editingIndex = null;
+  closeForm(); renderLocTable();
+  commitBtn.innerHTML = '\u2713 Saved!';
+  commitBtn.style.background = 'var(--green)';
+  await sleep(1800);
+  document.getElementById('save-bar').hidden = true;
+  commitBtn.style.background = ''; commitBtn.innerHTML = 'Save changes';
+  commitBtn.disabled = discardBtn.disabled = false;
 }
 </script>
 </body>

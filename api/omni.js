@@ -200,7 +200,7 @@ module.exports = async function handler(req, res) {
     if (!secret) return res.status(503).json({ error: 'OMNI_EMBED_SECRET env var not configured' });
     try {
       const url = await embedSsoDashboard({
-        contentId:        '502c7f55',
+        contentId:        '0a46b105',
         externalId:       'pd-demo-user',
         name:             'PinDrop Demo',
         organizationName: 'williamwatkins',
@@ -232,6 +232,24 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ url });
     } catch (e) {
       return res.status(500).json({ error: 'Failed to generate chat URL: ' + e.message });
+    }
+  }
+
+  // ── POST geocode (Mapbox lookup — read-only, no mutations) ───────────────
+  if (action === 'geocode' && req.method === 'POST') {
+    const token = process.env.MAPBOX_TOKEN;
+    if (!token) return res.status(503).json({ error: 'MAPBOX_TOKEN not configured' });
+    const body  = await parseJsonBody(req);
+    const query = ((body && body.query) || '').trim();
+    if (!query) return res.status(400).json({ error: 'query required' });
+    try {
+      const r    = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&limit=1`);
+      const data = await r.json();
+      if (!data.features || !data.features.length) return res.status(404).json({ error: 'Location not found' });
+      const [lng, lat] = data.features[0].center;
+      return res.status(200).json({ lat, lng, placeName: data.features[0].place_name });
+    } catch (e) {
+      return res.status(500).json({ error: 'Geocode failed: ' + e.message });
     }
   }
 
