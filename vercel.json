@@ -1,4 +1,12 @@
 {
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "pindropdeploy.vercel.app" }],
+      "destination": "https://playpindrop.app/$1",
+      "permanent": true
+    }
+  ],
   "crons": [
     {
       "path": "/api/daily-post",
