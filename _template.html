@@ -1792,7 +1792,7 @@ function onMapClick(e) {
   el.style.cssText = `
     width: 44px; height: 44px;
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer; filter: drop-shadow(0 4px 12px rgba(232,255,71,0.5));
+    cursor: pointer; filter: drop-shadow(0 4px 14px rgba(71,200,255,0.35));
     animation: pin-drop 0.4s cubic-bezier(0.34,1.56,0.64,1);
   `;
   el.innerHTML = `<svg width="36" height="48" viewBox="0 0 36 48" fill="none">
@@ -1863,7 +1863,7 @@ async function lockPin() {
   ansEl.style.cssText = `
     width: 44px; height: 44px;
     display: flex; align-items: center; justify-content: center;
-    filter: drop-shadow(0 4px 12px rgba(71,200,255,0.6));
+    filter: drop-shadow(0 4px 14px rgba(232,255,71,0.35));
   `;
   ansEl.innerHTML = `<svg width="36" height="48" viewBox="0 0 36 48" fill="none">
     <path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 30 18 30s18-16.5 18-30C36 8.06 27.94 0 18 0z" fill="#47c8ff"/>
