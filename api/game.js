@@ -8,7 +8,7 @@ const {
   getLocDifficulty,
 } = require('./_game-data');
 
-const { trackPlay, trackGame, trackShare, storeDailyCombo, getDailyAvgScore } = require('./_motherduck');
+const { trackPlay, trackGame, trackShare, storeDailyCombo, getDailyAvgScore, getDailyAvgRoundScore } = require('./_motherduck');
 
 // ── Handler ─────────────────────────────────────────────────────────────────
 module.exports = async function handler(req, res) {
@@ -36,10 +36,15 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // ── GET /api/game?action=daily-stats&date=YYYY-MM-DD ────────────────
+    // ── GET /api/game?action=daily-stats[&round=N] ───────────────────────
     if (action === 'daily-stats') {
       const gameDate = clientDate || new Date().toISOString().slice(0, 10);
+      const roundNum = req.query.round ? parseInt(req.query.round, 10) : null;
       try {
+        if (roundNum && roundNum >= 1 && roundNum <= 5) {
+          const stats = await getDailyAvgRoundScore(gameDate, roundNum);
+          return res.status(200).json(stats || { avgScore: null });
+        }
         const stats = await getDailyAvgScore(gameDate);
         return res.status(200).json(stats || { avgScore: null, playerCount: 0 });
       } catch (e) {

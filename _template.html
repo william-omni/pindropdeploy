@@ -1382,7 +1382,8 @@ let gameStartTime  = null;
 let roundStartTime = null;
 
 // Daily stats cache — populated once per session, shared across summary + review
-let _dailyStats = null;
+let _dailyStats  = null;
+let _roundStats  = {}; // { 1: { avgScore }, 2: ..., 3: ..., 4: ..., 5: ... }
 
 // Detects mobile vs desktop for analytics (not shown to user)
 function getDeviceType() {
@@ -2243,9 +2244,12 @@ function renderDailyStats() {
   if (!_dailyStats || _dailyStats.avgScore == null) return;
   const text = `Today's avg · ${_dailyStats.avgScore}`;
   const el1 = document.getElementById('daily-avg');
-  const el2 = document.getElementById('daily-avg-review');
   if (el1) el1.textContent = text;
-  if (el2) el2.textContent = text;
+  // Only update the review stat if "All Rounds" is currently selected
+  if (reviewFocusedRound === -1) {
+    const el2 = document.getElementById('daily-avg-review');
+    if (el2) el2.textContent = text;
+  }
 }
 
 function fetchDailyStats() {
@@ -2256,6 +2260,41 @@ function fetchDailyStats() {
       if (data && data.avgScore != null) {
         _dailyStats = data;
         renderDailyStats();
+      }
+    })
+    .catch(function() {});
+}
+
+// Updates the review avg label when switching round chips.
+// round = null → total daily avg; round = 1-5 → that round's avg.
+function updateReviewAvgStat(round) {
+  const el = document.getElementById('daily-avg-review');
+  if (!el) return;
+  if (round == null) {
+    // Back to "All Rounds" — show cached total avg
+    if (_dailyStats && _dailyStats.avgScore != null) {
+      el.textContent = `Today's avg · ${_dailyStats.avgScore}`;
+    }
+    return;
+  }
+  // Show cached round avg immediately if available
+  if (_roundStats[round]) {
+    el.textContent = `Round ${round} avg · ${_roundStats[round].avgScore}`;
+    return;
+  }
+  // Otherwise fetch and cache
+  el.textContent = ''; // clear while loading
+  const date = getLocalDateStr();
+  fetch(`/api/game?action=daily-stats&date=${date}&round=${round}`)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data && data.avgScore != null) {
+        _roundStats[round] = data;
+        // Only update if the user hasn't already switched to a different chip
+        if (reviewFocusedRound === round - 1) {
+          const el2 = document.getElementById('daily-avg-review');
+          if (el2) el2.textContent = `Round ${round} avg · ${data.avgScore}`;
+        }
       }
     })
     .catch(function() {});
@@ -2530,6 +2569,7 @@ function showReview(returnScreen = 'home') {
     allChip.classList.add('active');
     hideDescPanel();
     populateReviewMap(results);
+    updateReviewAvgStat(null);
   });
   chipsEl.appendChild(allChip);
 
@@ -2548,6 +2588,7 @@ function showReview(returnScreen = 'home') {
       chip.classList.add('active');
       showDescPanel(r);
       populateReviewMap(results);
+      updateReviewAvgStat(i + 1);
     });
     chipsEl.appendChild(chip);
   });

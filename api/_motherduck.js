@@ -553,6 +553,33 @@ async function replaceAllLocations(locations) {
   }
 }
 
+// ── getDailyAvgRoundScore ─────────────────────────────────────────────────────
+// Returns { avgScore: Number } for a specific round (1-indexed) on a given date,
+// or null if no plays recorded yet. Reads from pindrop.plays.
+async function getDailyAvgRoundScore(gameDate, round) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return null;
+    const conn = await inst.connect();
+    try {
+      const res = await conn.runAndReadAll(
+        `SELECT ROUND(AVG(points)) AS avg_score, COUNT(*) AS guess_count
+         FROM pindrop.plays
+         WHERE game_date = CAST(? AS DATE) AND round = ?`,
+        [gameDate, round]
+      );
+      const rows = res.getRowObjects();
+      if (!rows.length || !rows[0].guess_count || Number(rows[0].guess_count) === 0) return null;
+      return { avgScore: Math.round(Number(rows[0].avg_score)) };
+    } finally {
+      conn.closeSync();
+    }
+  } catch (e) {
+    console.error('[MotherDuck] getDailyAvgRoundScore error:', e.message);
+    return null;
+  }
+}
+
 // ── getDailyAvgScore ──────────────────────────────────────────────────────────
 // Returns { avgScore: Number, playerCount: Number } for a given date,
 // or null if no games have been recorded yet (e.g. early in the day).
@@ -589,5 +616,5 @@ module.exports = {
   getAllLocations, getLockedDailyCombo, getLockedDates, getPlayedDates,
   getLockedCombosForRange, getLastUsedDates, setDayOverride,
   upsertLocation, deleteLocation, replaceAllLocations,
-  getDailyAvgScore,
+  getDailyAvgScore, getDailyAvgRoundScore,
 };
