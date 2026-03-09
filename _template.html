@@ -1834,11 +1834,11 @@ function applyMapStyle(m, isDark, cityLabels = true) {
       source: 'composite',
       'source-layer': 'place_label',
       filter: ['match', ['get', 'type'], ['city', 'town'], true, false],
-      minzoom: 1,
+      minzoom: 4,
       layout: {
         'text-field': ['get', 'name_en'],
         'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 1, 9, 8, 13],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 4, 9, 8, 13],
         'text-max-width': 8,
         'text-padding': 2,
         'text-allow-overlap': true,
