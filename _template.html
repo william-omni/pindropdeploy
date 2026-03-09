@@ -40,7 +40,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
 
   <!-- Set light-mode class before CSS renders to prevent flash -->
-  <script>if (!window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.classList.add('light-mode');</script>
+  <script>
+    (function() {
+      var saved = localStorage.getItem('pd_theme');
+      if (saved === 'light' || (!saved && !window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('light-mode');
+      }
+    })();
+  </script>
   <style>
     /* ─── Reset & Base ─────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1075,6 +1082,25 @@
     }
     .x-social-link:hover { opacity: 0.75; }
     .x-social-link svg { width: 18px; height: 18px; fill: var(--text); }
+    /* Hide X icon when game screen is active */
+    #game:not(.hidden) ~ a.x-social-link { display: none; }
+
+    /* Dark / light mode toggle on home */
+    .theme-toggle-btn {
+      position: absolute;
+      top: max(16px, calc(var(--safe-top) + 12px));
+      right: 16px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      z-index: 10;
+      transition: background 0.2s, opacity 0.2s;
+    }
+    .theme-toggle-btn:hover { opacity: 0.8; }
 
     /* Mapbox overrides */
     .mapboxgl-ctrl-bottom-left, .mapboxgl-ctrl-bottom-right,
@@ -1132,6 +1158,9 @@
       </div>
     </div>
   </div>
+  <button class="theme-toggle-btn" id="btn-theme-toggle" aria-label="Toggle dark/light mode">
+    <span id="theme-toggle-icon"></span>
+  </button>
 </div>
 
 <!-- ─── GAME ───────────────────────────────────────────────── -->
@@ -1357,11 +1386,13 @@ const MAPBOX_TOKEN = '__MAPBOX_TOKEN__';
 const ROUNDS_PER_GAME = 5;
 const MAX_SCORE_PER_ROUND = 200;
 
-// Detect system color scheme once at startup
-const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-const MAP_STYLE   = prefersDark
-  ? 'mapbox://styles/mapbox/dark-v11'
-  : 'mapbox://styles/mapbox/light-v11';
+// Color-scheme — reflects inline-script class + localStorage override
+let prefersDark = !document.documentElement.classList.contains('light-mode');
+function getMapStyle() {
+  return prefersDark
+    ? 'mapbox://styles/mapbox/dark-v11'
+    : 'mapbox://styles/mapbox/light-v11';
+}
 
 let map = null;
 let state = {
@@ -1703,10 +1734,38 @@ function initHome() {
  * Must be called inside a 'load' or 'style.load' event handler.
  */
 function applyMapStyle(m, isDark, cityLabels = true) {
-  // ── Contrast colours ──────────────────────────────────
+  // ── Contrast colours + border distinction ─────────────
   for (const layer of m.getStyle().layers) {
     const lid = layer.id.toLowerCase();
     const isWater = lid.includes('water') || lid.includes('waterway') || lid.includes('ocean');
+
+    // National borders — bold & clearly visible
+    if (lid === 'admin-0-boundary' && layer.type === 'line') {
+      try { m.setPaintProperty(layer.id, 'line-color', isDark ? 'rgba(255,255,255,0.60)' : 'rgba(20,40,90,0.75)'); } catch(e) {}
+      try { m.setPaintProperty(layer.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 1, 1.2, 5, 2.0]); } catch(e) {}
+      try { m.setPaintProperty(layer.id, 'line-opacity', 1); } catch(e) {}
+      continue;
+    }
+    // National border background/halo — slightly more visible
+    if (lid === 'admin-0-boundary-bg' && layer.type === 'line') {
+      try { m.setPaintProperty(layer.id, 'line-color', isDark ? '#0a0a0f' : '#ffffff'); } catch(e) {}
+      try { m.setPaintProperty(layer.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 1, 2.5, 5, 4.0]); } catch(e) {}
+      try { m.setPaintProperty(layer.id, 'line-opacity', 0.6); } catch(e) {}
+      continue;
+    }
+    // State/province borders — subtle, clearly subordinate to national
+    if (lid === 'admin-1-boundary' && layer.type === 'line') {
+      try { m.setPaintProperty(layer.id, 'line-color', isDark ? 'rgba(255,255,255,0.18)' : 'rgba(20,40,90,0.22)'); } catch(e) {}
+      try { m.setPaintProperty(layer.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 1, 0.5, 5, 0.8]); } catch(e) {}
+      try { m.setPaintProperty(layer.id, 'line-opacity', 1); } catch(e) {}
+      continue;
+    }
+    // State border dashes bg — hide entirely to reduce clutter
+    if (lid === 'admin-1-boundary-bg' && layer.type === 'line') {
+      try { m.setPaintProperty(layer.id, 'line-opacity', 0); } catch(e) {}
+      continue;
+    }
+
     if (isDark) {
       // Land → lighter slate so it stands out; water → near-black to match app bg
       if (layer.type === 'background') {
@@ -1765,7 +1824,7 @@ function applyMapStyle(m, isDark, cityLabels = true) {
       },
     });
 
-    // Major world cities (1M+) — visible from zoom 2
+    // Major world cities (1M+) — visible from zoom 1
     m.addLayer({
       id: 'review-city-major',
       type: 'symbol',
@@ -1775,7 +1834,7 @@ function applyMapStyle(m, isDark, cityLabels = true) {
         ['==', ['get', 'type'], 'city'],
         ['>=', ['coalesce', ['get', 'population'], 0], 1000000],
       ],
-      minzoom: 2,
+      minzoom: 1,
       layout: {
         'text-field': ['get', 'name_en'],
         'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
@@ -1884,7 +1943,7 @@ function initMap() {
 
   map = new mapboxgl.Map({
     container: 'map',
-    style: MAP_STYLE,
+    style: getMapStyle(),
     center: [15, 25],
     zoom: 1.8,
     minZoom: 1,
@@ -2501,7 +2560,7 @@ function initReviewMap(results) {
 
   reviewMap = new mapboxgl.Map({
     container: 'review-map',
-    style: MAP_STYLE,
+    style: getMapStyle(),
     center: [15, 25],
     zoom: 1.4,
     minZoom: 1,
@@ -2732,6 +2791,22 @@ function startGame() {
 // ─────────────────────────────────────────────────────────
 // EVENT LISTENERS
 // ─────────────────────────────────────────────────────────
+
+// ── Theme toggle ──────────────────────────────────────────
+(function() {
+  const btn  = document.getElementById('btn-theme-toggle');
+  const icon = document.getElementById('theme-toggle-icon');
+  function syncIcon() {
+    icon.textContent = document.documentElement.classList.contains('light-mode') ? '🌙' : '☀️';
+  }
+  syncIcon(); // set on load
+  btn.addEventListener('click', () => {
+    const nowLight = document.documentElement.classList.toggle('light-mode');
+    localStorage.setItem('pd_theme', nowLight ? 'light' : 'dark');
+    prefersDark = !nowLight;
+    syncIcon();
+  });
+})();
 
 document.getElementById('btn-play').addEventListener('click', startGame);
 
