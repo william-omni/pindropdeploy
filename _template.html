@@ -1819,9 +1819,40 @@ function applyMapStyle(m, isDark, cityLabels = true) {
   const haloColor     = isDark ? 'rgba(8,8,18,0.85)'     : 'rgba(255,255,255,0.85)';
   const countryColor  = isDark ? 'rgba(255,255,255,0.50)' : 'rgba(15,35,70,0.70)';
 
-  // ── Review map: country names + broad city/town coverage ────────────────
+  // ── Review map: country names + city/town names ─────────────────────────
+  // NOTE: Mapbox Streets v12 tiles do NOT include a `population` field on
+  // place_label features — filtering by population silently removes every
+  // city. Use `symbolrank` instead (1 = world capitals, higher = smaller).
   if (cityLabels === 'review') {
-    // Country names — visible from zoom 1, fade out when zoomed well in
+    // City / town names — added first so they get collision priority.
+    // symbolrank sort key means capitals & megacities render before smaller
+    // places. text-allow-overlap:true ensures they show near country names.
+    // Tile data naturally provides denser labels as zoom increases.
+    m.addLayer({
+      id: 'review-place-labels',
+      type: 'symbol',
+      source: 'composite',
+      'source-layer': 'place_label',
+      filter: ['match', ['get', 'type'], ['city', 'town'], true, false],
+      minzoom: 1,
+      layout: {
+        'text-field': ['get', 'name_en'],
+        'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 1, 9, 8, 13],
+        'text-max-width': 8,
+        'text-padding': 2,
+        'text-allow-overlap': true,
+        'symbol-sort-key': ['coalesce', ['get', 'symbolrank'], 10],
+      },
+      paint: {
+        'text-color': labelColor,
+        'text-halo-color': haloColor,
+        'text-halo-width': 1.5,
+      },
+    });
+
+    // Country names — added second so they render on top of city labels.
+    // text-allow-overlap:true ensures country names always show.
     m.addLayer({
       id: 'review-country-labels',
       type: 'symbol',
@@ -1835,65 +1866,11 @@ function applyMapStyle(m, isDark, cityLabels = true) {
         'text-size': ['interpolate', ['linear'], ['zoom'], 1, 11, 5, 15],
         'text-max-width': 7,
         'text-padding': 2,
-        'symbol-sort-key': ['-', 0, ['coalesce', ['get', 'population'], 0]],
+        'text-allow-overlap': true,
+        'symbol-sort-key': ['coalesce', ['get', 'symbolrank'], 10],
       },
       paint: {
         'text-color': countryColor,
-        'text-halo-color': haloColor,
-        'text-halo-width': 1.5,
-      },
-    });
-
-    // Major world cities (1M+) — visible from zoom 1
-    m.addLayer({
-      id: 'review-city-major',
-      type: 'symbol',
-      source: 'composite',
-      'source-layer': 'place_label',
-      filter: ['all',
-        ['==', ['get', 'type'], 'city'],
-        ['>=', ['coalesce', ['get', 'population'], 0], 1000000],
-      ],
-      minzoom: 1,
-      layout: {
-        'text-field': ['get', 'name_en'],
-        'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 1, 9, 6, 14],
-        'text-max-width': 8,
-        'text-padding': 2,
-        'text-allow-overlap': true,
-        'symbol-sort-key': ['-', 0, ['coalesce', ['get', 'population'], 0]],
-      },
-      paint: {
-        'text-color': labelColor,
-        'text-halo-color': haloColor,
-        'text-halo-width': 1.5,
-      },
-    });
-
-    // Smaller cities and towns (100k+) — appear when zoomed in
-    m.addLayer({
-      id: 'review-city-minor',
-      type: 'symbol',
-      source: 'composite',
-      'source-layer': 'place_label',
-      filter: ['all',
-        ['in', ['get', 'type'], ['literal', ['city', 'town']]],
-        ['>=', ['coalesce', ['get', 'population'], 0], 100000],
-        ['<',  ['coalesce', ['get', 'population'], 0], 1000000],
-      ],
-      minzoom: 3,
-      layout: {
-        'text-field': ['get', 'name_en'],
-        'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 3, 9, 8, 12],
-        'text-max-width': 8,
-        'text-padding': 3,
-        'text-allow-overlap': true,
-        'symbol-sort-key': ['-', 0, ['coalesce', ['get', 'population'], 0]],
-      },
-      paint: {
-        'text-color': labelColor,
         'text-halo-color': haloColor,
         'text-halo-width': 1.5,
       },
