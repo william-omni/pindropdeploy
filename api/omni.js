@@ -134,8 +134,15 @@ async function getUpcomingDays(fromDateStr, numDays) {
       locationsForDay = picked;
     }
 
+    // getTodayLocations returns tuples [name, desc, lat, lng, diff]; getAllLocations returns objects.
+    // Normalize to objects so the rest of the code can use property names consistently.
+    locationsForDay = locationsForDay.map(l => Array.isArray(l)
+      ? { name: l[0], description: l[1], lat: l[2], lng: l[3], difficulty: l[4] || 3, radius: 30 }
+      : l
+    );
+
     const avgDiff = locationsForDay.length
-      ? +(locationsForDay.reduce((s, l) => s + l.difficulty, 0) / locationsForDay.length).toFixed(1)
+      ? +(locationsForDay.reduce((s, l) => s + (l.difficulty || 3), 0) / locationsForDay.length).toFixed(1)
       : 0;
 
     const proximityWarnings = [];
@@ -154,7 +161,7 @@ async function getUpcomingDays(fromDateStr, numDays) {
       locations: locationsForDay.map(l => ({
         name: l.name, description: l.description,
         lat: l.lat, lng: l.lng,
-        difficulty: getLocDifficulty(l),
+        difficulty: l.difficulty || 3,
         perfectRadius: l.radius || l.perfectRadius || 30,
         daysSinceLastUse: null
       })),
