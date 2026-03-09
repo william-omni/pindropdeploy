@@ -1252,7 +1252,7 @@ async function loadSocialYesterday() {
           '<div class="auto-post-label">📍 @daily-post style — ' + escHtml(d.dateStr || '') + '</div>' +
           '<pre class="auto-post-body" style="margin-top:8px">' + escHtml(d.tweet) + '</pre>' +
         '</div>' +
-        '<button class="btn btn-ghost yesterday-use-btn" onclick="useText(' + JSON.stringify(d.tweet) + ')">Use this</button>' +
+        '<button class="btn btn-ghost yesterday-use-btn" data-text="' + escHtml(d.tweet) + '" onclick="useText(this.dataset.text)">Use this</button>' +
       '</div>';
   } catch(e) {
     el.innerHTML = '<p style="color:var(--red);font-size:13px">Error: ' + escHtml(e.message) + '</p>';
@@ -1515,7 +1515,7 @@ async function getSuggestions(event) {
     panel.innerHTML = suggestions.map(function(s) {
       return '<div class="suggestion-item">' +
         '<div class="suggestion-text">' + escHtml(s) + '</div>' +
-        '<button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;white-space:nowrap" onclick="useText(' + JSON.stringify(s) + ')">Use this</button>' +
+        '<button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;white-space:nowrap" data-text="' + escHtml(s) + '" onclick="useText(this.dataset.text)">Use this</button>' +
       '</div>';
     }).join('');
     panel.classList.add('visible');
