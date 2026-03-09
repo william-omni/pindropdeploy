@@ -1,59 +1,15 @@
 // api/social.js — Automated X (Twitter) posting for PinDrop
 //
-// Called by two Vercel cron jobs (see vercel.json):
-//   daily-drop  — "Day #N is live"   posted each morning (~7am ET)
-//   daily-stats — "Day #N is done"   posted each evening (~8pm ET)
+// Called by Vercel cron jobs (see vercel.json):
+//   daily-drop    — "Day #N is live"   posted each morning (~7am ET)
+//   daily-stats   — "Day #N is done"   posted each evening (~8pm ET)
+//   send-pending  — checks DB for scheduled manual posts (runs hourly)
 //
 // Also callable manually via GET with X-Cron-Secret header for testing.
 
-const crypto = require('crypto');
 const { getDayNumber } = require('./_game-data');
-const { getDailyAvgScore } = require('./_motherduck');
-
-// ── OAuth 1.0a ────────────────────────────────────────────────────────────────
-
-function pct(str) {
-  return encodeURIComponent(String(str))
-    .replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
-}
-
-function oauthHeader(method, url, creds) {
-  const params = {
-    oauth_consumer_key:     creds.apiKey,
-    oauth_nonce:            crypto.randomBytes(16).toString('hex'),
-    oauth_signature_method: 'HMAC-SHA1',
-    oauth_timestamp:        String(Math.floor(Date.now() / 1000)),
-    oauth_token:            creds.accessToken,
-    oauth_version:          '1.0',
-  };
-
-  // For JSON-body requests the body params are NOT included in the OAuth signature
-  const paramStr = Object.keys(params).sort()
-    .map(k => `${pct(k)}=${pct(params[k])}`).join('&');
-
-  const base = `${method.toUpperCase()}&${pct(url)}&${pct(paramStr)}`;
-  const key  = `${pct(creds.apiSecret)}&${pct(creds.accessTokenSecret)}`;
-  params.oauth_signature = crypto.createHmac('sha1', key).update(base).digest('base64');
-
-  return 'OAuth ' + Object.keys(params).sort()
-    .map(k => `${pct(k)}="${pct(params[k])}"`)
-    .join(', ');
-}
-
-async function postTweet(text, creds) {
-  const url = 'https://api.twitter.com/2/tweets';
-  const res  = await fetch(url, {
-    method:  'POST',
-    headers: {
-      'Authorization': oauthHeader('POST', url, creds),
-      'Content-Type':  'application/json',
-    },
-    body: JSON.stringify({ text }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(`X API ${res.status}: ${JSON.stringify(data)}`);
-  return data;
-}
+const { getDailyAvgScore, getPendingScheduledPosts, updateSocialPost } = require('./_motherduck');
+const { postTweet } = require('./_twitter');
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
@@ -130,7 +86,36 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, id: result.data?.id, avgScore: stats.avgScore });
     }
 
-    return res.status(400).json({ error: 'Unknown action. Use daily-drop or daily-stats.' });
+    // ── send-pending: runs hourly — posts any due scheduled manual posts ─────
+    if (action === 'send-pending') {
+      const pending = await getPendingScheduledPosts();
+      if (!pending.length) {
+        return res.status(200).json({ ok: true, processed: 0 });
+      }
+
+      const results = [];
+      for (const post of pending) {
+        try {
+          const result = await postTweet(post.body, creds);
+          const tweetId = result.data?.id;
+          await updateSocialPost({
+            id:       post.id,
+            status:   'sent',
+            tweetId,
+            postedAt: new Date().toISOString(),
+          });
+          console.log('[social] scheduled post sent, id:', tweetId);
+          results.push({ id: post.id, status: 'sent', tweetId });
+        } catch (e) {
+          await updateSocialPost({ id: post.id, status: 'failed', errorMsg: e.message });
+          console.error('[social] scheduled post failed:', e.message);
+          results.push({ id: post.id, status: 'failed', error: e.message });
+        }
+      }
+      return res.status(200).json({ ok: true, processed: results.length, results });
+    }
+
+    return res.status(400).json({ error: 'Unknown action. Use daily-drop, daily-stats, or send-pending.' });
 
   } catch (e) {
     console.error('[social] error:', e.message);

@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "pindrop-dev",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["serve", ".", "-p", "3000", "--no-clipboard"],
+      "runtimeExecutable": "vercel",
+      "runtimeArgs": ["dev", "--listen", "3000", "--yes"],
       "port": 3000
     }
   ]

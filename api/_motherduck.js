@@ -553,6 +553,120 @@ async function replaceAllLocations(locations) {
   }
 }
 
+// ── social_posts CRUD ─────────────────────────────────────────────────────────
+// One row per composed/scheduled manual post (or auto-post record).
+// Uses the data instance so admin tools work in all environments.
+
+let _socialTablesReady = false;
+
+async function ensureSocialTables(conn) {
+  if (_socialTablesReady) return;
+  await conn.run(`CREATE SCHEMA IF NOT EXISTS pindrop`);
+  await conn.run(`
+    CREATE TABLE IF NOT EXISTS pindrop.social_posts (
+      id            VARCHAR     PRIMARY KEY,
+      post_type     VARCHAR     NOT NULL DEFAULT 'manual',
+      body          VARCHAR     NOT NULL,
+      status        VARCHAR     NOT NULL DEFAULT 'pending',
+      scheduled_for TIMESTAMPTZ,
+      posted_at     TIMESTAMPTZ,
+      tweet_id      VARCHAR,
+      error_msg     VARCHAR,
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  _socialTablesReady = true;
+}
+
+async function createSocialPost({ id, postType, body, scheduledFor }) {
+  const inst = await getDataInstance();
+  if (!inst) throw new Error('MotherDuck not available');
+  const conn = await inst.connect();
+  try {
+    await ensureSocialTables(conn);
+    await conn.run(
+      `INSERT INTO pindrop.social_posts (id, post_type, body, status, scheduled_for)
+       VALUES (?, ?, ?, 'pending', CAST(? AS TIMESTAMPTZ))`,
+      [id, postType || 'manual', body, scheduledFor || null]
+    );
+  } finally {
+    conn.closeSync();
+  }
+}
+
+async function getSocialPosts(limit = 50) {
+  const inst = await getDataInstance();
+  if (!inst) return [];
+  const conn = await inst.connect();
+  try {
+    await ensureSocialTables(conn);
+    const res = await conn.runAndReadAll(
+      `SELECT id, post_type, body, status,
+              CAST(scheduled_for AS VARCHAR) AS scheduled_for,
+              CAST(posted_at     AS VARCHAR) AS posted_at,
+              tweet_id, error_msg,
+              CAST(created_at    AS VARCHAR) AS created_at
+       FROM pindrop.social_posts
+       ORDER BY created_at DESC
+       LIMIT ?`,
+      [limit]
+    );
+    return res.getRowObjects();
+  } finally {
+    conn.closeSync();
+  }
+}
+
+async function updateSocialPost({ id, status, tweetId, postedAt, errorMsg }) {
+  const inst = await getDataInstance();
+  if (!inst) return;
+  const conn = await inst.connect();
+  try {
+    await ensureSocialTables(conn);
+    await conn.run(
+      `UPDATE pindrop.social_posts
+       SET status = ?, tweet_id = ?, posted_at = CAST(? AS TIMESTAMPTZ), error_msg = ?
+       WHERE id = ?`,
+      [status, tweetId || null, postedAt || null, errorMsg || null, id]
+    );
+  } finally {
+    conn.closeSync();
+  }
+}
+
+async function getPendingScheduledPosts() {
+  const inst = await getDataInstance();
+  if (!inst) return [];
+  const conn = await inst.connect();
+  try {
+    await ensureSocialTables(conn);
+    const res = await conn.runAndReadAll(
+      `SELECT id, post_type, body, CAST(scheduled_for AS VARCHAR) AS scheduled_for
+       FROM pindrop.social_posts
+       WHERE status = 'pending' AND scheduled_for IS NOT NULL AND scheduled_for <= now()
+       ORDER BY scheduled_for ASC`
+    );
+    return res.getRowObjects();
+  } finally {
+    conn.closeSync();
+  }
+}
+
+async function deleteSocialPost(id) {
+  const inst = await getDataInstance();
+  if (!inst) return;
+  const conn = await inst.connect();
+  try {
+    await ensureSocialTables(conn);
+    await conn.run(
+      `DELETE FROM pindrop.social_posts WHERE id = ? AND status = 'pending'`,
+      [id]
+    );
+  } finally {
+    conn.closeSync();
+  }
+}
+
 // ── getDailyAvgRoundScore ─────────────────────────────────────────────────────
 // Returns { avgScore: Number } for a specific round (1-indexed) on a given date,
 // or null if no plays recorded yet. Reads from pindrop.plays.
@@ -617,4 +731,6 @@ module.exports = {
   getLockedCombosForRange, getLastUsedDates, setDayOverride,
   upsertLocation, deleteLocation, replaceAllLocations,
   getDailyAvgScore, getDailyAvgRoundScore,
+  createSocialPost, getSocialPosts, updateSocialPost,
+  getPendingScheduledPosts, deleteSocialPost,
 };

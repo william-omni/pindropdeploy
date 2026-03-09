@@ -15,6 +15,10 @@
     {
       "path": "/api/social?action=daily-stats",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/social?action=send-pending",
+      "schedule": "0 * * * *"
     }
   ],
   "rewrites": [

@@ -251,6 +251,44 @@
     .override-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
     .override-error{color:var(--red);font-size:13px;margin-bottom:12px;
       background:rgba(248,113,113,.08);border-radius:6px;padding:8px 12px}
+    /* ── SOCIAL TAB ── */
+    .social-section{margin-bottom:28px}
+    .social-section h3{font-size:11px;font-weight:700;text-transform:uppercase;
+      letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+    .auto-posts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+    .auto-post-card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px}
+    .auto-post-label{font-size:11px;font-weight:700;text-transform:uppercase;
+      letter-spacing:.05em;color:var(--accent);margin-bottom:4px}
+    .auto-post-date{font-size:12px;color:var(--muted);margin-bottom:10px}
+    .auto-post-body{font-family:inherit;font-size:13px;color:var(--text);white-space:pre-wrap;
+      line-height:1.6;background:var(--s2);padding:10px 12px;border-radius:8px;margin:0}
+    .compose-card{background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:20px}
+    #compose-text{width:100%;min-height:90px;background:var(--s2);
+      border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--text);
+      font-size:14px;padding:12px 14px;resize:vertical;outline:none;font-family:inherit;line-height:1.5}
+    #compose-text:focus{border-color:var(--accent)}
+    .compose-footer{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+    .char-count{font-size:13px;font-weight:600;color:var(--muted);min-width:30px;text-align:right}
+    .char-count.warn{color:var(--d3)}
+    .char-count.danger{color:var(--red)}
+    .compose-footer input[type=datetime-local]{background:var(--s2);
+      border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text);
+      padding:8px 12px;font-size:13px;outline:none;color-scheme:dark}
+    .compose-footer input[type=datetime-local]:focus{border-color:var(--accent)}
+    .compose-actions{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+    .social-table{width:100%;border-collapse:collapse;font-size:13px}
+    .social-table th{text-align:left;color:var(--muted);font-size:11px;font-weight:700;
+      text-transform:uppercase;letter-spacing:.06em;padding:0 12px 8px;
+      border-bottom:1px solid var(--border)}
+    .social-table td{padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:top}
+    .social-table tr:last-child td{border-bottom:none}
+    .status-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;
+      border-radius:20px;font-size:11px;font-weight:700}
+    .status-sent{background:rgba(74,222,128,.15);color:var(--green)}
+    .status-pending{background:rgba(251,191,36,.15);color:var(--d3)}
+    .status-failed{background:rgba(248,113,113,.15);color:var(--red)}
+    .post-body-cell{max-width:360px;white-space:pre-wrap;font-size:13px;color:var(--text);line-height:1.5}
+    .post-meta{font-size:11px;color:var(--muted);margin-top:3px}
   </style>
 </head>
 <body>
@@ -279,6 +317,7 @@
     <button class="nav-tab active" data-tab="upcoming"    onclick="switchTab('upcoming',this)">Upcoming</button>
     <button class="nav-tab"        data-tab="preview"     onclick="switchTab('preview',this)">Preview</button>
     <button class="nav-tab"        data-tab="locations"   onclick="switchTab('locations',this)">Locations</button>
+    <button class="nav-tab"        data-tab="social"      onclick="switchTab('social',this)">Social</button>
     <button id="btn-logout" onclick="logout()">Logout</button>
   </nav>
 
@@ -411,6 +450,45 @@
         <div id="loc-load-msg">Loading locations&hellip;</div>
       </div>
 
+      <!-- SOCIAL -->
+      <div id="tab-social" class="tab-pane" hidden>
+        <div class="tab-header">
+          <h2>Social Posts</h2>
+          <div class="tab-controls">
+            <button class="btn btn-primary" onclick="loadSocial()">Refresh</button>
+          </div>
+        </div>
+
+        <!-- Upcoming auto-posts -->
+        <div class="social-section">
+          <h3>Upcoming Auto Posts</h3>
+          <div id="social-upcoming"><div class="loading"><span class="spinner"></span>Loading&hellip;</div></div>
+        </div>
+
+        <!-- Compose -->
+        <div class="social-section">
+          <h3>Compose Post</h3>
+          <div class="compose-card">
+            <textarea id="compose-text" placeholder="What&apos;s happening?…" maxlength="280"
+              oninput="updateCharCount()"></textarea>
+            <div class="compose-footer">
+              <span class="char-count" id="char-count">280</span>
+              <input type="datetime-local" id="compose-schedule" title="Leave empty to post immediately">
+              <div class="compose-actions">
+                <button class="btn btn-ghost" onclick="postNow(event)">Post Now</button>
+                <button class="btn btn-primary" onclick="schedulePost(event)">Schedule</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- History -->
+        <div class="social-section">
+          <h3>Post History</h3>
+          <div id="social-history"><div class="loading"><span class="spinner"></span>Loading&hellip;</div></div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -536,6 +614,7 @@ function switchTab(name, btn) {
   if (name === 'dashboard') loadEmbed();
   if (name === 'chat')      loadChat();
   if (name === 'locations' && !locationsData) loadLocations();
+  if (name === 'social')    loadSocial();
 }
 
 function _activateTab(name, btn) {
@@ -1095,6 +1174,184 @@ function showOverrideError(msg) {
 
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Social tab ── */
+var socialUpcomingLoaded = false;
+
+async function loadSocial() {
+  await Promise.all([loadSocialUpcoming(), loadSocialHistory()]);
+}
+
+async function loadSocialUpcoming() {
+  var el = document.getElementById('social-upcoming');
+  el.innerHTML = '<div class="loading"><span class="spinner"></span>Loading\u2026</div>';
+  try {
+    var today = new Date();
+    var dates = [0,1,2].map(function(i) {
+      var d = new Date(today);
+      d.setDate(d.getDate() + i);
+      return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    });
+    var previews = await Promise.all(dates.map(function(date) {
+      return fetch('/api/admin?action=social-preview&date=' + date, {
+        headers: {'Authorization': 'Bearer ' + TOKEN}
+      }).then(function(r) { return r.json(); });
+    }));
+    var dayLabels = ['Today','Tomorrow','In 2 days'];
+    var html = '<div class="auto-posts-grid">';
+    dates.forEach(function(date, i) {
+      var p = previews[i]; if (!p) return;
+      var d    = new Date(date + 'T12:00:00');
+      var dStr = d.toLocaleDateString('en-US', {weekday:'short',month:'short',day:'numeric'});
+      var lbl  = dayLabels[i];
+      html += '<div class="auto-post-card">';
+      html += '<div class="auto-post-label">📍 Daily Drop &mdash; 7am ET</div>';
+      html += '<div class="auto-post-date">' + lbl + ' &middot; ' + dStr + ' &middot; Day #' + p.dayNum + '</div>';
+      html += '<pre class="auto-post-body">' + escHtml(p.drop) + '</pre></div>';
+      html += '<div class="auto-post-card">';
+      html += '<div class="auto-post-label">🌍 Daily Stats &mdash; 8pm ET</div>';
+      html += '<div class="auto-post-date">' + lbl + ' &middot; ' + dStr + ' &middot; Day #' + p.dayNum + '</div>';
+      html += '<pre class="auto-post-body">' + escHtml(p.stats) + '</pre></div>';
+    });
+    html += '</div>';
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = '<p style="color:var(--red);font-size:13px">Error: ' + escHtml(e.message) + '</p>';
+  }
+}
+
+async function loadSocialHistory() {
+  var el = document.getElementById('social-history');
+  el.innerHTML = '<div class="loading"><span class="spinner"></span>Loading\u2026</div>';
+  try {
+    var r = await fetch('/api/admin?action=social-posts', {headers:{'Authorization':'Bearer '+TOKEN}});
+    if (r.status === 401) { logout(); return; }
+    var d = await r.json();
+    renderSocialHistory(d.posts || []);
+  } catch(e) {
+    el.innerHTML = '<p style="color:var(--red);font-size:13px">Error: ' + escHtml(e.message) + '</p>';
+  }
+}
+
+function renderSocialHistory(posts) {
+  var el = document.getElementById('social-history');
+  if (!posts.length) {
+    el.innerHTML = '<p style="color:var(--muted);font-size:14px;padding:8px 0">No posts yet &mdash; compose one above.</p>';
+    return;
+  }
+  var html = '<table class="social-table"><thead><tr>'
+    + '<th>Status</th><th>Time</th><th>Content</th><th></th>'
+    + '</tr></thead><tbody>';
+  posts.forEach(function(post) {
+    var badge = post.status === 'sent'
+      ? '<span class="status-badge status-sent">\u2713 Sent</span>'
+      : post.status === 'pending'
+        ? '<span class="status-badge status-pending">\u23F3 Pending</span>'
+        : '<span class="status-badge status-failed">\u2717 Failed</span>';
+    var timeStr = '';
+    if (post.status === 'sent' && post.posted_at) {
+      timeStr = new Date(post.posted_at).toLocaleString();
+    } else if (post.scheduled_for) {
+      timeStr = 'Scheduled<br><span style="color:var(--text)">' + new Date(post.scheduled_for).toLocaleString() + '</span>';
+    } else {
+      timeStr = new Date(post.created_at).toLocaleString();
+    }
+    var tweetLink = post.tweet_id
+      ? '<br><a href="https://x.com/i/web/status/' + post.tweet_id + '" target="_blank" rel="noopener" style="font-size:11px;color:var(--accent)">View on X \u2197</a>'
+      : '';
+    var cancelBtn = post.status === 'pending'
+      ? '<button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;color:var(--red)" onclick="cancelPost(\'' + escHtml(post.id) + '\')">Cancel</button>'
+      : '';
+    var preview = escHtml(post.body.slice(0, 100)) + (post.body.length > 100 ? '\u2026' : '');
+    var errMsg  = post.error_msg ? '<div class="post-meta" style="color:var(--red)">' + escHtml(post.error_msg) + '</div>' : '';
+    html += '<tr>'
+      + '<td>' + badge + '</td>'
+      + '<td><div style="font-size:12px;color:var(--muted)">' + timeStr + '</div>' + tweetLink + '</td>'
+      + '<td><div class="post-body-cell">' + preview + '</div>' + errMsg + '</td>'
+      + '<td>' + cancelBtn + '</td>'
+      + '</tr>';
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function updateCharCount() {
+  var text = document.getElementById('compose-text').value;
+  var rem  = 280 - text.length;
+  var el   = document.getElementById('char-count');
+  el.textContent = rem;
+  el.className = 'char-count' + (rem < 20 ? ' danger' : rem < 50 ? ' warn' : '');
+}
+
+async function postNow(event) {
+  var text = document.getElementById('compose-text').value.trim();
+  if (!text) { alert('Please enter some text first.'); return; }
+  if (text.length > 280) { alert('Post exceeds 280 characters.'); return; }
+  if (!confirm('Post this to X right now?')) return;
+  var btn = event.currentTarget;
+  btn.disabled = true; btn.textContent = 'Posting\u2026';
+  try {
+    var r = await fetch('/api/admin?action=social-post-now', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},
+      body: JSON.stringify({ text })
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Unknown error');
+    document.getElementById('compose-text').value = '';
+    updateCharCount();
+    await loadSocialHistory();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Post Now';
+  }
+}
+
+async function schedulePost(event) {
+  var text  = document.getElementById('compose-text').value.trim();
+  var sched = document.getElementById('compose-schedule').value;
+  if (!text)  { alert('Please enter some text first.'); return; }
+  if (!sched) { alert('Please pick a date and time to schedule the post.'); return; }
+  if (text.length > 280) { alert('Post exceeds 280 characters.'); return; }
+  var scheduledFor = new Date(sched).toISOString();
+  if (new Date(sched) <= new Date()) { alert('Scheduled time must be in the future.'); return; }
+  var btn = event.currentTarget;
+  btn.disabled = true; btn.textContent = 'Scheduling\u2026';
+  try {
+    var r = await fetch('/api/admin?action=social-post-schedule', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},
+      body: JSON.stringify({ text, scheduledFor })
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Unknown error');
+    document.getElementById('compose-text').value = '';
+    document.getElementById('compose-schedule').value = '';
+    updateCharCount();
+    await loadSocialHistory();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Schedule';
+  }
+}
+
+async function cancelPost(id) {
+  if (!confirm('Cancel this scheduled post?')) return;
+  try {
+    var r = await fetch('/api/admin?action=social-post-delete', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},
+      body: JSON.stringify({ id })
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Unknown error');
+    await loadSocialHistory();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
 }
 </script>
   <!-- Vercel Analytics + Speed Insights -->

@@ -15,7 +15,9 @@ const {
 const {
   getAllLocations, replaceAllLocations, getLockedDates, getPlayedDates,
   upsertLocation, deleteLocation, getLastUsedDates, setDayOverride,
+  createSocialPost, getSocialPosts, updateSocialPost, deleteSocialPost,
 } = require('./_motherduck');
+const { postTweet } = require('./_twitter');
 
 // ── Auth helpers ─────────────────────────────────────────────────────────────
 function normalizeEnvPassword() {
@@ -402,6 +404,105 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ saved: true });
     } catch (e) {
       return res.status(500).json({ error: 'Failed to save override: ' + e.message });
+    }
+  }
+
+  // ── GET social-preview — compute upcoming auto-post text ─────────────────
+  if (action === 'social-preview') {
+    const date   = (req.query && req.query.date) || (() => {
+      const d = new Date();
+      return d.getUTCFullYear() + '-' +
+        String(d.getUTCMonth() + 1).padStart(2,'0') + '-' +
+        String(d.getUTCDate()).padStart(2,'0');
+    })();
+    const dayNum = getDayNumber(date);
+    const drop =
+      `Day #${dayNum} is live 📍\n\n` +
+      `5 locations. 1000 points on the table.\n` +
+      `How well do you know the world?\n\n` +
+      `→ playpindrop.app\n\n` +
+      `#PinDrop #DailyGame`;
+    const stats =
+      `Day #${dayNum} is done 🌍\n\n` +
+      `Today's avg score: [avg] / 1000\n\n` +
+      `Did you beat the average? Drop your score below 👇\n\n` +
+      `#PinDrop`;
+    return res.status(200).json({ drop, stats, dayNum, date });
+  }
+
+  // ── GET social-posts — list recent posts ─────────────────────────────────
+  if (action === 'social-posts' && req.method === 'GET') {
+    try {
+      const posts = await getSocialPosts(50);
+      return res.status(200).json({ posts });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  // ── POST social-post-now — compose and post immediately ───────────────────
+  if (action === 'social-post-now' && req.method === 'POST') {
+    const body = await parseJsonBody(req);
+    const text = ((body && body.text) || '').trim();
+    if (!text) return res.status(400).json({ error: 'text is required' });
+    if (text.length > 280) return res.status(400).json({ error: 'Post exceeds 280 characters' });
+
+    const creds = {
+      apiKey:            process.env.X_API_KEY,
+      apiSecret:         process.env.X_API_SECRET,
+      accessToken:       process.env.X_ACCESS_TOKEN,
+      accessTokenSecret: process.env.X_ACCESS_TOKEN_SECRET,
+    };
+    if (!creds.apiKey || !creds.accessToken) {
+      return res.status(503).json({ error: 'X API credentials not configured' });
+    }
+
+    const id = crypto.randomUUID();
+    try {
+      const result  = await postTweet(text, creds);
+      const tweetId = result.data?.id;
+      await createSocialPost({ id, postType: 'manual', body: text, scheduledFor: null });
+      await updateSocialPost({ id, status: 'sent', tweetId, postedAt: new Date().toISOString() });
+      return res.status(200).json({ ok: true, id, tweetId });
+    } catch (e) {
+      try {
+        await createSocialPost({ id, postType: 'manual', body: text, scheduledFor: null });
+        await updateSocialPost({ id, status: 'failed', errorMsg: e.message });
+      } catch {}
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  // ── POST social-post-schedule — store a post for future sending ───────────
+  if (action === 'social-post-schedule' && req.method === 'POST') {
+    const body        = await parseJsonBody(req);
+    const text        = ((body && body.text) || '').trim();
+    const scheduledFor = body && body.scheduledFor;
+    if (!text) return res.status(400).json({ error: 'text is required' });
+    if (!scheduledFor) return res.status(400).json({ error: 'scheduledFor is required' });
+    if (text.length > 280) return res.status(400).json({ error: 'Post exceeds 280 characters' });
+    if (new Date(scheduledFor) <= new Date()) {
+      return res.status(400).json({ error: 'scheduledFor must be in the future' });
+    }
+    try {
+      const id = crypto.randomUUID();
+      await createSocialPost({ id, postType: 'manual', body: text, scheduledFor });
+      return res.status(200).json({ ok: true, id });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  // ── POST social-post-delete — cancel a pending scheduled post ─────────────
+  if (action === 'social-post-delete' && req.method === 'POST') {
+    const body = await parseJsonBody(req);
+    const id   = body && body.id;
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    try {
+      await deleteSocialPost(id);
+      return res.status(200).json({ ok: true });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
     }
   }
 
