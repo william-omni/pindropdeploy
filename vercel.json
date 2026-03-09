@@ -18,7 +18,7 @@
     },
     {
       "path": "/api/social?action=send-pending",
-      "schedule": "0 * * * *"
+      "schedule": "0 13 * * *"
     }
   ],
   "rewrites": [
