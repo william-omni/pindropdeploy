@@ -287,6 +287,7 @@
     .status-sent{background:rgba(74,222,128,.15);color:var(--green)}
     .status-pending{background:rgba(251,191,36,.15);color:var(--d3)}
     .status-failed{background:rgba(248,113,113,.15);color:var(--red)}
+    .status-cancelled{background:rgba(148,163,184,.15);color:var(--muted)}
     .yesterday-card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;gap:14px;align-items:flex-start}
     .yesterday-card .auto-post-label{margin-bottom:4px}
     .yesterday-card .auto-post-body{flex:1}
@@ -493,7 +494,7 @@
 
         <!-- Compose -->
         <div class="social-section">
-          <h3>Compose Post</h3>
+          <h3>Compose Post <span style="font-size:11px;font-weight:500;text-transform:none;color:var(--muted);margin-left:6px">Scheduled posts send at 8am or 2pm ET</span></h3>
           <div class="compose-card">
             <div class="suggest-row">
               <select class="suggest-type" id="suggest-type">
@@ -1331,7 +1332,9 @@ function renderSocialHistory(posts) {
       ? '<span class="status-badge status-sent">\u2713 Sent</span>'
       : post.status === 'pending'
         ? '<span class="status-badge status-pending">\u23F3 Pending</span>'
-        : '<span class="status-badge status-failed">\u2717 Failed</span>';
+        : post.status === 'cancelled'
+          ? '<span class="status-badge status-cancelled">\u2014 Cancelled</span>'
+          : '<span class="status-badge status-failed">\u2717 Failed</span>';
     var timeStr = '';
     if (post.status === 'sent' && post.posted_at) {
       timeStr = new Date(post.posted_at).toLocaleString();
