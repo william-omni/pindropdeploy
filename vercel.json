@@ -9,8 +9,12 @@
   ],
   "crons": [
     {
-      "path": "/api/daily-post",
-      "schedule": "0 10 * * *"
+      "path": "/api/social?action=daily-drop",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/social?action=daily-stats",
+      "schedule": "0 1 * * *"
     }
   ],
   "rewrites": [
