@@ -479,9 +479,9 @@
           </div>
         </div>
 
-        <!-- Yesterday's stats post -->
+        <!-- Yesterday's stats post — auto-posted daily at 9am ET via daily-stats cron -->
         <div class="social-section">
-          <h3>Yesterday&rsquo;s Stats Post</h3>
+          <h3>Yesterday&rsquo;s Stats Post <span style="font-size:11px;font-weight:500;text-transform:none;color:var(--green);margin-left:6px">🤖 Auto-posts at 9am ET</span></h3>
           <div id="social-yesterday"><div class="loading"><span class="spinner"></span>Loading&hellip;</div></div>
         </div>
 
@@ -1249,7 +1249,7 @@ async function loadSocialYesterday() {
     el.innerHTML =
       '<div class="yesterday-card">' +
         '<div style="flex:1">' +
-          '<div class="auto-post-label">📍 @daily-post style — ' + escHtml(d.dateStr || '') + '</div>' +
+          '<div class="auto-post-label">📊 daily-stats cron &mdash; ' + escHtml(d.dateStr || '') + ' &mdash; <span style="color:var(--green)">sends automatically at 9am ET</span></div>' +
           '<pre class="auto-post-body" style="margin-top:8px">' + escHtml(d.tweet) + '</pre>' +
         '</div>' +
         '<button class="btn btn-ghost yesterday-use-btn" data-text="' + escHtml(d.tweet) + '" onclick="useText(this.dataset.text)">Use this</button>' +
@@ -1293,9 +1293,9 @@ async function loadSocialUpcoming() {
       html += '<div class="auto-post-date">' + lbl + ' &middot; ' + dStr + ' &middot; Day #' + p.dayNum + '</div>';
       html += '<pre class="auto-post-body">' + escHtml(p.drop) + '</pre></div>';
       html += '<div class="auto-post-card">';
-      html += '<div class="auto-post-label">🌍 Daily Stats &mdash; 8pm ET</div>';
-      html += '<div class="auto-post-date">' + lbl + ' &middot; ' + dStr + ' &middot; Day #' + p.dayNum + '</div>';
-      html += '<pre class="auto-post-body">' + escHtml(p.stats) + '</pre></div>';
+      html += '<div class="auto-post-label">📊 Yesterday&rsquo;s Recap &mdash; 9am ET</div>';
+      html += '<div class="auto-post-date">' + lbl + ' &middot; ' + dStr + '</div>';
+      html += '<pre class="auto-post-body" style="color:var(--muted);font-style:italic">Auto-generated from live player data.\nSee &ldquo;Yesterday\u2019s Stats Post&rdquo; above for today\u2019s preview.</pre></div>';
     });
     html += '</div>';
     el.innerHTML = html;

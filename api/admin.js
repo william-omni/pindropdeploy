@@ -423,12 +423,7 @@ module.exports = async function handler(req, res) {
       `How well do you know the world?\n\n` +
       `→ playpindrop.app\n\n` +
       `#PinDrop #DailyGame`;
-    const stats =
-      `Day #${dayNum} is done 🌍\n\n` +
-      `Today's avg score: [avg] / 1000\n\n` +
-      `Did you beat the average? Drop your score below 👇\n\n` +
-      `#PinDrop`;
-    return res.status(200).json({ drop, stats, dayNum, date });
+    return res.status(200).json({ drop, dayNum, date });
   }
 
   // ── GET social-posts — list recent posts ─────────────────────────────────
