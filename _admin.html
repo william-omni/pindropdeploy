@@ -1320,7 +1320,7 @@ async function loadSocialHistory() {
 function renderSocialHistory(posts) {
   var el = document.getElementById('social-history');
   if (!posts.length) {
-    el.innerHTML = '<p style="color:var(--muted);font-size:14px;padding:8px 0">No posts yet &mdash; compose one above.</p>';
+    el.innerHTML = '<p style="color:var(--muted);font-size:14px;padding:8px 0">No posts yet &mdash; schedule one above to see Edit &amp; Cancel controls here.</p>';
     return;
   }
   var html = '<table class="social-table"><thead><tr>'

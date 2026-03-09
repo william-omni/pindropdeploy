@@ -598,7 +598,9 @@ Return ONLY a JSON array of 3 strings, nothing else. Example format:
       });
       const data = await r.json();
       if (!r.ok) throw new Error(`Claude API ${r.status}: ${JSON.stringify(data)}`);
-      const raw = data.content?.[0]?.text || '[]';
+      // Strip markdown fences if the model wraps its response in ```json ... ```
+      const raw = (data.content?.[0]?.text || '[]')
+        .replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
       const suggestions = JSON.parse(raw);
       return res.status(200).json({ suggestions });
     } catch (e) {
