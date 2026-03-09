@@ -544,6 +544,8 @@ module.exports = async function handler(req, res) {
         hardest ? `🔴 Hardest: ${trim(hardest.location)} (avg ${Number(hardest.avg_dist_km).toLocaleString('en-US')} km off)` : null,
         ``,
         `playpindrop.app`,
+        ``,
+        `#PinDrop`,
       ].filter(l => l !== null);
       return res.status(200).json({ tweet: lines.join('\n'), summary, easiest, hardest, dateStr });
     } catch (e) {
