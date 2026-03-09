@@ -1819,26 +1819,58 @@ function applyMapStyle(m, isDark, cityLabels = true) {
   const haloColor     = isDark ? 'rgba(8,8,18,0.85)'     : 'rgba(255,255,255,0.85)';
   const countryColor  = isDark ? 'rgba(255,255,255,0.50)' : 'rgba(15,35,70,0.70)';
 
-  // ── Review map: country names + city/town names ─────────────────────────
-  // NOTE: Mapbox Streets v12 tiles do NOT include a `population` field on
-  // place_label features — filtering by population silently removes every
-  // city. Use `symbolrank` instead (1 = world capitals, higher = smaller).
+  // ── Review map: country names + tiered city/town labels ─────────────────
+  // Uses symbolrank (1=world capitals, higher=smaller places) instead of
+  // population (not present in Streets v12 tiles).
+  // Worldview filter removes duplicate labels for contested regions
+  // (e.g. "North Korea" + "Democratic People's Republic of Korea").
   if (cityLabels === 'review') {
-    // City / town names — added first so they get collision priority.
-    // symbolrank sort key means capitals & megacities render before smaller
-    // places. text-allow-overlap:true ensures they show near country names.
-    // Tile data naturally provides denser labels as zoom increases.
+    // Worldview filter: keep features for US-recognised names and
+    // universally-agreed labels; excludes alternate-worldview duplicates.
+    const worldviewOk = ['match', ['get', 'worldview'], ['all', 'US'], true, false];
+
+    // Country names (maxzoom 6 so they fade out as you zoom into cities).
+    // text-allow-overlap:false + symbolrank lets collision pick the
+    // common name over the formal name when both features exist.
     m.addLayer({
-      id: 'review-place-labels',
+      id: 'review-country-labels',
       type: 'symbol',
       source: 'composite',
       'source-layer': 'place_label',
-      filter: ['match', ['get', 'type'], ['city', 'town'], true, false],
+      filter: ['all', ['==', ['get', 'type'], 'country'], worldviewOk],
+      maxzoom: 6,
+      layout: {
+        'text-field': ['get', 'name_en'],
+        'text-font': ['DIN Pro Bold', 'Arial Unicode MS Bold'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 1, 11, 5, 15],
+        'text-max-width': 7,
+        'text-padding': 2,
+        'text-allow-overlap': false,
+        'symbol-sort-key': ['coalesce', ['get', 'symbolrank'], 10],
+      },
+      paint: {
+        'text-color': countryColor,
+        'text-halo-color': haloColor,
+        'text-halo-width': 1.5,
+      },
+    });
+
+    // Major cities — capitals & large cities (symbolrank ≤ 4), zoom 6+.
+    m.addLayer({
+      id: 'review-place-major',
+      type: 'symbol',
+      source: 'composite',
+      'source-layer': 'place_label',
+      filter: ['all',
+        ['match', ['get', 'type'], ['city'], true, false],
+        ['<=', ['coalesce', ['get', 'symbolrank'], 10], 4],
+        worldviewOk,
+      ],
       minzoom: 6,
       layout: {
         'text-field': ['get', 'name_en'],
         'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 6, 9, 10, 13],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 6, 10, 10, 14],
         'text-max-width': 8,
         'text-padding': 2,
         'text-allow-overlap': true,
@@ -1851,26 +1883,29 @@ function applyMapStyle(m, isDark, cityLabels = true) {
       },
     });
 
-    // Country names — added second so they render on top of city labels.
-    // text-allow-overlap:true ensures country names always show.
+    // Smaller cities & towns (symbolrank > 4), zoom 8+.
     m.addLayer({
-      id: 'review-country-labels',
+      id: 'review-place-minor',
       type: 'symbol',
       source: 'composite',
       'source-layer': 'place_label',
-      filter: ['==', ['get', 'type'], 'country'],
-      maxzoom: 6,
+      filter: ['all',
+        ['match', ['get', 'type'], ['city', 'town'], true, false],
+        ['>', ['coalesce', ['get', 'symbolrank'], 10], 4],
+        worldviewOk,
+      ],
+      minzoom: 8,
       layout: {
         'text-field': ['get', 'name_en'],
-        'text-font': ['DIN Pro Bold', 'Arial Unicode MS Bold'],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 1, 11, 5, 15],
-        'text-max-width': 7,
-        'text-padding': 2,
-        'text-allow-overlap': true,
+        'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 8, 9, 10, 12],
+        'text-max-width': 8,
+        'text-padding': 3,
+        'text-allow-overlap': false,
         'symbol-sort-key': ['coalesce', ['get', 'symbolrank'], 10],
       },
       paint: {
-        'text-color': countryColor,
+        'text-color': labelColor,
         'text-halo-color': haloColor,
         'text-halo-width': 1.5,
       },
