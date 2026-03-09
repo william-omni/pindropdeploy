@@ -287,6 +287,26 @@
     .status-sent{background:rgba(74,222,128,.15);color:var(--green)}
     .status-pending{background:rgba(251,191,36,.15);color:var(--d3)}
     .status-failed{background:rgba(248,113,113,.15);color:var(--red)}
+    .yesterday-card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;gap:14px;align-items:flex-start}
+    .yesterday-card .auto-post-label{margin-bottom:4px}
+    .yesterday-card .auto-post-body{flex:1}
+    .yesterday-use-btn{white-space:nowrap;align-self:flex-start}
+    .suggest-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+    .suggest-type{background:var(--s2);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text);padding:6px 10px;font-size:13px;outline:none;cursor:pointer}
+    .suggestions-panel{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;display:none}
+    .suggestions-panel.visible{display:block}
+    .suggestion-item{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+    .suggestion-item:last-child{border-bottom:none;padding-bottom:0}
+    .suggestion-text{font-size:13px;color:var(--text);white-space:pre-wrap;flex:1;line-height:1.5}
+    .post-body-cell.editing{display:none}
+    /* edit modal */
+    .edit-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:center;justify-content:center}
+    .edit-modal-card{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:24px;width:min(480px,94vw);display:flex;flex-direction:column;gap:14px}
+    .edit-modal-card h3{font-size:15px;font-weight:700;margin:0}
+    #edit-post-text{width:100%;min-height:100px;background:var(--s2);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--text);font-size:14px;padding:12px 14px;resize:vertical;outline:none;font-family:inherit;line-height:1.5}
+    #edit-post-text:focus{border-color:var(--accent)}
+    .edit-char-count{font-size:12px;color:var(--muted);text-align:right}
+    .edit-modal-actions{display:flex;gap:8px;justify-content:flex-end}
     .post-body-cell{max-width:360px;white-space:pre-wrap;font-size:13px;color:var(--text);line-height:1.5}
     .post-meta{font-size:11px;color:var(--muted);margin-top:3px}
   </style>
@@ -459,6 +479,12 @@
           </div>
         </div>
 
+        <!-- Yesterday's stats post -->
+        <div class="social-section">
+          <h3>Yesterday&rsquo;s Stats Post</h3>
+          <div id="social-yesterday"><div class="loading"><span class="spinner"></span>Loading&hellip;</div></div>
+        </div>
+
         <!-- Upcoming auto-posts -->
         <div class="social-section">
           <h3>Upcoming Auto Posts</h3>
@@ -469,6 +495,16 @@
         <div class="social-section">
           <h3>Compose Post</h3>
           <div class="compose-card">
+            <div class="suggest-row">
+              <select class="suggest-type" id="suggest-type">
+                <option value="trivia">Geography trivia</option>
+                <option value="engagement">Engagement question</option>
+                <option value="wordle">Wordle crossover</option>
+                <option value="milestone">Milestone / community</option>
+              </select>
+              <button class="btn btn-ghost" id="suggest-btn" onclick="getSuggestions(event)" style="font-size:13px">✨ Get AI suggestions</button>
+            </div>
+            <div class="suggestions-panel" id="suggestions-panel"></div>
             <textarea id="compose-text" placeholder="What&apos;s happening?…" maxlength="280"
               oninput="updateCharCount()"></textarea>
             <div class="compose-footer">
@@ -489,6 +525,22 @@
         </div>
       </div>
 
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Post Modal ── -->
+<div id="edit-post-modal" hidden>
+  <div class="edit-modal-backdrop" onclick="if(event.target===this)closeEditPostModal()">
+    <div class="edit-modal-card">
+      <h3>Edit Scheduled Post</h3>
+      <textarea id="edit-post-text" maxlength="280" oninput="updateEditCharCount()"></textarea>
+      <div class="edit-char-count"><span id="edit-char-count">280</span> remaining</div>
+      <input type="datetime-local" id="edit-post-schedule" style="background:var(--s2);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text);padding:8px 12px;font-size:13px;outline:none;color-scheme:dark;width:100%">
+      <div class="edit-modal-actions">
+        <button class="btn btn-ghost" onclick="closeEditPostModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveEditPost(event)">Save Changes</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1180,7 +1232,38 @@ function escHtml(s) {
 var socialUpcomingLoaded = false;
 
 async function loadSocial() {
-  await Promise.all([loadSocialUpcoming(), loadSocialHistory()]);
+  await Promise.all([loadSocialYesterday(), loadSocialUpcoming(), loadSocialHistory()]);
+}
+
+async function loadSocialYesterday() {
+  var el = document.getElementById('social-yesterday');
+  el.innerHTML = '<div class="loading"><span class="spinner"></span>Loading&hellip;</div>';
+  try {
+    var r = await fetch('/api/admin?action=social-yesterday-preview', {headers:{'Authorization':'Bearer '+TOKEN}});
+    if (r.status === 401) { logout(); return; }
+    var d = await r.json();
+    if (!d.tweet) {
+      el.innerHTML = '<p style="color:var(--muted);font-size:14px;padding:8px 0">No game data for yesterday yet.</p>';
+      return;
+    }
+    el.innerHTML =
+      '<div class="yesterday-card">' +
+        '<div style="flex:1">' +
+          '<div class="auto-post-label">📍 @daily-post style — ' + escHtml(d.dateStr || '') + '</div>' +
+          '<pre class="auto-post-body" style="margin-top:8px">' + escHtml(d.tweet) + '</pre>' +
+        '</div>' +
+        '<button class="btn btn-ghost yesterday-use-btn" onclick="useText(' + JSON.stringify(d.tweet) + ')">Use this</button>' +
+      '</div>';
+  } catch(e) {
+    el.innerHTML = '<p style="color:var(--red);font-size:13px">Error: ' + escHtml(e.message) + '</p>';
+  }
+}
+
+function useText(text) {
+  document.getElementById('compose-text').value = text;
+  updateCharCount();
+  document.getElementById('compose-text').scrollIntoView({behavior:'smooth',block:'center'});
+  document.getElementById('compose-text').focus();
 }
 
 async function loadSocialUpcoming() {
@@ -1190,8 +1273,8 @@ async function loadSocialUpcoming() {
     var today = new Date();
     var dates = [0,1,2].map(function(i) {
       var d = new Date(today);
-      d.setDate(d.getDate() + i);
-      return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      d.setUTCDate(d.getUTCDate() + i);
+      return d.getUTCFullYear() + '-' + String(d.getUTCMonth()+1).padStart(2,'0') + '-' + String(d.getUTCDate()).padStart(2,'0');
     });
     var previews = await Promise.all(dates.map(function(date) {
       return fetch('/api/admin?action=social-preview&date=' + date, {
@@ -1260,8 +1343,11 @@ function renderSocialHistory(posts) {
     var tweetLink = post.tweet_id
       ? '<br><a href="https://x.com/i/web/status/' + post.tweet_id + '" target="_blank" rel="noopener" style="font-size:11px;color:var(--accent)">View on X \u2197</a>'
       : '';
-    var cancelBtn = post.status === 'pending'
-      ? '<button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;color:var(--red)" onclick="cancelPost(\'' + escHtml(post.id) + '\')">Cancel</button>'
+    var actionBtns = post.status === 'pending'
+      ? '<div style="display:flex;gap:6px;flex-direction:column">' +
+          '<button class="btn btn-ghost" style="font-size:12px;padding:5px 10px" onclick="openEditPost(' + JSON.stringify(post.id) + ',' + JSON.stringify(post.body) + ',' + JSON.stringify(post.scheduled_for||'') + ')">Edit</button>' +
+          '<button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;color:var(--red)" onclick="cancelPost(\'' + escHtml(post.id) + '\')">Cancel</button>' +
+        '</div>'
       : '';
     var preview = escHtml(post.body.slice(0, 100)) + (post.body.length > 100 ? '\u2026' : '');
     var errMsg  = post.error_msg ? '<div class="post-meta" style="color:var(--red)">' + escHtml(post.error_msg) + '</div>' : '';
@@ -1269,7 +1355,7 @@ function renderSocialHistory(posts) {
       + '<td>' + badge + '</td>'
       + '<td><div style="font-size:12px;color:var(--muted)">' + timeStr + '</div>' + tweetLink + '</td>'
       + '<td><div class="post-body-cell">' + preview + '</div>' + errMsg + '</td>'
-      + '<td>' + cancelBtn + '</td>'
+      + '<td>' + actionBtns + '</td>'
       + '</tr>';
   });
   html += '</tbody></table>';
@@ -1351,6 +1437,92 @@ async function cancelPost(id) {
     await loadSocialHistory();
   } catch(e) {
     alert('Error: ' + e.message);
+  }
+}
+
+// ── Edit post modal ───────────────────────────────────────────────────────────
+var _editPostId = null;
+
+function openEditPost(id, body, scheduledFor) {
+  _editPostId = id;
+  document.getElementById('edit-post-text').value = body;
+  updateEditCharCount();
+  // Pre-fill datetime picker (convert ISO → local datetime-local format)
+  var dt = scheduledFor ? new Date(scheduledFor) : null;
+  document.getElementById('edit-post-schedule').value = dt
+    ? (dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0') +
+       'T' + String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0'))
+    : '';
+  document.getElementById('edit-post-modal').hidden = false;
+}
+
+function closeEditPostModal() {
+  document.getElementById('edit-post-modal').hidden = true;
+  _editPostId = null;
+}
+
+function updateEditCharCount() {
+  var rem = 280 - document.getElementById('edit-post-text').value.length;
+  var el = document.getElementById('edit-char-count');
+  el.textContent = rem;
+  el.style.color = rem < 20 ? 'var(--red)' : rem < 50 ? 'var(--d3)' : 'var(--muted)';
+}
+
+async function saveEditPost(event) {
+  var btn = event.currentTarget;
+  var text  = document.getElementById('edit-post-text').value.trim();
+  var sched = document.getElementById('edit-post-schedule').value;
+  if (!text)  { alert('Please enter some text.'); return; }
+  if (!sched) { alert('Please pick a scheduled date/time.'); return; }
+  if (text.length > 280) { alert('Post exceeds 280 characters.'); return; }
+  var scheduledFor = new Date(sched).toISOString();
+  if (new Date(sched) <= new Date()) { alert('Scheduled time must be in the future.'); return; }
+  btn.disabled = true; btn.textContent = 'Saving\u2026';
+  try {
+    var r = await fetch('/api/admin?action=social-post-edit', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},
+      body: JSON.stringify({ id: _editPostId, text, scheduledFor })
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Unknown error');
+    closeEditPostModal();
+    await loadSocialHistory();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save Changes';
+  }
+}
+
+// ── AI suggestions ────────────────────────────────────────────────────────────
+async function getSuggestions(event) {
+  var btn = event.currentTarget;
+  var panel = document.getElementById('suggestions-panel');
+  var postType = document.getElementById('suggest-type').value;
+  btn.disabled = true; btn.textContent = '✨ Generating\u2026';
+  panel.classList.remove('visible');
+  try {
+    var r = await fetch('/api/admin?action=social-suggest', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},
+      body: JSON.stringify({ postType })
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Unknown error');
+    var suggestions = d.suggestions || [];
+    if (!suggestions.length) { alert('No suggestions returned.'); return; }
+    panel.innerHTML = suggestions.map(function(s) {
+      return '<div class="suggestion-item">' +
+        '<div class="suggestion-text">' + escHtml(s) + '</div>' +
+        '<button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;white-space:nowrap" onclick="useText(' + JSON.stringify(s) + ')">Use this</button>' +
+      '</div>';
+    }).join('');
+    panel.classList.add('visible');
+  } catch(e) {
+    alert('Error getting suggestions: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '✨ Get AI suggestions';
   }
 }
 </script>

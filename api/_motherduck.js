@@ -694,6 +694,69 @@ async function getDailyAvgRoundScore(gameDate, round) {
   }
 }
 
+// ── getYesterdayGameStats ─────────────────────────────────────────────────────
+// Returns { summary, easiest, hardest } for yesterday's game date.
+// Used by admin social-yesterday-preview endpoint.
+async function getYesterdayGameStats() {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return { summary: null, easiest: null, hardest: null };
+    const conn = await inst.connect();
+    try {
+      const summaryRows = (await conn.runAndReadAll(`
+        SELECT COUNT(*)::INTEGER                          AS player_count,
+               ROUND(AVG(total_score))::INTEGER           AS avg_score,
+               ROUND(AVG(game_duration_seconds))::INTEGER AS avg_duration_s
+        FROM pindrop.games
+        WHERE game_date = (CURRENT_DATE - INTERVAL 1 DAY)
+      `)).getRowObjects();
+      const easiestRows = (await conn.runAndReadAll(`
+        SELECT location, ROUND(AVG(dist_km))::INTEGER AS avg_dist_km
+        FROM pindrop.plays
+        WHERE game_date = (CURRENT_DATE - INTERVAL 1 DAY)
+        GROUP BY location HAVING COUNT(*) >= 2
+        ORDER BY AVG(dist_km) ASC LIMIT 1
+      `)).getRowObjects();
+      const hardestRows = (await conn.runAndReadAll(`
+        SELECT location, ROUND(AVG(dist_km))::INTEGER AS avg_dist_km
+        FROM pindrop.plays
+        WHERE game_date = (CURRENT_DATE - INTERVAL 1 DAY)
+        GROUP BY location HAVING COUNT(*) >= 2
+        ORDER BY AVG(dist_km) DESC LIMIT 1
+      `)).getRowObjects();
+      return {
+        summary: summaryRows[0] || null,
+        easiest: easiestRows[0] || null,
+        hardest: hardestRows[0] || null,
+      };
+    } finally {
+      conn.closeSync();
+    }
+  } catch (e) {
+    console.error('[MotherDuck] getYesterdayGameStats error:', e.message);
+    return { summary: null, easiest: null, hardest: null };
+  }
+}
+
+// ── editSocialPost ────────────────────────────────────────────────────────────
+// Updates body and/or scheduled_for of a pending post.
+async function editSocialPost({ id, body, scheduledFor }) {
+  const inst = await getDataInstance();
+  if (!inst) throw new Error('MotherDuck unavailable');
+  const conn = await inst.connect();
+  try {
+    await ensureSocialTables(conn);
+    await conn.run(
+      `UPDATE pindrop.social_posts
+       SET body = ?, scheduled_for = CAST(? AS TIMESTAMPTZ)
+       WHERE id = ? AND status = 'pending'`,
+      [body, scheduledFor, id]
+    );
+  } finally {
+    conn.closeSync();
+  }
+}
+
 // ── getDailyAvgScore ──────────────────────────────────────────────────────────
 // Returns { avgScore: Number, playerCount: Number } for a given date,
 // or null if no games have been recorded yet (e.g. early in the day).
@@ -731,6 +794,7 @@ module.exports = {
   getLockedCombosForRange, getLastUsedDates, setDayOverride,
   upsertLocation, deleteLocation, replaceAllLocations,
   getDailyAvgScore, getDailyAvgRoundScore,
-  createSocialPost, getSocialPosts, updateSocialPost,
+  getYesterdayGameStats,
+  createSocialPost, getSocialPosts, updateSocialPost, editSocialPost,
   getPendingScheduledPosts, deleteSocialPost,
 };

@@ -15,7 +15,8 @@ const {
 const {
   getAllLocations, replaceAllLocations, getLockedDates, getPlayedDates,
   upsertLocation, deleteLocation, getLastUsedDates, setDayOverride,
-  createSocialPost, getSocialPosts, updateSocialPost, deleteSocialPost,
+  createSocialPost, getSocialPosts, updateSocialPost, editSocialPost, deleteSocialPost,
+  getYesterdayGameStats,
 } = require('./_motherduck');
 const { postTweet } = require('./_twitter');
 
@@ -501,6 +502,105 @@ module.exports = async function handler(req, res) {
     try {
       await deleteSocialPost(id);
       return res.status(200).json({ ok: true });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  // ── POST social-post-edit — update body/schedule of a pending post ─────────
+  if (action === 'social-post-edit' && req.method === 'POST') {
+    const body        = await parseJsonBody(req);
+    const id          = body && body.id;
+    const text        = ((body && body.text) || '').trim();
+    const scheduledFor = body && body.scheduledFor;
+    if (!id)   return res.status(400).json({ error: 'id is required' });
+    if (!text) return res.status(400).json({ error: 'text is required' });
+    if (!scheduledFor) return res.status(400).json({ error: 'scheduledFor is required' });
+    if (text.length > 280) return res.status(400).json({ error: 'Post exceeds 280 characters' });
+    try {
+      await editSocialPost({ id, body: text, scheduledFor });
+      return res.status(200).json({ ok: true });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  // ── GET social-yesterday-preview — formatted daily-post tweet for yesterday ─
+  if (action === 'social-yesterday-preview' && req.method === 'GET') {
+    try {
+      const { summary, easiest, hardest } = await getYesterdayGameStats();
+      if (!summary || !summary.player_count || summary.player_count === 0) {
+        return res.status(200).json({ tweet: null, reason: 'no data' });
+      }
+      const dur    = parseInt(summary.avg_duration_s, 10);
+      const avgTime = isNaN(dur) ? '—' : `${Math.floor(dur / 60)}m ${dur % 60}s`;
+      const trim   = (s, max = 26) => s && s.length > max ? s.slice(0, max - 1) + '…' : (s || '—');
+      const d = new Date();
+      d.setUTCDate(d.getUTCDate() - 1);
+      const dateStr = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' });
+      const lines = [
+        `📍 PinDrop — ${dateStr}`,
+        ``,
+        `${summary.player_count} ${summary.player_count === 1 ? 'player' : 'players'} dropped pins`,
+        ``,
+        `🎯 Avg Score: ${summary.avg_score} / 1000`,
+        `⏱ Avg Time: ${avgTime}`,
+        easiest ? `🟢 Easiest: ${trim(easiest.location)} (avg ${Number(easiest.avg_dist_km).toLocaleString('en-US')} km off)` : null,
+        hardest ? `🔴 Hardest: ${trim(hardest.location)} (avg ${Number(hardest.avg_dist_km).toLocaleString('en-US')} km off)` : null,
+        ``,
+        `playpindrop.app`,
+      ].filter(l => l !== null);
+      return res.status(200).json({ tweet: lines.join('\n'), summary, easiest, hardest, dateStr });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  // ── POST social-suggest — AI-generated post suggestions via Claude ──────────
+  if (action === 'social-suggest' && req.method === 'POST') {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) return res.status(503).json({ error: 'ANTHROPIC_API_KEY not configured' });
+    const body     = await parseJsonBody(req);
+    const postType = (body && body.postType) || 'trivia';
+    const typeDescriptions = {
+      trivia:     'geography trivia or fun facts (not about today\'s locations)',
+      engagement: 'open-ended question to drive replies (e.g. "What\'s the hardest country to place on a map?")',
+      milestone:  'celebrating a player milestone or growing community',
+      wordle:     'connecting PinDrop to Wordle/daily game players naturally without being spammy',
+    };
+    const typeDesc = typeDescriptions[postType] || typeDescriptions.trivia;
+    const systemPrompt = `You write short X (Twitter) posts for @PlayPinDrop, a daily geography guessing game at playpindrop.app. Players get 5 mystery locations per day and score up to 1000 points by placing pins on a map.
+
+Rules:
+- Never reveal today's locations
+- Max 280 characters per post
+- Max 2-3 hashtags, use sparingly
+- Tone: fun, knowledgeable, not corporate
+- Include playpindrop.app in some posts but not all`;
+    const userPrompt = `Generate 3 short X posts for: ${typeDesc}
+
+Return ONLY a JSON array of 3 strings, nothing else. Example format:
+["Post text here", "Another post here", "Third post here"]`;
+    try {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key':         apiKey,
+          'anthropic-version': '2023-06-01',
+          'content-type':      'application/json',
+        },
+        body: JSON.stringify({
+          model:      'claude-haiku-4-5-20251001',
+          max_tokens: 512,
+          system:     systemPrompt,
+          messages:   [{ role: 'user', content: userPrompt }],
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(`Claude API ${r.status}: ${JSON.stringify(data)}`);
+      const raw = data.content?.[0]?.text || '[]';
+      const suggestions = JSON.parse(raw);
+      return res.status(200).json({ suggestions });
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
