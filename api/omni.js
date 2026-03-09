@@ -137,7 +137,7 @@ async function getUpcomingDays(fromDateStr, numDays) {
     // getTodayLocations returns tuples [name, desc, lat, lng, diff]; getAllLocations returns objects.
     // Normalize to objects so the rest of the code can use property names consistently.
     locationsForDay = locationsForDay.map(l => Array.isArray(l)
-      ? { name: l[0], description: l[1], lat: l[2], lng: l[3], difficulty: l[4] || 3, radius: 30 }
+      ? { name: l[0], description: l[1], lat: l[2], lng: l[3], difficulty: getLocDifficulty(l), radius: l[4] || 30 }
       : l
     );
 
