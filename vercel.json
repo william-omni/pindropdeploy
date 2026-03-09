@@ -14,7 +14,7 @@
     },
     {
       "path": "/api/social?action=daily-stats",
-      "schedule": "0 1 * * *"
+      "schedule": "0 14 * * *"
     },
     {
       "path": "/api/social?action=send-pending",

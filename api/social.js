@@ -2,13 +2,13 @@
 //
 // Called by Vercel cron jobs (see vercel.json):
 //   daily-drop    — "Day #N is live"   posted each morning (~7am ET)
-//   daily-stats   — "Day #N is done"   posted each evening (~8pm ET)
-//   send-pending  — checks DB for scheduled manual posts (runs hourly)
+//   daily-stats   — yesterday's recap  posted each morning (~9am ET)
+//   send-pending  — checks DB for scheduled manual posts
 //
 // Also callable manually via GET with X-Cron-Secret header for testing.
 
 const { getDayNumber } = require('./_game-data');
-const { getDailyAvgScore, getPendingScheduledPosts, updateSocialPost } = require('./_motherduck');
+const { getYesterdayGameStats, getPendingScheduledPosts, updateSocialPost } = require('./_motherduck');
 const { postTweet } = require('./_twitter');
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -58,32 +58,45 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, id: result.data?.id, day: dayNum });
     }
 
-    // ── daily-stats: posted ~8pm ET (cron: 0 1 * * *) ──────────────────────
-    // Note: 01:00 UTC runs after midnight UTC, so the date is already tomorrow.
-    // We want yesterday's date (= the day players just finished).
+    // ── daily-stats: posted ~9am ET (cron: 0 14 * * *) ─────────────────────
+    // Morning recap of yesterday's completed game day.
     if (action === 'daily-stats') {
-      const yesterday = new Date(now);
-      yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-      const gameDate = yesterday.getUTCFullYear() + '-' +
-        String(yesterday.getUTCMonth() + 1).padStart(2, '0') + '-' +
-        String(yesterday.getUTCDate()).padStart(2, '0');
-      const statsDay = getDayNumber(gameDate);
-
-      const stats = await getDailyAvgScore(gameDate);
-      if (!stats || stats.avgScore == null) {
-        console.log('[social] daily-stats: no data for', gameDate, '— skipping');
-        return res.status(200).json({ ok: false, reason: 'no data', date: gameDate });
+      const { summary, easiest, hardest } = await getYesterdayGameStats();
+      if (!summary || !summary.player_count || summary.player_count === 0) {
+        console.log('[social] daily-stats: no data for yesterday — skipping');
+        return res.status(200).json({ ok: false, reason: 'no data' });
       }
 
-      const text =
-        `Day #${statsDay} is done 🌍\n\n` +
-        `Today's avg score: ${stats.avgScore} / 1000\n\n` +
-        `Did you beat the average? Drop your score below 👇\n\n` +
-        `#PinDrop`;
+      // Format avg duration as "Xm Ys"
+      const dur     = parseInt(summary.avg_duration_s, 10);
+      const avgTime = isNaN(dur) ? '—' : `${Math.floor(dur / 60)}m ${dur % 60}s`;
 
-      const result = await postTweet(text, creds);
+      // Yesterday's display date (UTC)
+      const yd = new Date(now);
+      yd.setUTCDate(yd.getUTCDate() - 1);
+      const displayDate = yd.toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' });
+
+      // Location name trimmer to keep tweet tight
+      const trim = (s, max = 26) => s && s.length > max ? s.slice(0, max - 1) + '…' : (s || '—');
+
+      const lines = [
+        `📍 PinDrop — ${displayDate}`,
+        ``,
+        `${summary.player_count} ${summary.player_count === 1 ? 'player' : 'players'} dropped pins`,
+        ``,
+        `🎯 Avg Score: ${summary.avg_score} / 1000`,
+        `⏱ Avg Time: ${avgTime}`,
+        easiest ? `🟢 Easiest: ${trim(easiest.location)} (avg ${Number(easiest.avg_dist_km).toLocaleString('en-US')} km off)` : null,
+        hardest ? `🔴 Hardest: ${trim(hardest.location)} (avg ${Number(hardest.avg_dist_km).toLocaleString('en-US')} km off)` : null,
+        ``,
+        `playpindrop.app`,
+        ``,
+        `#PinDrop`,
+      ].filter(l => l !== null).join('\n');
+
+      const result = await postTweet(lines, creds);
       console.log('[social] daily-stats posted, id:', result.data?.id);
-      return res.status(200).json({ ok: true, id: result.data?.id, avgScore: stats.avgScore });
+      return res.status(200).json({ ok: true, id: result.data?.id, players: summary.player_count });
     }
 
     // ── send-pending: runs hourly — posts any due scheduled manual posts ─────
