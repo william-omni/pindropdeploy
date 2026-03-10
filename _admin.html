@@ -339,7 +339,6 @@
     <button class="nav-tab"        data-tab="preview"     onclick="switchTab('preview',this)">Preview</button>
     <button class="nav-tab"        data-tab="locations"   onclick="switchTab('locations',this)">Locations</button>
     <button class="nav-tab"        data-tab="social"      onclick="switchTab('social',this)">Social</button>
-    <button class="nav-tab"        data-tab="feedback"    onclick="switchTab('feedback',this)">Feedback</button>
     <button id="btn-logout" onclick="logout()">Logout</button>
   </nav>
 
@@ -527,40 +526,7 @@
         </div>
       </div>
 
-      <!-- ── FEEDBACK TAB ── -->
-      <div id="tab-feedback" class="tab-pane" hidden>
-        <div class="tab-header">
-          <h2>User Feedback</h2>
-          <div class="tab-controls">
-            <select id="feedback-filter-status" onchange="renderFeedbackList()" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;">
-              <option value="">All statuses</option>
-              <option value="new">New</option>
-              <option value="triaged">Triaged</option>
-              <option value="in-progress">In Progress</option>
-              <option value="done">Done</option>
-            </select>
-            <select id="feedback-filter-category" onchange="renderFeedbackList()" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;">
-              <option value="">All categories</option>
-              <option value="bug">Bug</option>
-              <option value="feature">Feature</option>
-              <option value="praise">Praise</option>
-              <option value="other">Other</option>
-            </select>
-            <button class="btn btn-primary" onclick="loadFeedback()">Refresh</button>
-          </div>
-        </div>
-        <div id="feedback-list-container" style="margin-top:8px;"></div>
-      </div>
-
     </div>
-  </div>
-</div>
-
-<!-- ── Feedback Detail Modal ── -->
-<div id="feedback-detail-modal" hidden style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;">
-  <div style="background:var(--surface);border-radius:16px;padding:28px;max-width:620px;width:100%;max-height:88vh;overflow-y:auto;position:relative;">
-    <button onclick="closeFeedbackDetail()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);">✕</button>
-    <div id="feedback-detail-body"></div>
   </div>
 </div>
 
@@ -702,7 +668,6 @@ function switchTab(name, btn) {
   if (name === 'chat')      loadChat();
   if (name === 'locations' && !locationsData) loadLocations();
   if (name === 'social')    loadSocial();
-  if (name === 'feedback')  loadFeedback();
 }
 
 function _activateTab(name, btn) {
@@ -1562,126 +1527,6 @@ async function getSuggestions(event) {
   } finally {
     btn.disabled = false; btn.textContent = '✨ Get AI suggestions';
   }
-}
-
-// ── Feedback tab ──────────────────────────────────────────────────────────────
-var _feedbackItems = [];
-
-async function loadFeedback() {
-  var container = document.getElementById('feedback-list-container');
-  container.innerHTML = '<div class="loading"><span class="spinner"></span>Loading&hellip;</div>';
-  try {
-    var r = await fetch('/api/admin?action=feedback', {
-      headers: { 'Authorization': 'Bearer ' + TOKEN }
-    });
-    var d = await r.json();
-    _feedbackItems = d.items || [];
-    renderFeedbackList();
-  } catch(e) {
-    container.innerHTML = '<p style="color:var(--red);">Failed to load: ' + escHtml(e.message) + '</p>';
-  }
-}
-
-function renderFeedbackList() {
-  var container   = document.getElementById('feedback-list-container');
-  var sfStatus    = document.getElementById('feedback-filter-status').value;
-  var sfCategory  = document.getElementById('feedback-filter-category').value;
-
-  var items = _feedbackItems;
-  if (sfStatus)   items = items.filter(function(i){ return i.status   === sfStatus;   });
-  if (sfCategory) items = items.filter(function(i){ return i.category === sfCategory; });
-
-  if (!items.length) {
-    container.innerHTML = '<p style="color:var(--muted);text-align:center;padding:40px 0;">No feedback yet.</p>';
-    return;
-  }
-
-  var statusColors = { 'new':'#f59e0b', 'triaged':'#3b82f6', 'in-progress':'#8b5cf6', 'done':'#10b981' };
-  container.innerHTML = items.map(function(item) {
-    return '<div class="social-row" data-fid="' + escHtml(item.id) + '" onclick="openFeedbackDetail(\'' + escHtml(item.id) + '\')" style="cursor:pointer;">' +
-      '<div style="flex:1;min-width:0;">' +
-        '<div style="font-size:13px;color:var(--text);margin-bottom:4px;word-break:break-word;">' +
-          escHtml(item.text_preview) + (item.text_length > 160 ? '&hellip;' : '') +
-        '</div>' +
-        '<div style="font-size:11px;color:var(--muted);">' +
-          escHtml(item.game_date || '') + ' &middot; ' +
-          escHtml(item.player_id ? item.player_id.slice(0,8) : 'anon') +
-          (item.has_screenshot ? ' 📎' : '') +
-        '</div>' +
-      '</div>' +
-      '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;white-space:nowrap;margin-left:12px;">' +
-        '<span style="font-size:11px;font-weight:700;color:' + (statusColors[item.status] || '#999') + ';">' + escHtml(item.status || 'new') + '</span>' +
-        (item.category ? '<span style="font-size:11px;color:var(--muted);">' + escHtml(item.category) + '</span>' : '') +
-      '</div>' +
-    '</div>';
-  }).join('');
-}
-
-async function openFeedbackDetail(id) {
-  var modal = document.getElementById('feedback-detail-modal');
-  var body  = document.getElementById('feedback-detail-body');
-  body.innerHTML = '<div class="loading"><span class="spinner"></span>Loading&hellip;</div>';
-  modal.hidden = false;
-
-  try {
-    var r = await fetch('/api/admin?action=feedback-detail&id=' + encodeURIComponent(id), {
-      headers: { 'Authorization': 'Bearer ' + TOKEN }
-    });
-    var detail = await r.json();
-    if (!detail) { body.innerHTML = '<p>Not found.</p>'; return; }
-
-    var statusOpts = ['new','triaged','in-progress','done'];
-    var catOpts    = ['','bug','feature','praise','other'];
-
-    body.innerHTML =
-      '<h3 style="font-family:\'Syne\',sans-serif;margin:0 32px 16px 0;font-size:16px;">' +
-        escHtml(detail.game_date || '') + ' &middot; ' + escHtml(detail.player_id ? detail.player_id.slice(0,12) : 'anon') +
-      '</h3>' +
-      '<p style="white-space:pre-wrap;font-size:14px;color:var(--text);margin-bottom:16px;">' + escHtml(detail.feedback_text) + '</p>' +
-      (detail.screenshot ? '<img src="' + detail.screenshot + '" style="max-width:100%;border-radius:8px;margin-bottom:16px;" alt="Screenshot">' : '') +
-      '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">' +
-        '<select id="fd-status" style="flex:1;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;">' +
-          statusOpts.map(function(s){ return '<option' + (detail.status===s?' selected':'') + '>' + s + '</option>'; }).join('') +
-        '</select>' +
-        '<select id="fd-category" style="flex:1;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;">' +
-          catOpts.map(function(c){ return '<option value="' + c + '"' + (detail.category===c?' selected':'') + '>' + (c||'— category —') + '</option>'; }).join('') +
-        '</select>' +
-      '</div>' +
-      '<textarea id="fd-notes" placeholder="Admin notes…" style="width:100%;box-sizing:border-box;height:80px;resize:none;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;margin-bottom:12px;">' + escHtml(detail.admin_notes||'') + '</textarea>' +
-      '<button id="fd-save" onclick="saveFeedbackDetail(\'' + escHtml(id) + '\')" class="btn btn-primary" style="width:100%;">Save</button>' +
-      '<p id="fd-save-status" style="text-align:center;font-size:13px;color:var(--muted);margin-top:8px;min-height:16px;"></p>';
-  } catch(e) {
-    body.innerHTML = '<p style="color:var(--red);">Error: ' + escHtml(e.message) + '</p>';
-  }
-}
-
-async function saveFeedbackDetail(id) {
-  var btn    = document.getElementById('fd-save');
-  var status = document.getElementById('fd-status');
-  var cat    = document.getElementById('fd-category');
-  var notes  = document.getElementById('fd-notes');
-  var stat   = document.getElementById('fd-save-status');
-
-  btn.disabled = true; btn.textContent = 'Saving…';
-  try {
-    var r = await fetch('/api/admin?action=update-feedback', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, status: status.value, category: cat.value || null, adminNotes: notes.value || null })
-    });
-    if (!r.ok) throw new Error((await r.json()).error || 'Unknown error');
-    stat.textContent = '✓ Saved';
-    // Refresh list in background
-    loadFeedback();
-  } catch(e) {
-    stat.textContent = 'Error: ' + e.message;
-  } finally {
-    btn.disabled = false; btn.textContent = 'Save';
-  }
-}
-
-function closeFeedbackDetail() {
-  document.getElementById('feedback-detail-modal').hidden = true;
 }
 </script>
   <!-- Vercel Analytics + Speed Insights -->
