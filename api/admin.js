@@ -17,6 +17,7 @@ const {
   upsertLocation, deleteLocation, getLastUsedDates, setDayOverride,
   createSocialPost, getSocialPosts, updateSocialPost, editSocialPost, deleteSocialPost,
   getYesterdayGameStats,
+  getFeedbackList, getFeedbackDetail, updateFeedback,
 } = require('./_motherduck');
 const { postTweet } = require('./_twitter');
 
@@ -603,6 +604,29 @@ Return ONLY a JSON array of 3 strings, nothing else. Example format:
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
+  }
+
+  // ── feedback list ─────────────────────────────────────────────────────────
+  if (action === 'feedback' && req.method === 'GET') {
+    const items = await getFeedbackList(200);
+    return res.json({ items });
+  }
+
+  // ── feedback detail (full text + screenshot) ──────────────────────────────
+  if (action === 'feedback-detail' && req.method === 'GET') {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'id required' });
+    const item = await getFeedbackDetail(id);
+    return res.json(item);
+  }
+
+  // ── update feedback status / category / admin notes ───────────────────────
+  if (action === 'update-feedback' && req.method === 'POST') {
+    const body = await parseJsonBody(req);
+    const { id, status, category, adminNotes } = body;
+    if (!id) return res.status(400).json({ error: 'id required' });
+    await updateFeedback({ id, status, category, adminNotes });
+    return res.json({ ok: true });
   }
 
   return res.status(400).json({ error: 'Unknown action' });
