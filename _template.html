@@ -1370,7 +1370,10 @@
       </svg>
       View on Map
     </button>
-    <button class="btn-home" id="btn-home-from-summary">← Back to Home</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-home" id="btn-home-from-summary" style="flex:1;">← Back to Home</button>
+      <button class="btn-home" id="btn-view-history-summary" style="flex:1;">History →</button>
+    </div>
   </div>
 </div>
 
@@ -3120,6 +3123,11 @@ document.getElementById('btn-back-home-review').addEventListener('click', () => 
 
 document.getElementById('btn-view-map-from-summary').addEventListener('click', () => {
   showReview('summary');
+});
+
+document.getElementById('btn-view-history-summary').addEventListener('click', () => {
+  initHistory();
+  showScreen('history');
 });
 
 document.getElementById('btn-view-history-review').addEventListener('click', () => {
