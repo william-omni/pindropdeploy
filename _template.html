@@ -1116,6 +1116,31 @@
     .mapboxgl-ctrl-bottom-left, .mapboxgl-ctrl-bottom-right,
     .mapboxgl-ctrl-top-left, .mapboxgl-ctrl-top-right { display: none !important; }
     .mapboxgl-canvas { cursor: crosshair; }
+
+    /* ─── HISTORY SCREEN ──────────────────────────────────── */
+    .history-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .history-row:last-child { border-bottom: none; }
+    .history-date {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      min-width: 52px;
+    }
+    .history-emojis { font-size: 13px; letter-spacing: 1px; flex: 1; }
+    .history-score {
+      font-family: 'Syne', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      min-width: 44px;
+      text-align: right;
+    }
+    .history-score.perfect { color: var(--accent); }
   </style>
   <!-- Vercel Analytics + Speed Insights -->
   <script defer src="/_vercel/insights/script.js"></script>
@@ -1388,6 +1413,20 @@
       Share Score
     </button>
     <button class="btn-back-home" id="btn-back-home-review">← Back to Home</button>
+  </div>
+</div>
+
+<!-- ─── HISTORY ──────────────────────────────────────── -->
+<div id="history" class="screen hidden">
+  <div class="summary-inner">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+      <button id="btn-history-back" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0 4px 0 0;line-height:1;" aria-label="Back">←</button>
+      <h2 style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;margin:0;color:var(--text);">Your History</h2>
+    </div>
+    <div id="history-list"></div>
+    <p id="history-empty" style="display:none;text-align:center;color:var(--muted);font-size:14px;padding:40px 0;">
+      No history yet — play your first game to start tracking!
+    </p>
   </div>
 </div>
 
@@ -1778,6 +1817,48 @@ function initHome() {
     countdown.textContent = `Next challenge in ${h}h ${m}m`;
     btn.parentNode.insertBefore(countdown, btn);
   }
+
+  // History link — appears below stats row only after the user has played at least once
+  const existingHistLink = document.getElementById('history-link');
+  if (existingHistLink) existingHistLink.remove();
+  const hist = store.history || [];
+  if (hist.length > 0) {
+    const histLink = document.createElement('button');
+    histLink.id        = 'history-link';
+    histLink.className = 'btn-ghost';
+    histLink.textContent = `View History (${hist.length} game${hist.length === 1 ? '' : 's'})`;
+    histLink.style.cssText = 'margin-top:8px;font-size:13px;height:36px;opacity:0.7;';
+    histLink.addEventListener('click', () => { initHistory(); showScreen('history'); });
+    document.querySelector('#home .streak-row').insertAdjacentElement('afterend', histLink);
+  }
+}
+
+function initHistory() {
+  const store   = loadStorage();
+  const history = store.history || [];
+  const list    = document.getElementById('history-list');
+  const empty   = document.getElementById('history-empty');
+  list.innerHTML = '';
+
+  if (!history.length) {
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  history.forEach(entry => {
+    const emojis = (entry.rounds || []).map(r => scoreToEmoji(r.pts)).join(' ');
+    const d      = new Date(entry.date + 'T12:00:00Z');
+    const label  = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+    const row = document.createElement('div');
+    row.className = 'history-row';
+    row.innerHTML =
+      `<div class="history-date">${label}</div>` +
+      `<div class="history-emojis">${emojis || '—'}</div>` +
+      `<div class="history-score${entry.score === 1000 ? ' perfect' : ''}">${entry.score}</div>`;
+    list.appendChild(row);
+  });
 }
 
 // ─────────────────────────────────────────────────────────
@@ -2422,9 +2503,18 @@ function finishGame() {
   updateStats(state.totalScore);
   clearMidGameState(); // game is over — no in-progress save needed
 
-  // Save for home screen progress
+  // Save for home screen progress + per-day history
   const store = loadStorage();
   store.lastRoundResults = state.roundResults;
+  // Append to per-day history (most-recent first; dedup by date; cap 90 days)
+  const histEntry = {
+    date:   getLocalDateStr(),
+    dayNum: getDayNumber(),
+    score:  state.totalScore,
+    streak: store.streak || 0,
+    rounds: state.roundResults.map(r => ({ pts: r.pts, name: r.name, distKm: r.distKm })),
+  };
+  store.history = [histEntry, ...(store.history || []).filter(h => h.date !== histEntry.date)].slice(0, 90);
   saveStorage(store);
 
   // Record game-level analytics (fire-and-forget — safe in client context)
@@ -2943,6 +3033,11 @@ document.getElementById('btn-back-home-review').addEventListener('click', () => 
 
 document.getElementById('btn-view-map-from-summary').addEventListener('click', () => {
   showReview('summary');
+});
+
+document.getElementById('btn-history-back').addEventListener('click', () => {
+  initHome();
+  showScreen('home');
 });
 
 // ─────────────────────────────────────────────────────────
