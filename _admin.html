@@ -339,6 +339,7 @@
     <button class="nav-tab"        data-tab="preview"     onclick="switchTab('preview',this)">Preview</button>
     <button class="nav-tab"        data-tab="locations"   onclick="switchTab('locations',this)">Locations</button>
     <button class="nav-tab"        data-tab="social"      onclick="switchTab('social',this)">Social</button>
+    <button class="nav-tab"        data-tab="feedback"    onclick="switchTab('feedback',this)">Feedback</button>
     <button id="btn-logout" onclick="logout()">Logout</button>
   </nav>
 
@@ -526,6 +527,41 @@
         </div>
       </div>
 
+      <!-- FEEDBACK -->
+      <div id="tab-feedback" class="tab-pane" hidden>
+        <div class="tab-header">
+          <h2>User Feedback</h2>
+          <div class="tab-controls" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <select id="feedback-filter-status" onchange="renderFeedbackList()" style="padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:var(--s2);color:var(--text);font-size:13px;cursor:pointer;">
+              <option value="">All statuses</option>
+              <option value="new">New</option>
+              <option value="triaged">Triaged</option>
+              <option value="in-progress">In Progress</option>
+              <option value="done">Done</option>
+            </select>
+            <select id="feedback-filter-category" onchange="renderFeedbackList()" style="padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:var(--s2);color:var(--text);font-size:13px;cursor:pointer;">
+              <option value="">All categories</option>
+              <option value="bug">Bug</option>
+              <option value="feature">Feature</option>
+              <option value="praise">Praise</option>
+              <option value="other">Other</option>
+            </select>
+            <button class="btn btn-ghost" onclick="loadFeedback()">↺ Refresh</button>
+          </div>
+        </div>
+        <div id="feedback-list"><div class="loading"><span class="spinner"></span>Loading&hellip;</div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Feedback Detail Modal -->
+<div id="feedback-detail-modal" hidden>
+  <div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;" onclick="if(event.target===this)closeFeedbackDetail()">
+    <div style="background:var(--s1);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:24px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;position:relative;">
+      <button onclick="closeFeedbackDetail()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
+      <div id="feedback-detail-content"></div>
     </div>
   </div>
 </div>
@@ -668,6 +704,7 @@ function switchTab(name, btn) {
   if (name === 'chat')      loadChat();
   if (name === 'locations' && !locationsData) loadLocations();
   if (name === 'social')    loadSocial();
+  if (name === 'feedback')  loadFeedback();
 }
 
 function _activateTab(name, btn) {
@@ -1527,6 +1564,137 @@ async function getSuggestions(event) {
   } finally {
     btn.disabled = false; btn.textContent = '✨ Get AI suggestions';
   }
+}
+
+/* ── Feedback Tab ─────────────────────────────────────────────────────────── */
+var _feedbackItems = [];
+
+async function loadFeedback() {
+  document.getElementById('feedback-list').innerHTML =
+    '<div class="loading"><span class="spinner"></span>Loading&hellip;</div>';
+  try {
+    var r = await fetch('/api/admin?action=feedback', {
+      headers: { 'Authorization': 'Bearer ' + TOKEN }
+    });
+    if (r.status === 401) { logout(); return; }
+    var d = await r.json();
+    _feedbackItems = d.items || [];
+    renderFeedbackList();
+  } catch(e) {
+    document.getElementById('feedback-list').innerHTML =
+      '<p style="color:var(--red);font-size:13px">Error: ' + escHtml(e.message) + '</p>';
+  }
+}
+
+function renderFeedbackList() {
+  var statusFilter   = document.getElementById('feedback-filter-status').value;
+  var categoryFilter = document.getElementById('feedback-filter-category').value;
+  var list = document.getElementById('feedback-list');
+
+  var items = _feedbackItems;
+  if (statusFilter)   items = items.filter(function(i){ return i.status   === statusFilter; });
+  if (categoryFilter) items = items.filter(function(i){ return i.category === categoryFilter; });
+
+  if (!items.length) {
+    list.innerHTML = '<p style="color:var(--muted);text-align:center;padding:40px 0;">No feedback yet.</p>';
+    return;
+  }
+
+  var statusColors = { 'new': '#f59e0b', 'triaged': '#3b82f6', 'in-progress': '#8b5cf6', 'done': '#10b981' };
+
+  list.innerHTML = items.map(function(item) {
+    var preview = escHtml(item.text_preview || '');
+    var truncated = (Number(item.text_length) > 160) ? '&hellip;' : '';
+    var dateStr = (item.game_date || '').slice(0, 10);
+    var pid = item.player_id ? item.player_id.slice(0, 8) : 'anon';
+    var sc = statusColors[item.status] || '#999';
+    return '<div class="feedback-row" data-id="' + escHtml(item.id) + '" style="' +
+      'display:flex;gap:12px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.08);' +
+      'cursor:pointer;align-items:flex-start;" onclick="openFeedbackDetail(\'' + escHtml(item.id) + '\')">' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-size:13px;color:var(--text);margin-bottom:4px;word-break:break-word;">' + preview + truncated + '</div>' +
+        '<div style="font-size:11px;color:var(--muted);">' + dateStr +
+          ' &middot; ' + escHtml(pid) +
+          (item.has_screenshot ? ' 📎' : '') + '</div>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;white-space:nowrap;">' +
+        '<span style="font-size:11px;font-weight:700;color:' + sc + ';">' + escHtml(item.status || 'new') + '</span>' +
+        (item.category ? '<span style="font-size:11px;color:var(--muted);">' + escHtml(item.category) + '</span>' : '') +
+      '</div>' +
+      '</div>';
+  }).join('');
+}
+
+async function openFeedbackDetail(id) {
+  var modal = document.getElementById('feedback-detail-modal');
+  var content = document.getElementById('feedback-detail-content');
+  content.innerHTML = '<div class="loading"><span class="spinner"></span>Loading&hellip;</div>';
+  modal.hidden = false;
+
+  try {
+    var r = await fetch('/api/admin?action=feedback-detail&id=' + encodeURIComponent(id), {
+      headers: { 'Authorization': 'Bearer ' + TOKEN }
+    });
+    if (r.status === 401) { logout(); return; }
+    var detail = await r.json();
+    if (!detail) { content.innerHTML = '<p>Not found.</p>'; return; }
+
+    var statuses = ['new', 'triaged', 'in-progress', 'done'];
+    var categories = ['bug', 'feature', 'praise', 'other'];
+
+    content.innerHTML =
+      '<h3 style="font-size:15px;margin:0 0 12px;padding-right:32px;">' +
+        escHtml((detail.game_date || '').slice(0, 10)) + ' &middot; ' +
+        escHtml(detail.player_id ? detail.player_id.slice(0, 12) : 'anon') +
+      '</h3>' +
+      '<p style="white-space:pre-wrap;font-size:14px;color:var(--text);margin-bottom:16px;line-height:1.5;">' +
+        escHtml(detail.feedback_text || '') + '</p>' +
+      (detail.screenshot
+        ? '<img src="' + escHtml(detail.screenshot) + '" style="max-width:100%;border-radius:8px;margin-bottom:16px;" alt="Screenshot">'
+        : '') +
+      '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">' +
+        '<select id="detail-status" style="flex:1;padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:var(--s2);color:var(--text);font-size:13px;">' +
+          statuses.map(function(s){ return '<option' + (detail.status === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') +
+        '</select>' +
+        '<select id="detail-category" style="flex:1;padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:var(--s2);color:var(--text);font-size:13px;">' +
+          '<option value="">— category —</option>' +
+          categories.map(function(c){ return '<option' + (detail.category === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') +
+        '</select>' +
+      '</div>' +
+      '<textarea id="detail-admin-notes" placeholder="Admin notes…" style="width:100%;box-sizing:border-box;height:80px;resize:none;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:var(--s2);color:var(--text);font-size:13px;margin-bottom:12px;">' +
+        escHtml(detail.admin_notes || '') + '</textarea>' +
+      '<button class="btn btn-primary" style="width:100%;" id="btn-save-feedback-detail">Save</button>';
+
+    document.getElementById('btn-save-feedback-detail').addEventListener('click', async function() {
+      this.disabled = true;
+      this.textContent = 'Saving…';
+      try {
+        var r2 = await fetch('/api/admin?action=update-feedback', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id:         id,
+            status:     document.getElementById('detail-status').value,
+            category:   document.getElementById('detail-category').value || null,
+            adminNotes: document.getElementById('detail-admin-notes').value || null,
+          }),
+        });
+        if (!r2.ok) throw new Error('Save failed');
+        closeFeedbackDetail();
+        await loadFeedback();
+      } catch(e) {
+        alert('Error saving: ' + e.message);
+        this.disabled = false;
+        this.textContent = 'Save';
+      }
+    });
+  } catch(e) {
+    content.innerHTML = '<p style="color:var(--red);">Error: ' + escHtml(e.message) + '</p>';
+  }
+}
+
+function closeFeedbackDetail() {
+  document.getElementById('feedback-detail-modal').hidden = true;
 }
 </script>
   <!-- Vercel Analytics + Speed Insights -->

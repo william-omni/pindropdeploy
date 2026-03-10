@@ -913,16 +913,18 @@
       font-size: 10px; color: var(--muted);
     }
     .daily-avg-stat {
-      font-size: 11px; color: var(--muted);
+      font-size: 14px; font-weight: 600;
+      color: var(--text); opacity: 0.6;
       text-align: center;
-      margin-top: -14px;
+      margin-top: -10px;
       margin-bottom: 16px;
       letter-spacing: 0.02em;
     }
     .daily-avg-stat-review {
-      font-size: 11px; color: var(--muted);
+      font-size: 14px; font-weight: 600;
+      color: var(--text); opacity: 0.6;
       text-align: center;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
       letter-spacing: 0.02em;
     }
 
@@ -1109,6 +1111,31 @@
     #summary:not(.hidden) ~ a.x-social-link,
     #review:not(.hidden) ~ a.x-social-link { display: none; }
 
+    /* Feedback FAB — fixed position, mirrors .x-social-link pattern */
+    .feedback-fab {
+      position: fixed;
+      bottom: max(20px, calc(var(--safe-bot) + 16px));
+      left: 20px;
+      z-index: 900;
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      padding: 0;
+      transition: opacity 0.2s;
+    }
+    .feedback-fab:hover { opacity: 0.75; }
+    .feedback-fab svg { width: 16px; height: 16px; stroke: var(--text); }
+    /* Hide FAB when not on home screen */
+    #game:not(.hidden) ~ .feedback-fab,
+    #summary:not(.hidden) ~ .feedback-fab,
+    #review:not(.hidden) ~ .feedback-fab,
+    #history:not(.hidden) ~ .feedback-fab { display: none; }
+
     /* Dark / light mode toggle on home */
     .theme-toggle-btn {
       position: absolute;
@@ -1234,6 +1261,11 @@
 <div id="game" class="screen hidden">
   <div id="map"></div>
 
+  <!-- Zoom tip overlay — center-map popup, first-time players only, tap to dismiss -->
+  <div id="zoom-tip-overlay" class="zoom-tip-overlay hidden">
+    <div class="zoom-tip-bubble">Tip: pinch or scroll to zoom</div>
+  </div>
+
   <!-- Pin colour legend — floats over map, shown only while result is peeked -->
   <div id="round-map-legend" class="round-map-legend">
     <div class="round-legend-item">
@@ -1257,7 +1289,7 @@
         <div class="hud-score-label">Score</div>
         <div class="hud-score" id="hud-score">0</div>
       </div>
-      <div class="hud-zoom-tip" id="hud-zoom-tip">Tip: pinch or<br>scroll to zoom</div>
+      <!-- hud-zoom-tip removed; see #zoom-tip-overlay centered overlay below -->
     </div>
     <div class="hud-card hud-dots" id="hud-dots"></div>
   </div>
@@ -1459,6 +1491,42 @@
 
 <!-- Toast -->
 <div id="toast"></div>
+
+<!-- Feedback FAB — position:fixed at body level, CSS shows only on home screen -->
+<button id="btn-feedback" class="feedback-fab" aria-label="Send feedback">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  </svg>
+</button>
+
+<!-- Feedback Modal — full-screen fixed overlay -->
+<div id="feedback-modal" style="
+  display:none;position:fixed;inset:0;
+  background:rgba(var(--bg-rgb),0.85);backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);z-index:950;
+  align-items:flex-end;justify-content:center;">
+  <div style="
+    background:var(--surface);border-top:1px solid var(--border);
+    border-radius:24px 24px 0 0;padding:24px 20px calc(var(--safe-bot,0px) + 24px);
+    width:100%;max-width:520px;box-sizing:border-box;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <button id="btn-feedback-close" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0;line-height:1;">←</button>
+      <h3 style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin:0;color:var(--text);">Send Feedback</h3>
+    </div>
+    <textarea id="feedback-text" placeholder="Bug report, feature request, or just say hi…"
+      style="width:100%;box-sizing:border-box;min-height:120px;resize:none;
+        background:var(--bg);border:1px solid var(--border);border-radius:12px;
+        padding:12px;font-size:15px;color:var(--text);font-family:inherit;
+        outline:none;margin-bottom:12px;"></textarea>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+      <input type="file" id="feedback-screenshot" accept="image/*" style="display:none;">
+      <button id="btn-attach-screenshot" class="btn-ghost" style="font-size:13px;height:34px;flex-shrink:0;">📎 Attach Screenshot</button>
+      <span id="screenshot-filename" style="font-size:12px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+    </div>
+    <button id="btn-feedback-submit" class="btn-primary" style="width:100%;">Send Feedback</button>
+    <p id="feedback-status" style="text-align:center;font-size:13px;color:var(--muted);margin-top:10px;min-height:18px;"></p>
+  </div>
+</div>
 
 <script>
 // ─────────────────────────────────────────────────────────
@@ -2195,6 +2263,77 @@ function applyMapStyle(m, isDark, cityLabels = true) {
   });
 }
 
+function initFeedback() {
+  const fab      = document.getElementById('btn-feedback');
+  const modal    = document.getElementById('feedback-modal');
+  const closeBtn = document.getElementById('btn-feedback-close');
+  const submit   = document.getElementById('btn-feedback-submit');
+  const fileIn   = document.getElementById('feedback-screenshot');
+  const attachBtn = document.getElementById('btn-attach-screenshot');
+  const fileLabel = document.getElementById('screenshot-filename');
+  const status   = document.getElementById('feedback-status');
+
+  let screenshotB64 = null;
+
+  fab.addEventListener('click', () => {
+    modal.style.display = 'flex';
+    document.getElementById('feedback-text').value = '';
+    screenshotB64 = null;
+    fileLabel.textContent = '';
+    status.textContent = '';
+  });
+
+  closeBtn.addEventListener('click', () => { modal.style.display = 'none'; });
+
+  // Close on backdrop click
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.style.display = 'none';
+  });
+
+  attachBtn.addEventListener('click', () => fileIn.click());
+
+  fileIn.addEventListener('change', () => {
+    const file = fileIn.files[0];
+    if (!file) return;
+    if (file.size > 1024 * 1024) {
+      status.textContent = 'Screenshot too large — please use a smaller image.';
+      return;
+    }
+    fileLabel.textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = e => { screenshotB64 = e.target.result; };
+    reader.readAsDataURL(file);
+  });
+
+  submit.addEventListener('click', async () => {
+    const text = document.getElementById('feedback-text').value.trim();
+    if (!text) { status.textContent = 'Please write something first!'; return; }
+    submit.disabled = true;
+    status.textContent = 'Sending…';
+    try {
+      const store = loadStorage();
+      await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          feedbackText:  text,
+          playerId:      store.playerId || null,
+          screenshotB64: screenshotB64 || null,
+        }),
+      });
+      status.textContent = '✓ Sent — thanks!';
+      document.getElementById('feedback-text').value = '';
+      screenshotB64 = null;
+      fileLabel.textContent = '';
+      fileIn.value = '';
+      setTimeout(() => { modal.style.display = 'none'; }, 1200);
+    } catch (e) {
+      status.textContent = 'Failed to send — check your connection.';
+    }
+    submit.disabled = false;
+  });
+}
+
 function initMap() {
   if (map) return; // already initialized
 
@@ -2269,7 +2408,9 @@ async function lockPin() {
   if (!state.pendingPin || state.lockingPin) return;
   state.lockingPin = true;  // prevent double-submit
   if (navigator.vibrate) navigator.vibrate([20, 10, 20]);
-  if (state.round === 0) { var zt = document.getElementById('hud-zoom-tip'); if (zt) zt.hidden = true; }
+  // Dismiss zoom-tip overlay when player locks their first pin
+  const _ztLock = document.getElementById('zoom-tip-overlay');
+  if (_ztLock) _ztLock.classList.add('hidden');
 
   const { lat, lng } = state.pendingPin;
 
@@ -2601,6 +2742,17 @@ async function loadRound() {
 
   // Reset map view
   map.flyTo({ center: [15, 25], zoom: 1.8, duration: 800 });
+
+  // Show zoom-tip overlay for first-time players on round 1 only
+  const ztOverlay = document.getElementById('zoom-tip-overlay');
+  if (ztOverlay) {
+    const _ztStore = loadStorage();
+    if (state.round === 0 && (_ztStore.played === 0 || _ztStore.played == null)) {
+      ztOverlay.classList.remove('hidden');
+    } else {
+      ztOverlay.classList.add('hidden');
+    }
+  }
 }
 
 // ─────────────────────────────────────────────────────────
@@ -3158,12 +3310,18 @@ document.getElementById('btn-history-back').addEventListener('click', () => {
   showScreen('home');
 });
 
+// Tap zoom-tip overlay to dismiss
+document.getElementById('zoom-tip-overlay').addEventListener('click', function() {
+  this.classList.add('hidden');
+});
+
 // ─────────────────────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────────────────────
 
 mapboxgl.accessToken = MAPBOX_TOKEN;
 initHome();
+initFeedback();
 showScreen('home');
 document.getElementById('hud-day-num').textContent = getDayNumber();
 </script>

@@ -793,6 +793,124 @@ async function getDailyAvgScore(gameDate) {
   }
 }
 
+// ── Feedback ───────────────────────────────────────────────────────────────────
+// Uses the analytics instance (production-only) — test feedback is silently dropped.
+
+let _feedbackTableReady = false;
+
+async function ensureFeedbackTable(conn) {
+  if (_feedbackTableReady) return;
+  await conn.run(`CREATE SCHEMA IF NOT EXISTS pindrop`);
+  await conn.run(`
+    CREATE TABLE IF NOT EXISTS pindrop.feedback (
+      id            VARCHAR     PRIMARY KEY,
+      submitted_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+      game_date     DATE,
+      player_id     VARCHAR,
+      feedback_text VARCHAR     NOT NULL,
+      screenshot    VARCHAR,
+      status        VARCHAR     NOT NULL DEFAULT 'new',
+      category      VARCHAR,
+      admin_notes   VARCHAR
+    )`);
+  _feedbackTableReady = true;
+}
+
+async function trackFeedback({ id, gameDate, playerId, feedbackText, screenshotB64 }) {
+  try {
+    const inst = await getInstance();
+    if (!inst) return;
+    const conn = await inst.connect();
+    try {
+      await ensureFeedbackTable(conn);
+      await conn.run(
+        `INSERT INTO pindrop.feedback (id, game_date, player_id, feedback_text, screenshot)
+         VALUES (?, CAST(? AS DATE), ?, ?, ?)`,
+        [id, gameDate, playerId ?? null, feedbackText, screenshotB64 ?? null]
+      );
+    } finally {
+      conn.closeSync();
+    }
+  } catch (e) {
+    console.error('[MotherDuck] trackFeedback error:', e.message);
+  }
+}
+
+async function getFeedbackList(limit = 200) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return [];
+    const conn = await inst.connect();
+    try {
+      await ensureFeedbackTable(conn);
+      const res = await conn.runAndReadAll(`
+        SELECT id,
+               CAST(submitted_at AS VARCHAR) AS submitted_at,
+               CAST(game_date    AS VARCHAR) AS game_date,
+               player_id,
+               LEFT(feedback_text, 160)               AS text_preview,
+               LENGTH(feedback_text)                  AS text_length,
+               (screenshot IS NOT NULL AND LENGTH(screenshot) > 0) AS has_screenshot,
+               status, category, admin_notes
+        FROM pindrop.feedback
+        ORDER BY submitted_at DESC
+        LIMIT ?`, [limit]);
+      return res.getRowObjects();
+    } finally {
+      conn.closeSync();
+    }
+  } catch (e) {
+    console.error('[MotherDuck] getFeedbackList error:', e.message);
+    return [];
+  }
+}
+
+async function getFeedbackDetail(id) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return null;
+    const conn = await inst.connect();
+    try {
+      await ensureFeedbackTable(conn);
+      const res = await conn.runAndReadAll(
+        `SELECT id,
+                CAST(submitted_at AS VARCHAR) AS submitted_at,
+                CAST(game_date    AS VARCHAR) AS game_date,
+                player_id, feedback_text, screenshot, status, category, admin_notes
+         FROM pindrop.feedback WHERE id = ?`, [id]);
+      const rows = res.getRowObjects();
+      return rows[0] || null;
+    } finally {
+      conn.closeSync();
+    }
+  } catch (e) {
+    console.error('[MotherDuck] getFeedbackDetail error:', e.message);
+    return null;
+  }
+}
+
+async function updateFeedback({ id, status, category, adminNotes }) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) throw new Error('MotherDuck not available');
+    const conn = await inst.connect();
+    try {
+      await ensureFeedbackTable(conn);
+      await conn.run(
+        `UPDATE pindrop.feedback
+         SET status = ?, category = ?, admin_notes = ?
+         WHERE id = ?`,
+        [status ?? null, category ?? null, adminNotes ?? null, id]
+      );
+    } finally {
+      conn.closeSync();
+    }
+  } catch (e) {
+    console.error('[MotherDuck] updateFeedback error:', e.message);
+    throw e;
+  }
+}
+
 module.exports = {
   trackPlay, trackGame, trackShare, storeDailyCombo,
   getAllLocations, getLockedDailyCombo, getLockedDates, getPlayedDates,
@@ -802,4 +920,5 @@ module.exports = {
   getYesterdayGameStats,
   createSocialPost, getSocialPosts, updateSocialPost, editSocialPost,
   getPendingScheduledPosts, deleteSocialPost,
+  trackFeedback, getFeedbackList, getFeedbackDetail, updateFeedback,
 };
