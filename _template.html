@@ -1412,7 +1412,10 @@
       </svg>
       Share Score
     </button>
-    <button class="btn-back-home" id="btn-back-home-review">← Back to Home</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-back-home" id="btn-back-home-review" style="flex:1;">← Back to Home</button>
+      <button class="btn-back-home" id="btn-view-history-review" style="flex:1;">History →</button>
+    </div>
   </div>
 </div>
 
@@ -1723,6 +1726,25 @@ function showScreen(id) {
 
 function initHome() {
   const store = loadStorage();
+
+  // One-time backfill: seed history from lastRoundResults for users who played
+  // before the history feature launched. Guard: store.history === undefined means
+  // this is the first load with the new code. After seeding it becomes an array.
+  if (store.history === undefined && store.lastRoundResults && store.lastPlayedDay) {
+    const [y, m, d] = store.lastPlayedDay.split('-').map(Number);
+    const playedMs       = Date.UTC(y, m - 1, d);
+    const epochMs        = Date.UTC(2026, 2, 4); // same epoch as getDayNumber()
+    const backfillDayNum = Math.floor((playedMs - epochMs) / 86400000) + 1;
+    store.history = [{
+      date:   store.lastPlayedDay,
+      dayNum: backfillDayNum,
+      score:  store.lastScore || 0,
+      streak: store.streak || 0,
+      rounds: store.lastRoundResults.map(r => ({ pts: r.pts, name: r.name, distKm: r.distKm })),
+    }];
+    saveStorage(store);
+  }
+
   document.getElementById('home-date').textContent = formatDate(new Date());
   document.getElementById('home-streak').textContent = store.streak || 0;
   document.getElementById('home-best').textContent = store.bestScore ? store.bestScore.toLocaleString() : '—';
@@ -3033,6 +3055,11 @@ document.getElementById('btn-back-home-review').addEventListener('click', () => 
 
 document.getElementById('btn-view-map-from-summary').addEventListener('click', () => {
   showReview('summary');
+});
+
+document.getElementById('btn-view-history-review').addEventListener('click', () => {
+  initHistory();
+  showScreen('history');
 });
 
 document.getElementById('btn-history-back').addEventListener('click', () => {
