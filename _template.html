@@ -1518,10 +1518,13 @@
         background:var(--bg);border:1px solid var(--border);border-radius:12px;
         padding:12px;font-size:15px;color:var(--text);font-family:inherit;
         outline:none;margin-bottom:12px;"></textarea>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+    <div style="margin-bottom:16px;">
       <input type="file" id="feedback-screenshot" accept="image/*" style="display:none;">
-      <button id="btn-attach-screenshot" class="btn-ghost" style="font-size:13px;height:34px;flex-shrink:0;">📎 Attach Screenshot</button>
-      <span id="screenshot-filename" style="font-size:12px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+      <button id="btn-attach-screenshot" class="btn-ghost" style="width:100%;font-size:13px;height:36px;display:flex;align-items:center;justify-content:center;gap:6px;box-sizing:border-box;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+        Attach Screenshot
+      </button>
+      <p id="screenshot-filename" style="font-size:12px;color:var(--muted);margin:5px 0 0;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-height:16px;"></p>
     </div>
     <button id="btn-feedback-submit" class="btn-primary" style="width:100%;">Send Feedback</button>
     <p id="feedback-status" style="text-align:center;font-size:13px;color:var(--muted);margin-top:10px;min-height:18px;"></p>

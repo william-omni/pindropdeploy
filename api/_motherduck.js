@@ -850,9 +850,9 @@ async function getFeedbackList(limit = 200) {
                CAST(submitted_at AS VARCHAR) AS submitted_at,
                CAST(game_date    AS VARCHAR) AS game_date,
                player_id,
-               LEFT(feedback_text, 160)               AS text_preview,
-               LENGTH(feedback_text)                  AS text_length,
-               (screenshot IS NOT NULL AND LENGTH(screenshot) > 0) AS has_screenshot,
+               LEFT(feedback_text, 160)                  AS text_preview,
+               LENGTH(feedback_text)::INTEGER            AS text_length,
+               (screenshot IS NOT NULL AND LENGTH(screenshot)::INTEGER > 0) AS has_screenshot,
                status, category, admin_notes
         FROM pindrop.feedback
         ORDER BY submitted_at DESC
