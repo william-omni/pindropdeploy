@@ -116,6 +116,9 @@
     #home {
       background: var(--bg);
       gap: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      justify-content: flex-start;
     }
 
     .home-bg {
@@ -1855,32 +1858,94 @@ function initHome() {
   }
 }
 
+// Parse a date string that may be "YYYY-M-D" or "YYYY-MM-DD" into a UTC Date.
+function _parseDateKey(str) {
+  if (!str) return null;
+  const [y, m, d] = str.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
 function initHistory() {
   const store   = loadStorage();
-  const history = store.history || [];
   const list    = document.getElementById('history-list');
   const empty   = document.getElementById('history-empty');
   list.innerHTML = '';
 
-  if (!history.length) {
+  // Build working list (copy so we don't mutate store)
+  const recorded = (store.history || []).map(e => ({ ...e, placeholder: false }));
+
+  // Generate placeholder entries for streak days that lack real data.
+  // We know the player played streak-many consecutive days ending on lastPlayedDay.
+  const streak = store.streak || 0;
+  const lp     = store.lastPlayedDay; // e.g. "2026-3-10"
+  if (streak > 1 && lp) {
+    const lastDt   = _parseDateKey(lp);
+    // Normalised set of dates already in recorded history (strip leading zeros for comparison)
+    const recKeys  = new Set(recorded.map(h => {
+      const dt = _parseDateKey(h.date);
+      return dt ? dt.getTime() : null;
+    }).filter(Boolean));
+
+    for (let i = 1; i < streak; i++) {
+      const ms = lastDt ? lastDt.getTime() - i * 86400000 : null;
+      if (ms && !recKeys.has(ms)) {
+        const dt  = new Date(ms);
+        const key = `${dt.getUTCFullYear()}-${dt.getUTCMonth()+1}-${dt.getUTCDate()}`;
+        recorded.push({ date: key, score: null, rounds: [], placeholder: true });
+        recKeys.add(ms);
+      }
+    }
+  }
+
+  // Sort newest → oldest
+  recorded.sort((a, b) => {
+    const da = _parseDateKey(a.date);
+    const db = _parseDateKey(b.date);
+    return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
+  });
+
+  if (!recorded.length) {
     empty.style.display = '';
     return;
   }
   empty.style.display = 'none';
 
-  history.forEach(entry => {
-    const emojis = (entry.rounds || []).map(r => scoreToEmoji(r.pts)).join(' ');
-    const d      = new Date(entry.date + 'T12:00:00Z');
-    const label  = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  recorded.forEach(entry => {
+    const dt    = _parseDateKey(entry.date);
+    const label = dt
+      ? dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+      : (entry.date || '—');
 
     const row = document.createElement('div');
     row.className = 'history-row';
-    row.innerHTML =
-      `<div class="history-date">${label}</div>` +
-      `<div class="history-emojis">${emojis || '—'}</div>` +
-      `<div class="history-score${entry.score === 1000 ? ' perfect' : ''}">${entry.score}</div>`;
+
+    if (entry.placeholder) {
+      row.innerHTML =
+        `<div class="history-date">${label}</div>` +
+        `<div class="history-emojis" style="color:var(--muted);opacity:0.45;letter-spacing:3px;">· · · · ·</div>` +
+        `<div class="history-score" style="opacity:0.35;">—</div>`;
+    } else {
+      const emojis = (entry.rounds || []).map(r => scoreToEmoji(r.pts)).join(' ');
+      row.innerHTML =
+        `<div class="history-date">${label}</div>` +
+        `<div class="history-emojis">${emojis || '—'}</div>` +
+        `<div class="history-score${entry.score === 1000 ? ' perfect' : ''}">${entry.score}</div>`;
+    }
     list.appendChild(row);
   });
+
+  // Footer note for games played before tracking started
+  const totalPlayed    = store.played || 0;
+  const knownCount     = recorded.length; // real + placeholder
+  const unknownCount   = totalPlayed - knownCount;
+  if (unknownCount > 0) {
+    const note = document.createElement('p');
+    note.style.cssText = 'text-align:center;color:var(--muted);font-size:11px;padding:16px 0 4px;opacity:0.6;';
+    note.textContent   = `+ ${unknownCount} earlier game${unknownCount === 1 ? '' : 's'} · scores not available`;
+    list.appendChild(note);
+  }
 }
 
 // ─────────────────────────────────────────────────────────
@@ -2530,7 +2595,7 @@ function finishGame() {
   store.lastRoundResults = state.roundResults;
   // Append to per-day history (most-recent first; dedup by date; cap 90 days)
   const histEntry = {
-    date:   getLocalDateStr(),
+    date:   getTodayKey(),   // matches lastPlayedDay format (same fn used by updateStats)
     dayNum: getDayNumber(),
     score:  state.totalScore,
     streak: store.streak || 0,
