@@ -818,7 +818,9 @@ async function ensureFeedbackTable(conn) {
 
 async function trackFeedback({ id, gameDate, playerId, feedbackText, screenshotB64 }) {
   try {
-    const inst = await getInstance();
+    // Use getDataInstance (not getInstance) so writes work in all Vercel environments,
+    // not just production. Feedback is user content, not analytics.
+    const inst = await getDataInstance();
     if (!inst) return;
     const conn = await inst.connect();
     try {
