@@ -1569,6 +1569,61 @@ async function getSuggestions(event) {
 /* ── Feedback Tab ─────────────────────────────────────────────────────────── */
 var _feedbackItems = [];
 
+// Color maps for inline status/category chip selects
+var _FB_STATUS_COLOR = {
+  'new':         ['rgba(245,158,11,.15)',  '#f59e0b'],
+  'triaged':     ['rgba(59,130,246,.15)',  '#3b82f6'],
+  'in-progress': ['rgba(139,92,246,.15)', '#8b5cf6'],
+  'done':        ['rgba(16,185,129,.15)', '#10b981'],
+};
+var _FB_CAT_COLOR = {
+  'bug':     ['rgba(248,113,113,.12)', '#f87171'],
+  'feature': ['rgba(59,130,246,.12)',  '#3b82f6'],
+  'praise':  ['rgba(16,185,129,.12)',  '#10b981'],
+  'other':   ['rgba(148,163,184,.12)','#94a3b8'],
+};
+
+function applyFbSelectStyle(sel, isStatus) {
+  var map = isStatus ? _FB_STATUS_COLOR : _FB_CAT_COLOR;
+  var c   = map[sel.value];
+  if (c) {
+    sel.style.background  = c[0];
+    sel.style.color       = c[1];
+    sel.style.borderColor = c[1];
+  } else {
+    sel.style.background  = 'transparent';
+    sel.style.color       = 'var(--muted)';
+    sel.style.borderColor = 'rgba(255,255,255,.12)';
+  }
+}
+
+async function saveFeedbackLabel(sel, field) {
+  var id   = sel.dataset.id;
+  var item = _feedbackItems.find(function(i){ return i.id === id; });
+  if (!item) return;
+  var prev     = field === 'status' ? item.status : item.category;
+  var status   = field === 'status'   ? sel.value          : (item.status   || 'new');
+  var category = field === 'category' ? (sel.value || null) : (item.category || null);
+  // Optimistic update
+  if (field === 'status')   item.status   = status;
+  if (field === 'category') item.category = category;
+  applyFbSelectStyle(sel, field === 'status');
+  try {
+    var r = await fetch('/api/admin?action=update-feedback', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: id, status: status, category: category, adminNotes: item.admin_notes || null }),
+    });
+    if (!r.ok) throw new Error('Save failed');
+  } catch(e) {
+    // Revert on failure
+    if (field === 'status')   { item.status   = prev; sel.value = prev || 'new'; }
+    if (field === 'category') { item.category = prev; sel.value = prev || ''; }
+    applyFbSelectStyle(sel, field === 'status');
+    alert('Error saving: ' + e.message);
+  }
+}
+
 async function loadFeedback() {
   document.getElementById('feedback-list').innerHTML =
     '<div class="loading"><span class="spinner"></span>Loading&hellip;</div>';
@@ -1600,33 +1655,41 @@ function renderFeedbackList() {
     return;
   }
 
-  var statusColors = { 'new': '#f59e0b', 'triaged': '#3b82f6', 'in-progress': '#8b5cf6', 'done': '#10b981' };
+  var chipBase = 'font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;';
 
   list.innerHTML = items.map(function(item) {
-    var preview = escHtml(item.text_preview || '');
+    var preview   = escHtml(String(item.text_preview || ''));
     var truncated = (Number(item.text_length) > 160) ? '&hellip;' : '';
-    var dateStr = (item.game_date || '').slice(0, 10);
-    var pid = item.player_id ? item.player_id.slice(0, 8) : 'anon';
-    var sc = statusColors[item.status] || '#999';
-    return '<div class="feedback-row" data-id="' + escHtml(item.id) + '" style="' +
-      'display:flex;gap:12px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.08);' +
-      'cursor:pointer;align-items:flex-start;" onclick="openFeedbackDetail(\'' + escHtml(item.id) + '\')">' +
-      '<div style="flex:1;min-width:0;">' +
-        '<div style="font-size:13px;color:var(--text);margin-bottom:4px;word-break:break-word;">' + preview + truncated + '</div>' +
-        '<div style="font-size:11px;color:var(--muted);">' + dateStr +
-          ' &middot; ' + escHtml(pid) +
-          (item.has_screenshot ? ' 📎' : '') + '</div>' +
-      '</div>' +
-      '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;white-space:nowrap;">' +
-        '<span style="font-size:11px;font-weight:700;color:' + sc + ';">' + escHtml(item.status || 'new') + '</span>' +
-        (item.category ? '<span style="font-size:11px;color:var(--muted);">' + escHtml(item.category) + '</span>' : '') +
-      '</div>' +
-      '</div>';
+    var dateStr   = (item.game_date || '').slice(0, 10);
+    var pid       = item.player_id ? item.player_id.slice(0, 8) : 'anon';
+    var idEsc     = escHtml(item.id);
+    var statusOpts = ['new','triaged','in-progress','done'].map(function(s) {
+      return '<option value="' + s + '"' + (item.status === s ? ' selected' : '') + '>' + s + '</option>';
+    }).join('');
+    var catOpts = '<option value="">— cat —</option>' + ['bug','feature','praise','other'].map(function(c) {
+      return '<option value="' + c + '"' + (item.category === c ? ' selected' : '') + '>' + c + '</option>';
+    }).join('');
+    return (
+      '<div style="display:flex;gap:12px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.08);align-items:center;">' +
+        '<div style="flex:1;min-width:0;cursor:pointer;" onclick="openFeedbackDetail(\'' + idEsc + '\')">' +
+          '<div style="font-size:13px;color:var(--text);margin-bottom:4px;word-break:break-word;line-height:1.4;">' + preview + truncated + '</div>' +
+          '<div style="font-size:11px;color:var(--muted);">' + dateStr + ' &middot; ' + escHtml(pid) + (item.has_screenshot ? ' &middot; 📎' : '') + '</div>' +
+        '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0;">' +
+          '<select class="fb-status-sel" data-id="' + idEsc + '" onchange="saveFeedbackLabel(this,\'status\')" style="' + chipBase + '">' + statusOpts + '</select>' +
+          '<select class="fb-cat-sel"    data-id="' + idEsc + '" onchange="saveFeedbackLabel(this,\'category\')" style="' + chipBase + '">' + catOpts    + '</select>' +
+        '</div>' +
+      '</div>'
+    );
   }).join('');
+
+  // Apply color styling to all newly rendered selects
+  list.querySelectorAll('.fb-status-sel').forEach(function(s){ applyFbSelectStyle(s, true); });
+  list.querySelectorAll('.fb-cat-sel').forEach(function(s){ applyFbSelectStyle(s, false); });
 }
 
 async function openFeedbackDetail(id) {
-  var modal = document.getElementById('feedback-detail-modal');
+  var modal   = document.getElementById('feedback-detail-modal');
   var content = document.getElementById('feedback-detail-content');
   content.innerHTML = '<div class="loading"><span class="spinner"></span>Loading&hellip;</div>';
   modal.hidden = false;
@@ -1639,31 +1702,23 @@ async function openFeedbackDetail(id) {
     var detail = await r.json();
     if (!detail) { content.innerHTML = '<p>Not found.</p>'; return; }
 
-    var statuses = ['new', 'triaged', 'in-progress', 'done'];
-    var categories = ['bug', 'feature', 'praise', 'other'];
-
     content.innerHTML =
-      '<h3 style="font-size:15px;margin:0 0 12px;padding-right:32px;">' +
+      '<h3 style="font-size:15px;margin:0 0 4px;padding-right:32px;">' +
         escHtml((detail.game_date || '').slice(0, 10)) + ' &middot; ' +
         escHtml(detail.player_id ? detail.player_id.slice(0, 12) : 'anon') +
       '</h3>' +
+      '<p style="font-size:11px;color:var(--muted);margin:0 0 16px;">' +
+        escHtml(detail.status || 'new') + (detail.category ? ' &middot; ' + escHtml(detail.category) : '') +
+      '</p>' +
       '<p style="white-space:pre-wrap;font-size:14px;color:var(--text);margin-bottom:16px;line-height:1.5;">' +
         escHtml(detail.feedback_text || '') + '</p>' +
       (detail.screenshot
         ? '<img src="' + escHtml(detail.screenshot) + '" style="max-width:100%;border-radius:8px;margin-bottom:16px;" alt="Screenshot">'
         : '') +
-      '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">' +
-        '<select id="detail-status" style="flex:1;padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:var(--s2);color:var(--text);font-size:13px;">' +
-          statuses.map(function(s){ return '<option' + (detail.status === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') +
-        '</select>' +
-        '<select id="detail-category" style="flex:1;padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:var(--s2);color:var(--text);font-size:13px;">' +
-          '<option value="">— category —</option>' +
-          categories.map(function(c){ return '<option' + (detail.category === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') +
-        '</select>' +
-      '</div>' +
-      '<textarea id="detail-admin-notes" placeholder="Admin notes…" style="width:100%;box-sizing:border-box;height:80px;resize:none;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:var(--s2);color:var(--text);font-size:13px;margin-bottom:12px;">' +
+      '<label style="display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Admin Notes</label>' +
+      '<textarea id="detail-admin-notes" placeholder="Internal notes visible only to admins…" style="width:100%;box-sizing:border-box;height:90px;resize:none;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:var(--s2);color:var(--text);font-size:13px;margin-bottom:12px;">' +
         escHtml(detail.admin_notes || '') + '</textarea>' +
-      '<button class="btn btn-primary" style="width:100%;" id="btn-save-feedback-detail">Save</button>';
+      '<button class="btn btn-primary" style="width:100%;max-width:none;" id="btn-save-feedback-detail">Save Notes</button>';
 
     document.getElementById('btn-save-feedback-detail').addEventListener('click', async function() {
       this.disabled = true;
@@ -1674,18 +1729,20 @@ async function openFeedbackDetail(id) {
           headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             id:         id,
-            status:     document.getElementById('detail-status').value,
-            category:   document.getElementById('detail-category').value || null,
+            status:     detail.status   || 'new',   // preserve — status changed via inline chips
+            category:   detail.category || null,     // preserve — category changed via inline chips
             adminNotes: document.getElementById('detail-admin-notes').value || null,
           }),
         });
         if (!r2.ok) throw new Error('Save failed');
+        // Update local cache so admin_notes is preserved if saveFeedbackLabel is called later
+        var cached = _feedbackItems.find(function(i){ return i.id === id; });
+        if (cached) cached.admin_notes = document.getElementById('detail-admin-notes').value || null;
         closeFeedbackDetail();
-        await loadFeedback();
       } catch(e) {
         alert('Error saving: ' + e.message);
         this.disabled = false;
-        this.textContent = 'Save';
+        this.textContent = 'Save Notes';
       }
     });
   } catch(e) {
