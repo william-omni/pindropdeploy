@@ -1109,6 +1109,31 @@
     #summary:not(.hidden) ~ a.x-social-link,
     #review:not(.hidden) ~ a.x-social-link { display: none; }
 
+    /* Feedback FAB — fixed position, mirrors .x-social-link pattern */
+    .feedback-fab {
+      position: fixed;
+      bottom: max(20px, calc(var(--safe-bot) + 16px));
+      left: 20px;
+      z-index: 900;
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      padding: 0;
+      transition: opacity 0.2s;
+    }
+    .feedback-fab:hover { opacity: 0.75; }
+    .feedback-fab svg { width: 16px; height: 16px; stroke: var(--text); }
+    /* Hide FAB when not on home screen */
+    #game:not(.hidden) ~ .feedback-fab,
+    #summary:not(.hidden) ~ .feedback-fab,
+    #review:not(.hidden) ~ .feedback-fab,
+    #history:not(.hidden) ~ .feedback-fab { display: none; }
+
     /* Dark / light mode toggle on home */
     .theme-toggle-btn {
       position: absolute;
@@ -1459,6 +1484,42 @@
 
 <!-- Toast -->
 <div id="toast"></div>
+
+<!-- Feedback FAB — position:fixed at body level, CSS shows only on home screen -->
+<button id="btn-feedback" class="feedback-fab" aria-label="Send feedback">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  </svg>
+</button>
+
+<!-- Feedback Modal — full-screen fixed overlay -->
+<div id="feedback-modal" style="
+  display:none;position:fixed;inset:0;
+  background:rgba(var(--bg-rgb),0.85);backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);z-index:950;
+  align-items:flex-end;justify-content:center;">
+  <div style="
+    background:var(--surface);border-top:1px solid var(--border);
+    border-radius:24px 24px 0 0;padding:24px 20px calc(var(--safe-bot,0px) + 24px);
+    width:100%;max-width:520px;box-sizing:border-box;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <button id="btn-feedback-close" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0;line-height:1;">←</button>
+      <h3 style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin:0;color:var(--text);">Send Feedback</h3>
+    </div>
+    <textarea id="feedback-text" placeholder="Bug report, feature request, or just say hi…"
+      style="width:100%;box-sizing:border-box;min-height:120px;resize:none;
+        background:var(--bg);border:1px solid var(--border);border-radius:12px;
+        padding:12px;font-size:15px;color:var(--text);font-family:inherit;
+        outline:none;margin-bottom:12px;"></textarea>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+      <input type="file" id="feedback-screenshot" accept="image/*" style="display:none;">
+      <button id="btn-attach-screenshot" class="btn-ghost" style="font-size:13px;height:34px;flex-shrink:0;">📎 Attach Screenshot</button>
+      <span id="screenshot-filename" style="font-size:12px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+    </div>
+    <button id="btn-feedback-submit" class="btn-primary" style="width:100%;">Send Feedback</button>
+    <p id="feedback-status" style="text-align:center;font-size:13px;color:var(--muted);margin-top:10px;min-height:18px;"></p>
+  </div>
+</div>
 
 <script>
 // ─────────────────────────────────────────────────────────
