@@ -1774,7 +1774,7 @@ function initHome() {
     const m = Math.floor(((midnight - now) % 3600000) / 60000);
     const countdown = document.createElement('p');
     countdown.id = 'comeback-msg';
-    countdown.style.cssText = 'font-size:11px;color: var(--accent);text-align:center;letter-spacing:0.05em;margin-top:6px;';
+    countdown.style.cssText = 'font-size:11px;color:var(--muted);text-align:center;letter-spacing:0.05em;margin-top:6px;';
     countdown.textContent = `Next challenge in ${h}h ${m}m`;
     btn.parentNode.insertBefore(countdown, btn);
   }

@@ -101,7 +101,11 @@ module.exports = async function handler(req, res) {
 
     // ── send-pending: runs hourly — posts any due scheduled manual posts ─────
     if (action === 'send-pending') {
+      console.log('[social] send-pending invoked at', new Date().toISOString());
+
       const pending = await getPendingScheduledPosts();
+      console.log('[social] pending posts found:', pending.length);
+
       if (!pending.length) {
         return res.status(200).json({ ok: true, processed: 0 });
       }
@@ -109,6 +113,7 @@ module.exports = async function handler(req, res) {
       const results = [];
       for (const post of pending) {
         try {
+          console.log('[social] posting scheduled post', post.id, 'scheduled_for:', post.scheduled_for);
           const result = await postTweet(post.body, creds);
           const tweetId = result.data?.id;
           await updateSocialPost({

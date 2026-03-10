@@ -636,7 +636,10 @@ async function updateSocialPost({ id, status, tweetId, postedAt, errorMsg }) {
 
 async function getPendingScheduledPosts() {
   const inst = await getDataInstance();
-  if (!inst) return [];
+  if (!inst) {
+    console.error('[MotherDuck] getPendingScheduledPosts: no DB connection — MOTHERDUCK_TOKEN missing or unavailable');
+    return [];
+  }
   const conn = await inst.connect();
   try {
     await ensureSocialTables(conn);
@@ -646,7 +649,9 @@ async function getPendingScheduledPosts() {
        WHERE status = 'pending' AND scheduled_for IS NOT NULL AND scheduled_for <= now()
        ORDER BY scheduled_for ASC`
     );
-    return res.getRowObjects();
+    const rows = res.getRowObjects();
+    console.log('[MotherDuck] getPendingScheduledPosts: found', rows.length, 'due posts, now():', new Date().toISOString());
+    return rows;
   } finally {
     conn.closeSync();
   }
