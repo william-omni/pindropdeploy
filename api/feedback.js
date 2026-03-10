@@ -44,14 +44,20 @@ module.exports = async function handler(req, res) {
   const id       = crypto.randomUUID();
   const gameDate = new Date().toISOString().split('T')[0];
 
-  // Fire-and-forget — never block the response on DB availability
-  trackFeedback({
-    id,
-    gameDate,
-    playerId:     playerId  ?? null,
-    feedbackText: feedbackText.trim(),
-    screenshotB64: screenshotB64 ?? null,
-  }).catch(e => console.error('[feedback] DB write failed:', e.message));
+  // Await the write — Vercel lambdas terminate immediately after the response
+  // is sent, so fire-and-forget will never complete. Errors are caught and
+  // logged but never surfaced to the user.
+  try {
+    await trackFeedback({
+      id,
+      gameDate,
+      playerId:      playerId  ?? null,
+      feedbackText:  feedbackText.trim(),
+      screenshotB64: screenshotB64 ?? null,
+    });
+  } catch (e) {
+    console.error('[feedback] DB write failed:', e.message);
+  }
 
   return res.status(200).json({ ok: true, id });
 };
