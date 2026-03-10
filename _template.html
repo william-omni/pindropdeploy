@@ -290,9 +290,27 @@
       margin-bottom: 2px;
     }
     .hud-score-wrap { flex: 1; display: flex; align-items: center; justify-content: space-between; }
-    .hud-zoom-tip {
-      font-size: 10px; font-style: italic; font-weight: 700;
-      color: var(--accent); text-align: right; line-height: 1.3;
+    /* hud-zoom-tip removed — replaced by #zoom-tip-overlay centered on map */
+    .zoom-tip-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 15;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+    }
+    .zoom-tip-overlay.hidden { display: none; }
+    .zoom-tip-bubble {
+      background: rgba(0,0,0,0.60);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 12px 22px;
+      border-radius: 32px;
+      text-align: center;
+      pointer-events: none;
+      user-select: none;
     }
     .hud-score-label {
       font-size: 9px; letter-spacing: 0.15em;
