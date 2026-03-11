@@ -1960,7 +1960,7 @@ function initHome() {
     histLink.id        = 'history-link';
     histLink.className = 'btn-ghost';
     histLink.textContent = `View History (${hist.length} game${hist.length === 1 ? '' : 's'})`;
-    histLink.style.cssText = 'margin-top:8px;font-size:13px;height:36px;opacity:0.7;';
+    histLink.style.cssText = 'margin-top:8px;font-size:13px;height:36px;opacity:1;';
     histLink.addEventListener('click', () => { initHistory(); showScreen('history'); });
     document.querySelector('#home .streak-row').insertAdjacentElement('afterend', histLink);
   }
