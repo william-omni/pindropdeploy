@@ -12,10 +12,11 @@ module.exports = (req, res) => {
   const htmlPath = path.join(process.cwd(), '_template.html');
   let html = fs.readFileSync(htmlPath, 'utf8');
 
-  // Inject the token at request time — never stored in source code
+  // Inject tokens at request time — never stored in source code
   html = html.replace('__MAPBOX_TOKEN__', token);
+  html = html.replace('__GOOGLE_CLIENT_ID__', process.env.GOOGLE_CLIENT_ID || '');
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-store'); // Don't cache — token is injected per-request
+  res.setHeader('Cache-Control', 'no-store'); // Don't cache — tokens are injected per-request
   res.status(200).send(html);
 };

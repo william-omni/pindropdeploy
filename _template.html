@@ -1263,6 +1263,13 @@
         <div class="streak-lbl">Played</div>
       </div>
     </div>
+    <!-- Auth row: shows sign-in link (logged out) or name + sign-out (logged in) -->
+    <div id="auth-home-row" style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:10px;min-height:28px;">
+      <button id="btn-signin-home" class="btn-ghost"
+              style="padding:6px 16px;font-size:12px;margin-top:0;height:28px;opacity:0.75;">
+        Sign in to sync across devices
+      </button>
+    </div>
   </div>
   <button class="theme-toggle-btn" id="btn-theme-toggle" aria-label="Toggle dark/light mode">
     <!-- Sun: shown in dark mode, click → go light -->
@@ -1444,6 +1451,14 @@
       </svg>
       View on Map
     </button>
+    <!-- Auth nudge: shown only when logged out + streak ≥ 2 -->
+    <div id="auth-nudge" class="hidden" style="margin-bottom:10px;text-align:center;">
+      <p style="font-size:11px;color:var(--muted);margin:0 0 6px;letter-spacing:0.04em;">Keep your streak safe across devices</p>
+      <button id="btn-signin-summary" class="btn-ghost"
+              style="padding:8px 22px;font-size:13px;margin-top:0;">
+        Sign In / Create Account
+      </button>
+    </div>
     <div style="display:flex;gap:8px;">
       <button class="btn-home" id="btn-home-from-summary" style="flex:1;">← Back to Home</button>
       <button class="btn-home" id="btn-view-history-summary" style="flex:1;">History →</button>
@@ -1561,7 +1576,8 @@
 // ─────────────────────────────────────────────────────────
 
 // ⚠️  REPLACE WITH YOUR MAPBOX TOKEN
-const MAPBOX_TOKEN = '__MAPBOX_TOKEN__';
+const MAPBOX_TOKEN     = '__MAPBOX_TOKEN__';
+const GOOGLE_CLIENT_ID = '__GOOGLE_CLIENT_ID__';
 // ─────────────────────────────────────────────────────────
 // STATE
 // ─────────────────────────────────────────────────────────
@@ -1738,6 +1754,232 @@ function loadStorage() {
 
 function saveStorage(data) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
+}
+
+// ─────────────────────────────────────────────────────────
+// AUTH STATE
+// ─────────────────────────────────────────────────────────
+
+let _authUser  = null;  // { id, email, displayName, avatarUrl } or null
+let _authStats = null;  // { streak, bestScore, gamesPlayed, lastScore, lastPlayedDay } or null
+
+// Called once on page load — checks /api/auth?action=me for an existing session.
+async function initAuth() {
+  try {
+    const r = await fetch('/api/auth?action=me');
+    if (!r.ok) return;
+    const data = await r.json();
+    _authUser  = data.user  || null;
+    _authStats = data.stats || null;
+    if (_authUser) onAuthSuccess(false);
+  } catch {}
+  // Handle OAuth redirect result
+  const params = new URLSearchParams(window.location.search);
+  const authResult = params.get('auth');
+  if (authResult) {
+    history.replaceState({}, '', '/');
+    if (authResult === 'expired') showToast('Sign-in link expired. Please try again.', 3000);
+    if (authResult === 'error')   showToast('Sign-in failed. Please try again.', 3000);
+    if (authResult === 'success' && _authUser) maybePromptImport();
+  }
+  updateAuthUI();
+}
+
+// Called after a successful sign-in. Merges server stats into localStorage if richer.
+function onAuthSuccess(justSignedIn = true) {
+  if (!_authUser) return;
+  if (_authStats && (_authStats.gamesPlayed || 0) > 0) {
+    const local = loadStorage();
+    if ((_authStats.gamesPlayed || 0) >= (local.played || 0)) {
+      local.streak      = _authStats.streak      || local.streak      || 0;
+      local.bestScore   = Math.max(_authStats.bestScore || 0, local.bestScore || 0);
+      local.lastScore   = _authStats.lastScore   || local.lastScore;
+      local.played      = _authStats.gamesPlayed || local.played      || 0;
+      local.lastPlayedDay = _authStats.lastPlayedDay || local.lastPlayedDay;
+      saveStorage(local);
+    }
+  }
+  updateAuthUI();
+  if (justSignedIn) closeAuthModal();
+}
+
+function updateAuthUI() {
+  const authRow   = document.getElementById('auth-home-row');
+  const authNudge = document.getElementById('auth-nudge');
+  if (!authRow) return;
+
+  if (_authUser) {
+    const name = _authUser.displayName || _authUser.email || 'Account';
+    authRow.innerHTML = `
+      <span style="font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;">${escHtml(name)}</span>
+      <button id="btn-signout-inline"
+              style="background:none;border:none;color:var(--muted);font-size:12px;
+                     text-decoration:underline;cursor:pointer;white-space:nowrap;">
+        Sign out
+      </button>`;
+    document.getElementById('btn-signout-inline').addEventListener('click', signOut);
+    if (authNudge) authNudge.classList.add('hidden');
+  } else {
+    authRow.innerHTML = `
+      <button id="btn-signin-home" class="btn-ghost"
+              style="padding:6px 16px;font-size:12px;margin-top:0;height:28px;opacity:0.75;">
+        Sign in to sync across devices
+      </button>`;
+    document.getElementById('btn-signin-home').addEventListener('click', openAuthModal);
+    // Show nudge on summary if streak ≥ 2
+    if (authNudge) {
+      const store = loadStorage();
+      if ((store.streak || 0) >= 2) authNudge.classList.remove('hidden');
+    }
+  }
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function openAuthModal() {
+  document.getElementById('auth-modal').classList.remove('hidden');
+  document.getElementById('auth-status').textContent = '';
+  document.getElementById('auth-email-input').value  = '';
+  if (document.getElementById('auth-password-input'))
+    document.getElementById('auth-password-input').value = '';
+  // Default to magic link tab
+  switchAuthTab('magic');
+}
+
+function closeAuthModal() {
+  document.getElementById('auth-modal').classList.add('hidden');
+}
+
+function switchAuthTab(tab) {
+  const isMagic = tab === 'magic';
+  document.getElementById('panel-magic').classList.toggle('hidden', !isMagic);
+  document.getElementById('panel-password').classList.toggle('hidden', isMagic);
+  document.getElementById('tab-magic').style.cssText    += isMagic
+    ? ';background:var(--accent);color:var(--btn-text);'
+    : ';background:transparent;color:var(--muted);';
+  document.getElementById('tab-password').style.cssText += !isMagic
+    ? ';background:var(--accent);color:var(--btn-text);'
+    : ';background:transparent;color:var(--muted);';
+}
+
+function setAuthStatus(msg, isError = false) {
+  const el = document.getElementById('auth-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = isError ? 'var(--danger, #f87171)' : 'var(--muted)';
+}
+
+// Google: navigate to server-side OAuth start
+function loginWithGoogle() {
+  if (!GOOGLE_CLIENT_ID) {
+    setAuthStatus('Google sign-in is not available yet.', true);
+    return;
+  }
+  window.location.href = '/api/auth?action=login-google';
+}
+
+// Magic link: POST to request endpoint
+async function requestMagicLink() {
+  const email = (document.getElementById('auth-email-input').value || '').trim();
+  if (!email || !email.includes('@')) {
+    setAuthStatus('Enter a valid email address.', true);
+    return;
+  }
+  setAuthStatus('Sending…');
+  try {
+    const r = await fetch('/api/auth?action=magic-link-request', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email }),
+    });
+    if (r.ok) {
+      setAuthStatus('Check your email for a sign-in link!');
+    } else {
+      setAuthStatus('Something went wrong. Please try again.', true);
+    }
+  } catch {
+    setAuthStatus('Network error. Please try again.', true);
+  }
+}
+
+// Email + password: login or signup
+async function emailPasswordAuth(mode) {
+  const email    = (document.getElementById('auth-email-input').value    || '').trim();
+  const password = (document.getElementById('auth-password-input').value || '');
+  if (!email || !email.includes('@')) { setAuthStatus('Enter a valid email.', true); return; }
+  if (!password)                       { setAuthStatus('Enter your password.',  true); return; }
+  setAuthStatus('…');
+  try {
+    const action = mode === 'signup' ? 'email-signup' : 'email-login';
+    const r = await fetch(`/api/auth?action=${action}`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email, password }),
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      setAuthStatus(data.error || 'Something went wrong.', true);
+      return;
+    }
+    // Refresh session
+    const me = await fetch('/api/auth?action=me');
+    if (me.ok) {
+      const meData = await me.json();
+      _authUser  = meData.user  || null;
+      _authStats = meData.stats || null;
+    }
+    onAuthSuccess(true);
+    if (_authUser) maybePromptImport();
+  } catch {
+    setAuthStatus('Network error. Please try again.', true);
+  }
+}
+
+async function signOut() {
+  try { await fetch('/api/auth?action=logout', { method: 'POST' }); } catch {}
+  _authUser  = null;
+  _authStats = null;
+  updateAuthUI();
+  showToast('Signed out', 1800);
+}
+
+// Show import prompt if user has local stats and server has none
+async function maybePromptImport() {
+  if (!_authUser) return;
+  if (_authStats && (_authStats.gamesPlayed || 0) > 0) return; // server already has data
+  const local = loadStorage();
+  if ((local.played || 0) === 0) return; // nothing to import
+
+  const parts = [];
+  if ((local.streak || 0) > 1)    parts.push(`${local.streak}-day streak`);
+  if ((local.played || 0) > 0)    parts.push(`${local.played} games played`);
+  if ((local.bestScore || 0) > 0) parts.push(`best score ${local.bestScore}`);
+  const summaryEl = document.getElementById('import-summary-text');
+  if (summaryEl) summaryEl.textContent = `We found ${parts.join(', ')} on this device. Import it to your account?`;
+  document.getElementById('import-prompt').classList.remove('hidden');
+}
+
+async function doImportStats(confirm) {
+  document.getElementById('import-prompt').classList.add('hidden');
+  if (!confirm || !_authUser) return;
+  const local = loadStorage();
+  try {
+    await fetch('/api/auth?action=import-stats', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        streak:            local.streak        || 0,
+        bestScore:         local.bestScore     || 0,
+        lastScore:         local.lastScore     || null,
+        gamesPlayed:       local.played        || 0,
+        lastPlayedDay:     local.lastPlayedDay || null,
+        anonymousPlayerId: local.playerId      || null,
+      }),
+    });
+    showToast('Stats imported to your account!', 2500);
+  } catch {}
 }
 
 // ─── cookie helpers (private, minimal) ──────────────────────────────────────
@@ -3347,6 +3589,22 @@ document.getElementById('zoom-tip-overlay').addEventListener('click', function()
   this.classList.add('hidden');
 });
 
+// ── Auth event listeners ──────────────────────────────────
+document.getElementById('btn-auth-close').addEventListener('click', closeAuthModal);
+document.getElementById('btn-google-login').addEventListener('click', loginWithGoogle);
+document.getElementById('btn-magic-link').addEventListener('click', requestMagicLink);
+document.getElementById('btn-email-login').addEventListener('click', () => emailPasswordAuth('login'));
+document.getElementById('btn-email-signup').addEventListener('click', () => emailPasswordAuth('signup'));
+document.getElementById('tab-magic').addEventListener('click', () => switchAuthTab('magic'));
+document.getElementById('tab-password').addEventListener('click', () => switchAuthTab('password'));
+document.getElementById('btn-signin-summary').addEventListener('click', openAuthModal);
+document.getElementById('btn-import-yes').addEventListener('click', () => doImportStats(true));
+document.getElementById('btn-import-no').addEventListener('click',  () => doImportStats(false));
+// Close auth modal on backdrop click
+document.getElementById('auth-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeAuthModal();
+});
+
 // ─────────────────────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────────────────────
@@ -3356,7 +3614,122 @@ initHome();
 initFeedback();
 showScreen('home');
 document.getElementById('hud-day-num').textContent = getDayNumber();
+
+// Initialise auth state asynchronously — doesn't block the game
+initAuth();
 </script>
+
+<!-- ─── AUTH MODAL ────────────────────────────────────────── -->
+<div id="auth-modal" class="screen hidden" style="z-index:200;background:rgba(10,10,15,0.92);backdrop-filter:blur(8px);">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;
+              padding:32px 24px;width:100%;max-width:340px;display:flex;flex-direction:column;
+              align-items:center;gap:14px;position:relative;">
+    <button id="btn-auth-close"
+            style="position:absolute;top:12px;right:16px;background:none;border:none;
+                   color:var(--muted);font-size:20px;cursor:pointer;line-height:1;">✕</button>
+    <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;">Sign In</div>
+    <p style="font-size:12px;color:var(--muted);text-align:center;margin:0;">
+      Save your streak and play across any device
+    </p>
+
+    <!-- Google -->
+    <button id="btn-google-login"
+            style="width:100%;height:48px;background:#fff;color:#111;border:1px solid #ddd;
+                   border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;
+                   display:flex;align-items:center;justify-content:center;gap:10px;">
+      <svg width="18" height="18" viewBox="0 0 48 48">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+        <path fill="none" d="M0 0h48v48H0z"/>
+      </svg>
+      Continue with Google
+    </button>
+
+    <div style="width:100%;display:flex;align-items:center;gap:8px;">
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+      <span style="font-size:11px;color:var(--muted);">or use email</span>
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+    </div>
+
+    <!-- Email input (shared) -->
+    <input id="auth-email-input" type="email" placeholder="your@email.com" autocomplete="email"
+           style="width:100%;height:44px;background:var(--surface2, var(--surface));
+                  border:1px solid var(--border);border-radius:10px;padding:0 14px;
+                  color:var(--text);font-family:'DM Mono',monospace;font-size:13px;
+                  outline:none;box-sizing:border-box;" />
+
+    <!-- Tab selector -->
+    <div style="width:100%;display:flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+      <button id="tab-magic" class="auth-tab auth-tab-active"
+              style="flex:1;height:34px;border:none;cursor:pointer;font-size:12px;font-weight:600;
+                     background:var(--accent);color:var(--btn-text);transition:all 0.15s;">
+        Magic Link
+      </button>
+      <button id="tab-password" class="auth-tab"
+              style="flex:1;height:34px;border:none;cursor:pointer;font-size:12px;font-weight:600;
+                     background:transparent;color:var(--muted);transition:all 0.15s;">
+        Password
+      </button>
+    </div>
+
+    <!-- Magic link panel -->
+    <div id="panel-magic" style="width:100%;">
+      <button id="btn-magic-link"
+              style="width:100%;height:44px;background:var(--accent);color:var(--btn-text);
+                     border:none;border-radius:12px;font-family:'Syne',sans-serif;
+                     font-size:14px;font-weight:700;cursor:pointer;">
+        Send Magic Link
+      </button>
+    </div>
+
+    <!-- Password panel (hidden by default) -->
+    <div id="panel-password" class="hidden" style="width:100%;display:flex;flex-direction:column;gap:8px;">
+      <input id="auth-password-input" type="password" placeholder="Password (min 8 chars)" autocomplete="current-password"
+             style="width:100%;height:44px;background:var(--surface2, var(--surface));
+                    border:1px solid var(--border);border-radius:10px;padding:0 14px;
+                    color:var(--text);font-family:'DM Mono',monospace;font-size:13px;
+                    outline:none;box-sizing:border-box;" />
+      <div style="display:flex;gap:8px;">
+        <button id="btn-email-login"
+                style="flex:1;height:44px;background:var(--accent);color:var(--btn-text);
+                       border:none;border-radius:12px;font-family:'Syne',sans-serif;
+                       font-size:13px;font-weight:700;cursor:pointer;">
+          Sign In
+        </button>
+        <button id="btn-email-signup"
+                style="flex:1;height:44px;background:transparent;color:var(--text);
+                       border:1px solid var(--border);border-radius:12px;font-family:'Syne',sans-serif;
+                       font-size:13px;font-weight:700;cursor:pointer;">
+          Create Account
+        </button>
+      </div>
+    </div>
+
+    <div id="auth-status" style="font-size:12px;color:var(--muted);min-height:16px;text-align:center;"></div>
+  </div>
+</div>
+
+<!-- ─── IMPORT PROMPT ─────────────────────────────────────── -->
+<div id="import-prompt" class="screen hidden" style="z-index:201;background:rgba(10,10,15,0.92);backdrop-filter:blur(8px);">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;
+              padding:32px 24px;width:100%;max-width:340px;display:flex;flex-direction:column;
+              align-items:center;gap:16px;text-align:center;">
+    <div style="font-size:32px;">📊</div>
+    <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;">Import Your Stats?</div>
+    <p id="import-summary-text" style="font-size:13px;color:var(--muted);margin:0;">
+      We found existing stats on this device.
+    </p>
+    <button id="btn-import-yes" class="btn-share"
+            style="max-width:none;height:48px;font-size:14px;">
+      Yes, import my stats
+    </button>
+    <button id="btn-import-no" class="btn-ghost" style="margin-top:0;height:40px;font-size:13px;">
+      Start fresh
+    </button>
+  </div>
+</div>
 
 <a class="x-social-link" href="https://x.com/PlayPinDrop" target="_blank" rel="noopener" aria-label="PinDrop on X">
   <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

@@ -133,6 +133,9 @@ async function ensureTables(conn) {
   await conn.run(`ALTER TABLE pindrop.games ADD COLUMN IF NOT EXISTS locale   VARCHAR`);
   await conn.run(`ALTER TABLE pindrop.games ADD COLUMN IF NOT EXISTS referrer VARCHAR`);
   await conn.run(`ALTER TABLE pindrop.games ADD COLUMN IF NOT EXISTS source   VARCHAR`);
+  // Auth: link plays/games to logged-in users
+  await conn.run(`ALTER TABLE pindrop.plays ADD COLUMN IF NOT EXISTS user_id VARCHAR`);
+  await conn.run(`ALTER TABLE pindrop.games ADD COLUMN IF NOT EXISTS user_id VARCHAR`);
 
   _tablesReady = true;
 }
@@ -140,7 +143,7 @@ async function ensureTables(conn) {
 // ── trackPlay ────────────────────────────────────────────────────────────────
 async function trackPlay({
   gameDate, dayNumber, round, location,
-  guessLat, guessLng, targetLat, targetLng, distKm, points, playerId,
+  guessLat, guessLng, targetLat, targetLng, distKm, points, playerId, userId,
   timeToGuessSeconds, locationDifficulty,
 }) {
   try {
@@ -172,13 +175,14 @@ async function trackPlay({
         `INSERT INTO pindrop.plays
            (game_date, day_number, round, location,
             guess_lat, guess_lng, target_lat, target_lng, dist_km, points,
-            player_id, time_to_guess_seconds, location_difficulty)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            player_id, user_id, time_to_guess_seconds, location_difficulty)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [gameDate, dayNumber, round, location,
          guessLat, guessLng,
          targetLat ?? null, targetLng ?? null,
          distKm, points,
          playerId ?? null,
+         userId   ?? null,
          timeToGuessSeconds ?? null,
          locationDifficulty ?? null]
       );
@@ -192,7 +196,7 @@ async function trackPlay({
 
 // ── trackGame ────────────────────────────────────────────────────────────────
 async function trackGame({
-  gameDate, dayNumber, playerId, totalScore,
+  gameDate, dayNumber, playerId, userId, totalScore,
   gameDurationSeconds, streakAtTime, gamesPlayedLifetime,
   deviceType, darkMode,
   timezone, locale, referrer, source,
@@ -206,12 +210,12 @@ async function trackGame({
       await ensureTables(conn);
       await conn.run(
         `INSERT INTO pindrop.games
-           (game_date, day_number, player_id, total_score,
+           (game_date, day_number, player_id, user_id, total_score,
             game_duration_seconds, streak_at_time, games_played_lifetime,
             device_type, dark_mode,
             timezone, locale, referrer, source)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [gameDate, dayNumber, playerId ?? null, totalScore,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [gameDate, dayNumber, playerId ?? null, userId ?? null, totalScore,
          gameDurationSeconds ?? null,
          streakAtTime ?? null,
          gamesPlayedLifetime ?? null,
@@ -913,6 +917,245 @@ async function updateFeedback({ id, status, category, adminNotes }) {
   }
 }
 
+// ── Auth: users + user_stats ──────────────────────────────────────────────────
+// Uses getDataInstance() so auth works in preview and development environments.
+
+let _authTablesReady = false;
+
+async function ensureAuthTables(conn) {
+  if (_authTablesReady) return;
+  await conn.run(`CREATE SCHEMA IF NOT EXISTS pindrop`);
+  await conn.run(`
+    CREATE TABLE IF NOT EXISTS pindrop.users (
+      id                  VARCHAR     PRIMARY KEY,
+      email               VARCHAR     UNIQUE,
+      display_name        VARCHAR,
+      avatar_url          VARCHAR,
+      provider            VARCHAR     NOT NULL,
+      provider_id         VARCHAR,
+      password_hash       VARCHAR,
+      anonymous_player_id VARCHAR,
+      created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+      last_seen_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await conn.run(`
+    CREATE TABLE IF NOT EXISTS pindrop.user_stats (
+      user_id          VARCHAR PRIMARY KEY,
+      streak           INTEGER NOT NULL DEFAULT 0,
+      best_score       INTEGER NOT NULL DEFAULT 0,
+      last_score       INTEGER,
+      games_played     INTEGER NOT NULL DEFAULT 0,
+      last_played_day  VARCHAR,
+      updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  _authTablesReady = true;
+}
+
+// Find user by OAuth provider + provider_id (e.g. Google sub).
+async function findUserByProvider(provider, providerId) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return null;
+    const conn = await inst.connect();
+    try {
+      await ensureAuthTables(conn);
+      const res = await conn.runAndReadAll(
+        `SELECT id, email, display_name, avatar_url, provider, provider_id
+         FROM pindrop.users WHERE provider = ? AND provider_id = ?`,
+        [provider, providerId]
+      );
+      const rows = res.getRowObjects();
+      return rows[0] || null;
+    } finally { conn.closeSync(); }
+  } catch (e) {
+    console.error('[MotherDuck] findUserByProvider error:', e.message);
+    return null;
+  }
+}
+
+// Find user by email (magic link or email/password lookup).
+async function findUserByEmail(email) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return null;
+    const conn = await inst.connect();
+    try {
+      await ensureAuthTables(conn);
+      const res = await conn.runAndReadAll(
+        `SELECT id, email, display_name, avatar_url, provider, provider_id, password_hash
+         FROM pindrop.users WHERE email = ?`,
+        [email.toLowerCase()]
+      );
+      const rows = res.getRowObjects();
+      return rows[0] || null;
+    } finally { conn.closeSync(); }
+  } catch (e) {
+    console.error('[MotherDuck] findUserByEmail error:', e.message);
+    return null;
+  }
+}
+
+// Create or update a user row and ensure a user_stats row exists.
+// Returns the full user record.
+async function upsertUser({ id, email, displayName, avatarUrl, provider, providerId }) {
+  const inst = await getDataInstance();
+  if (!inst) throw new Error('MotherDuck not available');
+  const conn = await inst.connect();
+  try {
+    await ensureAuthTables(conn);
+    await conn.run(
+      `INSERT INTO pindrop.users (id, email, display_name, avatar_url, provider, provider_id, last_seen_at)
+       VALUES (?, ?, ?, ?, ?, ?, now())
+       ON CONFLICT (id) DO UPDATE SET
+         display_name = COALESCE(EXCLUDED.display_name, pindrop.users.display_name),
+         avatar_url   = COALESCE(EXCLUDED.avatar_url,   pindrop.users.avatar_url),
+         last_seen_at = now()`,
+      [id, email ? email.toLowerCase() : null, displayName || null, avatarUrl || null, provider, providerId || null]
+    );
+    // Ensure stats row exists
+    await conn.run(
+      `INSERT INTO pindrop.user_stats (user_id) VALUES (?) ON CONFLICT (user_id) DO NOTHING`,
+      [id]
+    );
+    const res = await conn.runAndReadAll(
+      `SELECT id, email, display_name, avatar_url, provider FROM pindrop.users WHERE id = ?`, [id]
+    );
+    return res.getRowObjects()[0] || null;
+  } finally { conn.closeSync(); }
+}
+
+// Create a new email+password user. Call after hashing the password.
+async function createEmailPasswordUser({ id, email, passwordHash, displayName }) {
+  const inst = await getDataInstance();
+  if (!inst) throw new Error('MotherDuck not available');
+  const conn = await inst.connect();
+  try {
+    await ensureAuthTables(conn);
+    await conn.run(
+      `INSERT INTO pindrop.users (id, email, display_name, provider, password_hash)
+       VALUES (?, ?, ?, 'email_password', ?)`,
+      [id, email.toLowerCase(), displayName || null, passwordHash]
+    );
+    await conn.run(
+      `INSERT INTO pindrop.user_stats (user_id) VALUES (?)`, [id]
+    );
+  } finally { conn.closeSync(); }
+}
+
+// Returns user row if email/password are valid, null otherwise.
+async function verifyEmailPasswordUser(email, password) {
+  const crypto = require('crypto');
+  const user = await findUserByEmail(email);
+  if (!user || !user.password_hash) return null;
+
+  // Format: $scrypt$<salt>$<hash>
+  const parts = user.password_hash.split('$');
+  if (parts.length !== 4 || parts[1] !== 'scrypt') return null;
+  const [, , salt, expectedHash] = parts;
+  try {
+    const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+    const valid = crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(expectedHash));
+    return valid ? user : null;
+  } catch { return null; }
+}
+
+// Return user + stats in a single call (used by GET /api/auth?action=me).
+async function getUserWithStats(userId) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return null;
+    const conn = await inst.connect();
+    try {
+      await ensureAuthTables(conn);
+      const res = await conn.runAndReadAll(
+        `SELECT u.id, u.email, u.display_name, u.avatar_url,
+                s.streak, s.best_score, s.last_score, s.games_played, s.last_played_day
+         FROM pindrop.users u
+         LEFT JOIN pindrop.user_stats s ON s.user_id = u.id
+         WHERE u.id = ?`,
+        [userId]
+      );
+      const rows = res.getRowObjects();
+      if (!rows.length) return null;
+      const r = rows[0];
+      return {
+        user:  { id: r.id, email: r.email, displayName: r.display_name, avatarUrl: r.avatar_url },
+        stats: { streak: r.streak || 0, bestScore: r.best_score || 0, lastScore: r.last_score,
+                 gamesPlayed: r.games_played || 0, lastPlayedDay: r.last_played_day },
+      };
+    } finally { conn.closeSync(); }
+  } catch (e) {
+    console.error('[MotherDuck] getUserWithStats error:', e.message);
+    return null;
+  }
+}
+
+// Update user stats after a game completes. Fire-and-forget safe.
+async function updateUserStats({ userId, streak, bestScore, lastScore, gamesPlayed, lastPlayedDay }) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return;
+    const conn = await inst.connect();
+    try {
+      await ensureAuthTables(conn);
+      await conn.run(
+        `UPDATE pindrop.user_stats
+         SET streak          = ?,
+             best_score      = GREATEST(best_score, ?),
+             last_score      = ?,
+             games_played    = ?,
+             last_played_day = ?,
+             updated_at      = now()
+         WHERE user_id = ?`,
+        [streak ?? 0, bestScore ?? 0, lastScore ?? null,
+         gamesPlayed ?? 0, lastPlayedDay ?? null, userId]
+      );
+    } finally { conn.closeSync(); }
+  } catch (e) {
+    console.error('[MotherDuck] updateUserStats error:', e.message);
+  }
+}
+
+// One-time import of localStorage stats on first login. Guards against overwriting.
+async function importUserStats({ userId, streak, bestScore, lastScore, gamesPlayed, lastPlayedDay, anonymousPlayerId }) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return false;
+    const conn = await inst.connect();
+    try {
+      await ensureAuthTables(conn);
+      // Only import if the server-side record is still empty
+      const res = await conn.runAndReadAll(
+        `SELECT games_played FROM pindrop.user_stats WHERE user_id = ?`, [userId]
+      );
+      const rows = res.getRowObjects();
+      if (!rows.length || (rows[0].games_played || 0) > 0) return false;
+
+      await conn.run(
+        `UPDATE pindrop.user_stats
+         SET streak = ?, best_score = ?, last_score = ?, games_played = ?,
+             last_played_day = ?, updated_at = now()
+         WHERE user_id = ?`,
+        [streak ?? 0, bestScore ?? 0, lastScore ?? null,
+         gamesPlayed ?? 0, lastPlayedDay ?? null, userId]
+      );
+      // Store anonymous player ID for potential future backfill
+      if (anonymousPlayerId) {
+        await conn.run(
+          `UPDATE pindrop.users SET anonymous_player_id = ? WHERE id = ?`,
+          [anonymousPlayerId, userId]
+        );
+      }
+      return true;
+    } finally { conn.closeSync(); }
+  } catch (e) {
+    console.error('[MotherDuck] importUserStats error:', e.message);
+    return false;
+  }
+}
+
 module.exports = {
   trackPlay, trackGame, trackShare, storeDailyCombo,
   getAllLocations, getLockedDailyCombo, getLockedDates, getPlayedDates,
@@ -923,4 +1166,8 @@ module.exports = {
   createSocialPost, getSocialPosts, updateSocialPost, editSocialPost,
   getPendingScheduledPosts, deleteSocialPost,
   trackFeedback, getFeedbackList, getFeedbackDetail, updateFeedback,
+  // Auth
+  findUserByProvider, findUserByEmail, upsertUser,
+  createEmailPasswordUser, verifyEmailPasswordUser,
+  getUserWithStats, updateUserStats, importUserStats,
 };

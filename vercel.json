@@ -8,26 +8,9 @@
     }
   ],
   "crons": [
-    {
-      "path": "/api/social?action=daily-drop",
-      "schedule": "0 12 * * *"
-    },
-    {
-      "path": "/api/social?action=daily-stats",
-      "schedule": "0 14 * * *"
-    },
-    { "path": "/api/social?action=send-pending", "schedule": "0 1 * * *" },
-    { "path": "/api/social?action=send-pending", "schedule": "0 3 * * *" },
-    { "path": "/api/social?action=send-pending", "schedule": "0 5 * * *" },
-    { "path": "/api/social?action=send-pending", "schedule": "0 7 * * *" },
-    { "path": "/api/social?action=send-pending", "schedule": "0 9 * * *" },
-    { "path": "/api/social?action=send-pending", "schedule": "0 11 * * *" },
-    { "path": "/api/social?action=send-pending", "schedule": "0 13 * * *" },
-    { "path": "/api/social?action=send-pending", "schedule": "0 15 * * *" },
-    { "path": "/api/social?action=send-pending", "schedule": "0 17 * * *" },
-    { "path": "/api/social?action=send-pending", "schedule": "0 19 * * *" },
-    { "path": "/api/social?action=send-pending", "schedule": "0 21 * * *" },
-    { "path": "/api/social?action=send-pending", "schedule": "0 23 * * *" }
+    { "path": "/api/social?action=daily-drop",    "schedule": "0 12 * * *" },
+    { "path": "/api/social?action=daily-stats",   "schedule": "0 14 * * *" },
+    { "path": "/api/social?action=send-pending",  "schedule": "0 * * * *"  }
   ],
   "rewrites": [
     {
@@ -41,6 +24,10 @@
     {
       "source": "/omni",
       "destination": "/api/omni"
+    },
+    {
+      "source": "/auth",
+      "destination": "/api/auth"
     }
   ],
   "headers": [

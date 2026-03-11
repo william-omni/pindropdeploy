@@ -1,5 +1,6 @@
 // api/game.js — Vercel serverless handler for game API
 // Game data (LOCATIONS, seed logic, scoring) lives in _game-data.js
+const crypto = require('crypto');
 const {
   getDayNumber,
   getTodayLocations,
@@ -8,7 +9,26 @@ const {
   getLocDifficulty,
 } = require('./_game-data');
 
-const { trackPlay, trackGame, trackShare, storeDailyCombo, getDailyAvgScore, getDailyAvgRoundScore } = require('./_motherduck');
+const { trackPlay, trackGame, trackShare, storeDailyCombo, getDailyAvgScore, getDailyAvgRoundScore, updateUserStats } = require('./_motherduck');
+
+// ── Session helper (inlined to avoid shared module) ──────────────────────────
+function getUserIdFromRequest(req) {
+  try {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) return null;
+    const raw   = req.headers.cookie || '';
+    const match = raw.match(/(?:^|;\s*)pd_session=([^;]+)/);
+    if (!match) return null;
+    const token = decodeURIComponent(match[1]);
+    const [h, b, s] = token.split('.');
+    const b64url = buf => buf.toString('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    const expected = b64url(crypto.createHmac('sha256', secret).update(`${h}.${b}`).digest());
+    if (s !== expected) return null;
+    const payload = JSON.parse(Buffer.from(b, 'base64').toString());
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
+    return payload.sub || null;
+  } catch { return null; }
+}
 
 // ── Handler ─────────────────────────────────────────────────────────────────
 module.exports = async function handler(req, res) {
@@ -16,6 +36,9 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  // Resolve logged-in user (if any) from session cookie
+  const userId = getUserIdFromRequest(req);
 
   // Client passes its local date (YYYY-MM-DD) so seed follows user timezone
   const clientDate = (req.method === 'GET'
@@ -88,6 +111,7 @@ module.exports = async function handler(req, res) {
               distKm,
               points:               pts,
               playerId:             playerId ?? null,
+              userId:               userId   ?? null,
               timeToGuessSeconds:   Number.isFinite(timeToGuess) ? timeToGuess : null,
               locationDifficulty:   getLocDifficulty(loc),
             }),
@@ -115,21 +139,35 @@ module.exports = async function handler(req, res) {
         timezone, locale, referrer, source,
       } = req.body;
 
-      if (!isPreview) await trackGame({
-        gameDate,
-        dayNumber,
-        playerId:             playerId ?? null,
-        totalScore:           typeof totalScore === 'number' ? totalScore : 0,
-        gameDurationSeconds:  Number.isFinite(gameDurationSeconds) ? gameDurationSeconds : null,
-        streakAtTime:         Number.isFinite(streakAtTime) ? streakAtTime : null,
-        gamesPlayedLifetime:  Number.isFinite(gamesPlayedLifetime) ? gamesPlayedLifetime : null,
-        deviceType:           typeof deviceType === 'string' ? deviceType : null,
-        darkMode:             typeof darkMode === 'boolean' ? darkMode : null,
-        timezone:             typeof timezone  === 'string' ? timezone  : null,
-        locale:               typeof locale    === 'string' ? locale    : null,
-        referrer:             typeof referrer  === 'string' ? referrer  : null,
-        source:               typeof source    === 'string' ? source    : null,
-      });
+      if (!isPreview) {
+        await trackGame({
+          gameDate,
+          dayNumber,
+          playerId:             playerId ?? null,
+          userId:               userId   ?? null,
+          totalScore:           typeof totalScore === 'number' ? totalScore : 0,
+          gameDurationSeconds:  Number.isFinite(gameDurationSeconds) ? gameDurationSeconds : null,
+          streakAtTime:         Number.isFinite(streakAtTime) ? streakAtTime : null,
+          gamesPlayedLifetime:  Number.isFinite(gamesPlayedLifetime) ? gamesPlayedLifetime : null,
+          deviceType:           typeof deviceType === 'string' ? deviceType : null,
+          darkMode:             typeof darkMode === 'boolean' ? darkMode : null,
+          timezone:             typeof timezone  === 'string' ? timezone  : null,
+          locale:               typeof locale    === 'string' ? locale    : null,
+          referrer:             typeof referrer  === 'string' ? referrer  : null,
+          source:               typeof source    === 'string' ? source    : null,
+        });
+        // If logged in, keep server-side stats in sync (fire-and-forget)
+        if (userId) {
+          updateUserStats({
+            userId,
+            streak:         Number.isFinite(streakAtTime)        ? streakAtTime        : 0,
+            bestScore:      typeof totalScore === 'number'       ? totalScore          : 0,
+            lastScore:      typeof totalScore === 'number'       ? totalScore          : null,
+            gamesPlayed:    Number.isFinite(gamesPlayedLifetime) ? gamesPlayedLifetime : 0,
+            lastPlayedDay:  gameDate,
+          }).catch(() => {});
+        }
+      }
 
       return res.status(200).json({ ok: true });
     }
