@@ -166,6 +166,17 @@ module.exports = async function handler(req, res) {
     return res.status(503).json({ error: 'Auth not configured on this deployment (missing JWT_SECRET). Set it in Vercel → Settings → Environment Variables.' });
   }
 
+  // ── GET debug-url — show computed app URL (non-production only) ──────────
+  if (action === 'debug-url') {
+    const appUrl = getAppUrl(req);
+    return res.status(200).json({
+      appUrl,
+      redirectUri: `${appUrl}/api/auth?action=callback-google`,
+      host: req.headers.host,
+      vercelUrl: process.env.VERCEL_URL || null,
+    });
+  }
+
   // ── GET me ── return current session user + stats ─────────────────────────
   if (action === 'me') {
     const session = getSessionFromRequest(req);
@@ -285,7 +296,7 @@ module.exports = async function handler(req, res) {
     await kvSet(`magic:${token}`, email, 900); // 15-minute TTL
 
     try {
-      await fetch('https://api.resend.com/emails', {
+      const sendRes = await fetch('https://api.resend.com/emails', {
         method:  'POST',
         headers: {
           Authorization:  `Bearer ${resendKey}`,
@@ -311,9 +322,12 @@ module.exports = async function handler(req, res) {
           `,
         }),
       });
+      if (!sendRes.ok) {
+        const errBody = await sendRes.json().catch(() => ({}));
+        console.error('[Auth] Resend send failed:', sendRes.status, JSON.stringify(errBody));
+      }
     } catch (e) {
       console.error('[Auth] Resend error:', e.message);
-      // Don't reveal send failures to the client
     }
 
     // Always return ok — don't reveal whether the email exists
