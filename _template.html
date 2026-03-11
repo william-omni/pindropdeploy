@@ -1180,6 +1180,38 @@
     html.light-mode .icon-sun  { display: none; }
     html.light-mode .icon-moon { display: block; }
 
+    /* Auth corner button (top-left, mirrors theme toggle) */
+    .auth-corner-btn {
+      position: absolute;
+      top: max(16px, calc(var(--safe-top) + 12px));
+      left: 16px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      z-index: 10;
+      transition: background 0.2s, opacity 0.2s;
+    }
+    .auth-corner-btn:hover { opacity: 0.8; }
+    .auth-corner-btn svg { width: 16px; height: 16px; stroke: var(--text); flex-shrink: 0; }
+    .auth-corner-btn.signed-in svg { stroke: var(--accent); }
+    /* Mini account menu (appears below corner button when signed in) */
+    #auth-mini-menu {
+      position: absolute;
+      top: calc(max(16px, calc(var(--safe-top) + 12px)) + 44px);
+      left: 16px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      z-index: 20;
+      min-width: 160px;
+      display: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    }
+
     /* Mapbox overrides */
     .mapboxgl-ctrl-bottom-left, .mapboxgl-ctrl-bottom-right,
     .mapboxgl-ctrl-top-left, .mapboxgl-ctrl-top-right { display: none !important; }
@@ -1263,13 +1295,24 @@
         <div class="streak-lbl">Played</div>
       </div>
     </div>
-    <!-- Auth row: shows sign-in link (logged out) or name + sign-out (logged in) -->
-    <div id="auth-home-row" style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:10px;min-height:28px;">
-      <button id="btn-signin-home" class="btn-ghost"
-              style="padding:6px 16px;font-size:12px;margin-top:0;height:28px;opacity:0.75;">
-        Sign in to sync across devices
-      </button>
-    </div>
+  </div>
+  <!-- Auth corner button (top-left) — outline when logged out, accent when signed in -->
+  <button class="auth-corner-btn" id="btn-auth-corner" aria-label="Account">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+      <circle cx="12" cy="7" r="4"/>
+    </svg>
+  </button>
+  <!-- Mini account menu (shown when signed in) -->
+  <div id="auth-mini-menu">
+    <p id="auth-mini-name" style="margin:0 0 10px;font-size:12px;color:var(--muted);
+       overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></p>
+    <button id="btn-signout-menu"
+            style="background:none;border:none;color:var(--muted);font-size:12px;
+                   text-decoration:underline;cursor:pointer;padding:0;">
+      Sign out
+    </button>
   </div>
   <button class="theme-toggle-btn" id="btn-theme-toggle" aria-label="Toggle dark/light mode">
     <!-- Sun: shown in dark mode, click → go light -->
@@ -1611,32 +1654,8 @@
                   color:var(--text);font-family:'DM Mono',monospace;font-size:13px;
                   outline:none;box-sizing:border-box;" />
 
-    <!-- Tab selector -->
-    <div style="width:100%;display:flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;">
-      <button id="tab-magic" class="auth-tab auth-tab-active"
-              style="flex:1;height:34px;border:none;cursor:pointer;font-size:12px;font-weight:600;
-                     background:var(--accent);color:var(--btn-text);transition:all 0.15s;">
-        Magic Link
-      </button>
-      <button id="tab-password" class="auth-tab"
-              style="flex:1;height:34px;border:none;cursor:pointer;font-size:12px;font-weight:600;
-                     background:transparent;color:var(--muted);transition:all 0.15s;">
-        Password
-      </button>
-    </div>
-
-    <!-- Magic link panel -->
-    <div id="panel-magic" style="width:100%;">
-      <button id="btn-magic-link"
-              style="width:100%;height:44px;background:var(--accent);color:var(--btn-text);
-                     border:none;border-radius:12px;font-family:'Syne',sans-serif;
-                     font-size:14px;font-weight:700;cursor:pointer;">
-        Send Magic Link
-      </button>
-    </div>
-
-    <!-- Password panel (hidden by default) -->
-    <div id="panel-password" style="display:none;width:100%;flex-direction:column;gap:8px;">
+    <!-- Email + password panel -->
+    <div id="panel-password" style="display:flex;width:100%;flex-direction:column;gap:8px;">
       <input id="auth-password-input" type="password" placeholder="Password (min 8 chars)" autocomplete="current-password"
              style="width:100%;height:44px;background:var(--surface2, var(--surface));
                     border:1px solid var(--border);border-radius:10px;padding:0 14px;
@@ -1916,29 +1935,17 @@ function onAuthSuccess(justSignedIn = true) {
 }
 
 function updateAuthUI() {
-  const authRow   = document.getElementById('auth-home-row');
+  const cornerBtn = document.getElementById('btn-auth-corner');
   const authNudge = document.getElementById('auth-nudge');
-  if (!authRow) return;
+  const miniName  = document.getElementById('auth-mini-name');
 
   if (_authUser) {
-    const name = _authUser.displayName || _authUser.email || 'Account';
-    authRow.innerHTML = `
-      <span style="font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;">${escHtml(name)}</span>
-      <button id="btn-signout-inline"
-              style="background:none;border:none;color:var(--muted);font-size:12px;
-                     text-decoration:underline;cursor:pointer;white-space:nowrap;">
-        Sign out
-      </button>`;
-    document.getElementById('btn-signout-inline').addEventListener('click', signOut);
+    if (cornerBtn) cornerBtn.classList.add('signed-in');
+    if (miniName)  miniName.textContent = _authUser.displayName || _authUser.email || 'Account';
     if (authNudge) authNudge.classList.add('hidden');
   } else {
-    authRow.innerHTML = `
-      <button id="btn-signin-home" class="btn-ghost"
-              style="padding:6px 16px;font-size:12px;margin-top:0;height:28px;opacity:0.75;">
-        Sign in to sync across devices
-      </button>`;
-    document.getElementById('btn-signin-home').addEventListener('click', openAuthModal);
-    // Show nudge on summary if streak ≥ 2
+    if (cornerBtn) cornerBtn.classList.remove('signed-in');
+    if (miniName)  miniName.textContent = '';
     if (authNudge) {
       const store = loadStorage();
       if ((store.streak || 0) >= 2) authNudge.classList.remove('hidden');
@@ -1956,24 +1963,10 @@ function openAuthModal() {
   document.getElementById('auth-email-input').value  = '';
   if (document.getElementById('auth-password-input'))
     document.getElementById('auth-password-input').value = '';
-  // Default to magic link tab
-  switchAuthTab('magic');
 }
 
 function closeAuthModal() {
   document.getElementById('auth-modal').classList.add('hidden');
-}
-
-function switchAuthTab(tab) {
-  const isMagic = tab === 'magic';
-  document.getElementById('panel-magic').style.display    = isMagic ? '' : 'none';
-  document.getElementById('panel-password').style.display = isMagic ? 'none' : 'flex';
-  document.getElementById('tab-magic').style.cssText    += isMagic
-    ? ';background:var(--accent);color:var(--btn-text);'
-    : ';background:transparent;color:var(--muted);';
-  document.getElementById('tab-password').style.cssText += !isMagic
-    ? ';background:var(--accent);color:var(--btn-text);'
-    : ';background:transparent;color:var(--muted);';
 }
 
 function setAuthStatus(msg, isError = false) {
@@ -1986,31 +1979,6 @@ function setAuthStatus(msg, isError = false) {
 // Google: navigate to server-side OAuth start
 function loginWithGoogle() {
   window.location.href = '/api/auth?action=login-google';
-}
-
-// Magic link: POST to request endpoint
-async function requestMagicLink() {
-  const email = (document.getElementById('auth-email-input').value || '').trim();
-  if (!email || !email.includes('@')) {
-    setAuthStatus('Enter a valid email address.', true);
-    return;
-  }
-  setAuthStatus('Sending…');
-  try {
-    const r = await fetch('/api/auth?action=magic-link-request', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ email }),
-    });
-    if (r.ok) {
-      setAuthStatus('Check your email for a sign-in link!');
-    } else {
-      const errData = await r.json().catch(() => ({}));
-      setAuthStatus(errData.error || 'Something went wrong. Please try again.', true);
-    }
-  } catch {
-    setAuthStatus('Network error. Please try again.', true);
-  }
 }
 
 // Email + password: login or signup
@@ -3701,15 +3669,32 @@ document.getElementById('zoom-tip-overlay').addEventListener('click', function()
 // ── Auth event listeners ──────────────────────────────────
 document.getElementById('btn-auth-close').addEventListener('click', closeAuthModal);
 document.getElementById('btn-google-login').addEventListener('click', loginWithGoogle);
-document.getElementById('btn-magic-link').addEventListener('click', requestMagicLink);
 document.getElementById('btn-email-login').addEventListener('click', () => emailPasswordAuth('login'));
 document.getElementById('btn-email-signup').addEventListener('click', () => emailPasswordAuth('signup'));
-document.getElementById('tab-magic').addEventListener('click', () => switchAuthTab('magic'));
-document.getElementById('tab-password').addEventListener('click', () => switchAuthTab('password'));
-document.getElementById('btn-signin-home').addEventListener('click', openAuthModal);
 document.getElementById('btn-signin-summary').addEventListener('click', openAuthModal);
 document.getElementById('btn-import-yes').addEventListener('click', () => doImportStats(true));
 document.getElementById('btn-import-no').addEventListener('click',  () => doImportStats(false));
+// Corner auth button: open modal (logged out) or toggle mini menu (logged in)
+document.getElementById('btn-auth-corner').addEventListener('click', function() {
+  if (_authUser) {
+    const menu = document.getElementById('auth-mini-menu');
+    menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+  } else {
+    openAuthModal();
+  }
+});
+document.getElementById('btn-signout-menu').addEventListener('click', function() {
+  document.getElementById('auth-mini-menu').style.display = 'none';
+  signOut();
+});
+// Close mini menu when clicking anywhere outside it
+document.addEventListener('click', function(e) {
+  const menu = document.getElementById('auth-mini-menu');
+  const btn  = document.getElementById('btn-auth-corner');
+  if (menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) {
+    menu.style.display = 'none';
+  }
+});
 // Close auth modal on backdrop click
 document.getElementById('auth-modal').addEventListener('click', function(e) {
   if (e.target === this) closeAuthModal();

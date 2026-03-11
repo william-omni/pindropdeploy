@@ -2,19 +2,15 @@
 //
 // Supports:
 //   Google OAuth 2.0 (server-side Authorization Code flow)
-//   Email magic link  (passwordless, 15-min token via Vercel KV + Resend)
 //   Email + password  (scrypt hashing via Node built-in crypto)
 //
 // Session: HTTP-only `pd_session` cookie, HS256 JWT signed with JWT_SECRET.
 // All user data is stored in MotherDuck (pindrop.users, pindrop.user_stats).
-// Magic link tokens are stored in Vercel KV with a 900-second TTL.
 //
 // Routes (all via ?action=):
 //   GET  me                 — return current user + stats from cookie
 //   GET  login-google       — redirect to Google OAuth
 //   GET  callback-google    — handle Google OAuth callback
-//   POST magic-link-request — send sign-in link to email
-//   GET  magic-link-verify  — verify magic link token, set session
 //   POST email-signup       — register with email + password
 //   POST email-login        — sign in with email + password
 //   POST import-stats       — import localStorage stats (first login only)
@@ -141,7 +137,7 @@ function newUserId() {
   return 'usr_' + crypto.randomUUID().replace(/-/g, '');
 }
 
-// ── App base URL (for OAuth redirects and magic link emails) ──────────────────
+// ── App base URL (for OAuth redirects) ───────────────────────────────────────
 
 function getAppUrl(req) {
   if (process.env.APP_URL) return process.env.APP_URL;
@@ -160,7 +156,7 @@ module.exports = async function handler(req, res) {
 
   // Actions that create sessions require JWT_SECRET to be configured
   const SESSION_ACTIONS = new Set([
-    'email-signup', 'email-login', 'callback-google', 'magic-link-verify', 'dev-login',
+    'email-signup', 'email-login', 'callback-google', 'dev-login',
   ]);
   if (SESSION_ACTIONS.has(action) && !secret) {
     return res.status(503).json({ error: 'Auth not configured on this deployment (missing JWT_SECRET). Set it in Vercel → Settings → Environment Variables.' });
@@ -274,100 +270,6 @@ module.exports = async function handler(req, res) {
 
     } catch (e) {
       console.error('[Auth] callback-google error:', e.message);
-      return res.redirect(302, `${appUrl}/?auth=error`);
-    }
-  }
-
-  // ── POST magic-link-request — send sign-in email ──────────────────────────
-  if (action === 'magic-link-request' && req.method === 'POST') {
-    const body  = await parseJsonBody(req);
-    const email = (body && body.email || '').toLowerCase().trim();
-    if (!email || !email.includes('@') || !email.includes('.')) {
-      return res.status(400).json({ error: 'Invalid email address' });
-    }
-
-    const resendKey = process.env.RESEND_API_KEY;
-    if (!resendKey) return res.status(503).json({ error: 'Email not configured' });
-
-    const token   = crypto.randomBytes(32).toString('hex');
-    const appUrl  = getAppUrl(req);
-    const link    = `${appUrl}/api/auth?action=magic-link-verify&token=${token}`;
-
-    await kvSet(`magic:${token}`, email, 900); // 15-minute TTL
-
-    try {
-      const sendRes = await fetch('https://api.resend.com/emails', {
-        method:  'POST',
-        headers: {
-          Authorization:  `Bearer ${resendKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from:    'PinDrop <noreply@playpindrop.app>',
-          to:      [email],
-          subject: 'Your PinDrop sign-in link',
-          html: `
-            <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">
-              <h2 style="margin:0 0 8px;font-size:22px;">Sign in to PinDrop</h2>
-              <p style="color:#666;margin:0 0 24px;">Click the link below to sign in. It expires in 15 minutes.</p>
-              <a href="${link}"
-                 style="display:inline-block;background:#3b82f6;color:#fff;padding:14px 28px;
-                        border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;">
-                Sign In to PinDrop
-              </a>
-              <p style="color:#999;margin:24px 0 0;font-size:12px;">
-                If you didn't request this, you can safely ignore this email.
-              </p>
-            </div>
-          `,
-        }),
-      });
-      if (!sendRes.ok) {
-        const errBody = await sendRes.json().catch(() => ({}));
-        console.error('[Auth] Resend send failed:', sendRes.status, JSON.stringify(errBody));
-      }
-    } catch (e) {
-      console.error('[Auth] Resend error:', e.message);
-    }
-
-    // Always return ok — don't reveal whether the email exists
-    return res.status(200).json({ ok: true });
-  }
-
-  // ── GET magic-link-verify — consume token, create session ─────────────────
-  if (action === 'magic-link-verify') {
-    const { token } = req.query;
-    const appUrl    = getAppUrl(req);
-
-    if (!token) return res.redirect(302, `${appUrl}/?auth=expired`);
-
-    const email = await kvGet(`magic:${token}`);
-    if (!email)  return res.redirect(302, `${appUrl}/?auth=expired`);
-
-    // Consume token immediately (single-use)
-    await kvDel(`magic:${token}`);
-
-    try {
-      // Find existing user or create one
-      let user = await findUserByEmail(email);
-      if (!user) {
-        user = await upsertUser({
-          id:       newUserId(),
-          email,
-          provider: 'email',
-        });
-      }
-      if (!user) return res.redirect(302, `${appUrl}/?auth=error`);
-
-      const jwt = signJwt(
-        { sub: user.id, email: user.email, exp: Math.floor(Date.now() / 1000) + 30 * 86400 },
-        secret
-      );
-      setSessionCookie(res, jwt);
-      return res.redirect(302, `${appUrl}/?auth=success`);
-
-    } catch (e) {
-      console.error('[Auth] magic-link-verify error:', e.message);
       return res.redirect(302, `${appUrl}/?auth=error`);
     }
   }
