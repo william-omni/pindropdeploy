@@ -28,6 +28,14 @@
     {
       "source": "/auth",
       "destination": "/api/auth"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/api/privacy"
+    },
+    {
+      "source": "/terms",
+      "destination": "/api/terms"
     }
   ],
   "headers": [
