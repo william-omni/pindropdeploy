@@ -158,6 +158,14 @@ module.exports = async function handler(req, res) {
   const action = (req.query && req.query.action) || '';
   const secret = process.env.JWT_SECRET;
 
+  // Actions that create sessions require JWT_SECRET to be configured
+  const SESSION_ACTIONS = new Set([
+    'email-signup', 'email-login', 'callback-google', 'magic-link-verify', 'dev-login',
+  ]);
+  if (SESSION_ACTIONS.has(action) && !secret) {
+    return res.status(503).json({ error: 'Auth not configured on this deployment (missing JWT_SECRET). Set it in Vercel → Settings → Environment Variables.' });
+  }
+
   // ── GET me ── return current session user + stats ─────────────────────────
   if (action === 'me') {
     const session = getSessionFromRequest(req);

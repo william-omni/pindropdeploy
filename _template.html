@@ -1636,7 +1636,7 @@
     </div>
 
     <!-- Password panel (hidden by default) -->
-    <div id="panel-password" class="hidden" style="width:100%;display:flex;flex-direction:column;gap:8px;">
+    <div id="panel-password" style="display:none;width:100%;flex-direction:column;gap:8px;">
       <input id="auth-password-input" type="password" placeholder="Password (min 8 chars)" autocomplete="current-password"
              style="width:100%;height:44px;background:var(--surface2, var(--surface));
                     border:1px solid var(--border);border-radius:10px;padding:0 14px;
@@ -1966,8 +1966,8 @@ function closeAuthModal() {
 
 function switchAuthTab(tab) {
   const isMagic = tab === 'magic';
-  document.getElementById('panel-magic').classList.toggle('hidden', !isMagic);
-  document.getElementById('panel-password').classList.toggle('hidden', isMagic);
+  document.getElementById('panel-magic').style.display    = isMagic ? '' : 'none';
+  document.getElementById('panel-password').style.display = isMagic ? 'none' : 'flex';
   document.getElementById('tab-magic').style.cssText    += isMagic
     ? ';background:var(--accent);color:var(--btn-text);'
     : ';background:transparent;color:var(--muted);';
@@ -1985,10 +1985,6 @@ function setAuthStatus(msg, isError = false) {
 
 // Google: navigate to server-side OAuth start
 function loginWithGoogle() {
-  if (!GOOGLE_CLIENT_ID) {
-    setAuthStatus('Google sign-in is not available yet.', true);
-    return;
-  }
   window.location.href = '/api/auth?action=login-google';
 }
 
@@ -2009,7 +2005,8 @@ async function requestMagicLink() {
     if (r.ok) {
       setAuthStatus('Check your email for a sign-in link!');
     } else {
-      setAuthStatus('Something went wrong. Please try again.', true);
+      const errData = await r.json().catch(() => ({}));
+      setAuthStatus(errData.error || 'Something went wrong. Please try again.', true);
     }
   } catch {
     setAuthStatus('Network error. Please try again.', true);
