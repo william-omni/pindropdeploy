@@ -1624,6 +1624,31 @@ async function saveFeedbackLabel(sel, field) {
   }
 }
 
+async function saveFeedbackNotes(ta) {
+  var id   = ta.dataset.id;
+  var item = _feedbackItems.find(function(i){ return i.id === id; });
+  if (!item) return;
+  var notes = ta.value.trim() || null;
+  if ((item.admin_notes || null) === notes) return; // unchanged — skip
+  var prev = item.admin_notes;
+  item.admin_notes = notes;
+  ta.style.borderColor = 'rgba(255,255,255,.3)';
+  try {
+    var r = await fetch('/api/admin?action=update-feedback', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: id, status: item.status || 'new', category: item.category || null, adminNotes: notes }),
+    });
+    if (!r.ok) throw new Error('Save failed');
+    ta.style.borderColor = 'rgba(16,185,129,.5)';
+    setTimeout(function(){ ta.style.borderColor = 'rgba(255,255,255,.1)'; }, 1000);
+  } catch(e) {
+    item.admin_notes = prev;
+    ta.style.borderColor = 'rgba(248,113,113,.6)';
+    alert('Error saving notes: ' + e.message);
+  }
+}
+
 async function loadFeedback() {
   document.getElementById('feedback-list').innerHTML =
     '<div class="loading"><span class="spinner"></span>Loading&hellip;</div>';
@@ -1655,7 +1680,8 @@ function renderFeedbackList() {
     return;
   }
 
-  var chipBase = 'font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;';
+  // Tall rectangular chip selects — stretch to fill row height
+  var chipSel = 'flex:1;border-radius:8px;border:1px solid;cursor:pointer;font-size:12px;font-weight:700;outline:none;appearance:none;-webkit-appearance:none;padding:6px 4px;text-align:center;';
 
   list.innerHTML = items.map(function(item) {
     var preview   = escHtml(String(item.text_preview || ''));
@@ -1670,22 +1696,32 @@ function renderFeedbackList() {
       return '<option value="' + c + '"' + (item.category === c ? ' selected' : '') + '>' + c + '</option>';
     }).join('');
     return (
-      '<div style="display:flex;gap:12px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.08);align-items:center;">' +
-        '<div style="flex:1;min-width:0;cursor:pointer;" onclick="openFeedbackDetail(\'' + idEsc + '\')">' +
-          '<div style="font-size:13px;color:var(--text);margin-bottom:4px;word-break:break-word;line-height:1.4;">' + preview + truncated + '</div>' +
-          '<div style="font-size:11px;color:var(--muted);">' + dateStr + ' &middot; ' + escHtml(pid) + (item.has_screenshot ? ' &middot; 📎' : '') + '</div>' +
+      '<div style="display:flex;gap:12px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.08);align-items:stretch;">' +
+        // Left: feedback text + meta + inline notes textarea
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;">' +
+          '<div style="cursor:pointer;" onclick="openFeedbackDetail(\'' + idEsc + '\')">' +
+            '<div style="font-size:13px;color:var(--text);margin-bottom:3px;word-break:break-word;line-height:1.4;">' + preview + truncated + '</div>' +
+            '<div style="font-size:11px;color:var(--muted);">' + dateStr + ' &middot; ' + escHtml(pid) + (item.has_screenshot ? ' &middot; 📎' : '') + '</div>' +
+          '</div>' +
+          '<textarea class="fb-notes-field" data-id="' + idEsc + '" placeholder="Notes…" style="flex:1;width:100%;box-sizing:border-box;min-height:46px;resize:none;padding:7px 9px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--text);font-size:12px;font-family:inherit;outline:none;line-height:1.4;">' +
+            escHtml(item.admin_notes || '') +
+          '</textarea>' +
         '</div>' +
-        '<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0;">' +
-          '<select class="fb-status-sel" data-id="' + idEsc + '" onchange="saveFeedbackLabel(this,\'status\')" style="' + chipBase + '">' + statusOpts + '</select>' +
-          '<select class="fb-cat-sel"    data-id="' + idEsc + '" onchange="saveFeedbackLabel(this,\'category\')" style="' + chipBase + '">' + catOpts    + '</select>' +
+        // Right: status + category chips side-by-side, stretching full row height
+        '<div style="display:flex;flex-direction:row;gap:5px;align-items:stretch;flex-shrink:0;width:148px;">' +
+          '<select class="fb-status-sel" data-id="' + idEsc + '" onchange="saveFeedbackLabel(this,\'status\')" style="' + chipSel + '">' + statusOpts + '</select>' +
+          '<select class="fb-cat-sel"    data-id="' + idEsc + '" onchange="saveFeedbackLabel(this,\'category\')" style="' + chipSel + '">' + catOpts    + '</select>' +
         '</div>' +
       '</div>'
     );
   }).join('');
 
-  // Apply color styling to all newly rendered selects
+  // Apply color styling + wire up blur-save for notes
   list.querySelectorAll('.fb-status-sel').forEach(function(s){ applyFbSelectStyle(s, true); });
   list.querySelectorAll('.fb-cat-sel').forEach(function(s){ applyFbSelectStyle(s, false); });
+  list.querySelectorAll('.fb-notes-field').forEach(function(ta) {
+    ta.addEventListener('blur', function(){ saveFeedbackNotes(this); });
+  });
 }
 
 async function openFeedbackDetail(id) {
@@ -1735,9 +1771,12 @@ async function openFeedbackDetail(id) {
           }),
         });
         if (!r2.ok) throw new Error('Save failed');
-        // Update local cache so admin_notes is preserved if saveFeedbackLabel is called later
+        // Update local cache + sync the inline notes textarea in the list
+        var newNotes = document.getElementById('detail-admin-notes').value || null;
         var cached = _feedbackItems.find(function(i){ return i.id === id; });
-        if (cached) cached.admin_notes = document.getElementById('detail-admin-notes').value || null;
+        if (cached) cached.admin_notes = newNotes;
+        var ta = document.querySelector('.fb-notes-field[data-id="' + id + '"]');
+        if (ta) ta.value = newNotes || '';
         closeFeedbackDetail();
       } catch(e) {
         alert('Error saving: ' + e.message);
