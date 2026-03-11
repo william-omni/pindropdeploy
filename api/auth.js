@@ -1,7 +1,6 @@
 // api/auth.js — User authentication for PinDrop
 //
 // Supports:
-//   Google OAuth 2.0 (server-side Authorization Code flow)
 //   Email magic link  (passwordless, 15-min token via Vercel KV + Resend)
 //   Email + password  (scrypt hashing via Node built-in crypto)
 //
@@ -11,8 +10,6 @@
 //
 // Routes (all via ?action=):
 //   GET  me                 — return current user + stats from cookie
-//   GET  login-google       — redirect to Google OAuth
-//   GET  callback-google    — handle Google OAuth callback
 //   POST magic-link-request — send sign-in link to email
 //   GET  magic-link-verify  — verify magic link token, set session
 //   POST email-signup       — register with email + password
@@ -160,21 +157,10 @@ module.exports = async function handler(req, res) {
 
   // Actions that create sessions require JWT_SECRET to be configured
   const SESSION_ACTIONS = new Set([
-    'email-signup', 'email-login', 'callback-google', 'magic-link-verify', 'dev-login',
+    'email-signup', 'email-login', 'magic-link-verify', 'dev-login',
   ]);
   if (SESSION_ACTIONS.has(action) && !secret) {
     return res.status(503).json({ error: 'Auth not configured on this deployment (missing JWT_SECRET). Set it in Vercel → Settings → Environment Variables.' });
-  }
-
-  // ── GET debug-url — show computed app URL (non-production only) ──────────
-  if (action === 'debug-url') {
-    const appUrl = getAppUrl(req);
-    return res.status(200).json({
-      appUrl,
-      redirectUri: `${appUrl}/api/auth?action=callback-google`,
-      host: req.headers.host,
-      vercelUrl: process.env.VERCEL_URL || null,
-    });
   }
 
   // ── GET me ── return current session user + stats ─────────────────────────
@@ -190,92 +176,6 @@ module.exports = async function handler(req, res) {
   if (action === 'logout' && req.method === 'POST') {
     clearSessionCookie(res);
     return res.status(200).json({ ok: true });
-  }
-
-  // ── GET login-google — redirect to Google OAuth ───────────────────────────
-  if (action === 'login-google') {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    if (!clientId) return res.status(503).json({ error: 'Google OAuth not configured' });
-
-    const state = crypto.randomBytes(16).toString('hex');
-    await kvSet(`oauth_state:${state}`, '1', 600); // 10-min CSRF token
-
-    const appUrl = getAppUrl(req);
-    const redirectUri = `${appUrl}/api/auth?action=callback-google`;
-    const params = new URLSearchParams({
-      client_id:    clientId,
-      redirect_uri: redirectUri,
-      response_type: 'code',
-      scope:        'openid email profile',
-      state,
-      access_type:  'online',
-    });
-    return res.redirect(302, `https://accounts.google.com/o/oauth2/v2/auth?${params}`);
-  }
-
-  // ── GET callback-google — exchange code for token, create session ──────────
-  if (action === 'callback-google') {
-    const { code, state, error } = req.query;
-    const appUrl = getAppUrl(req);
-
-    if (error || !code || !state) {
-      return res.redirect(302, `${appUrl}/?auth=error`);
-    }
-
-    // Verify CSRF state
-    const stored = await kvGet(`oauth_state:${state}`);
-    if (!stored) return res.redirect(302, `${appUrl}/?auth=error`);
-    await kvDel(`oauth_state:${state}`);
-
-    try {
-      // Exchange auth code for tokens
-      const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body:    new URLSearchParams({
-          code,
-          client_id:     process.env.GOOGLE_CLIENT_ID,
-          client_secret: process.env.GOOGLE_CLIENT_SECRET,
-          redirect_uri:  `${appUrl}/api/auth?action=callback-google`,
-          grant_type:    'authorization_code',
-        }),
-      });
-      const tokens = await tokenRes.json();
-      if (!tokens.access_token) return res.redirect(302, `${appUrl}/?auth=error`);
-
-      // Fetch user profile
-      const profileRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-        headers: { Authorization: `Bearer ${tokens.access_token}` },
-      });
-      const profile = await profileRes.json();
-      if (!profile.sub) return res.redirect(302, `${appUrl}/?auth=error`);
-
-      // Find or create user
-      let user = await findUserByProvider('google', profile.sub);
-      if (!user) {
-        user = await upsertUser({
-          id:          newUserId(),
-          email:       profile.email || null,
-          displayName: profile.name  || profile.given_name || null,
-          avatarUrl:   profile.picture || null,
-          provider:    'google',
-          providerId:  profile.sub,
-        });
-      }
-      if (!user) return res.redirect(302, `${appUrl}/?auth=error`);
-
-      // Set session cookie and redirect
-      const jwt = signJwt(
-        { sub: user.id, email: user.email, exp: Math.floor(Date.now() / 1000) + 30 * 86400 },
-        secret
-      );
-      setSessionCookie(res, jwt);
-      return res.redirect(302, `${appUrl}/?auth=success`);
-
-    } catch (e) {
-      console.error('[Auth] callback-google error:', e.message);
-      return res.redirect(302, `${appUrl}/?auth=error`);
-    }
   }
 
   // ── POST magic-link-request — send sign-in email ──────────────────────────
@@ -303,7 +203,7 @@ module.exports = async function handler(req, res) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from:    'PinDrop <noreply@playpindrop.app>',
+          from:    'PinDrop <noreply@contact.playpindrop.app>',
           to:      [email],
           subject: 'Your PinDrop sign-in link',
           html: `
