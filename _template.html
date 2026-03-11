@@ -706,6 +706,7 @@
     .round-row-desc {
       font-size: 11px; color: var(--muted);
       line-height: 1.45;
+      user-select: text;
     }
     .round-row-right {
       display: flex; flex-direction: column; align-items: flex-end;
@@ -2920,7 +2921,7 @@ function buildSummary() {
       <div class="round-row-num" style="background:${color}22;color:${color}">${i+1}</div>
       <div class="round-row-body">
         <div class="round-row-name">${r.name}</div>
-        ${r.description ? `<div class="round-row-desc">${r.description}</div>` : ''}
+        ${r.description ? `<div class="round-row-desc">${r.description} <a href="${locationSearchUrl(r.name)}" target="_blank" rel="noopener noreferrer" class="learn-more-link">— learn more</a></div>` : ''}
       </div>
       <div class="round-row-right">
         <div class="round-row-score" style="color:${color}">${r.pts}</div>
