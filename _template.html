@@ -1033,7 +1033,16 @@
       font-size: 12px; color: var(--muted);
       line-height: 1.55;
       margin-bottom: 8px;
+      user-select: text;
     }
+    .learn-more-link {
+      color: var(--muted);
+      font-size: 11px;
+      text-decoration: none;
+      opacity: 0.7;
+      white-space: nowrap;
+    }
+    .learn-more-link:hover { opacity: 1; text-decoration: underline; }
     .review-desc-meta {
       display: flex; gap: 14px;
       font-size: 11px;
@@ -1366,6 +1375,7 @@
           border-radius: 10px;
           border-left: 2px solid var(--border);
           text-align: left;
+          user-select: text;
         "></div>
       </div>
 
@@ -1649,6 +1659,11 @@ function getLocalDateStr() {
     String(d.getMonth() + 1).padStart(2, '0') + '-' +
     String(d.getDate()).padStart(2, '0');
 }
+function locationSearchUrl(name) {
+  // Strip comma-separated country/city suffix punctuation and encode for Google
+  return 'https://www.google.com/search?q=' + encodeURIComponent(name.replace(/,/g, '').replace(/\s+/g, ' ').trim());
+}
+
 function formatDist(km) {
   if (km < 1) return `${Math.round(km * 1000)}m`;
   if (km >= 1000) return `${(km/1000).toFixed(1)}k km`;
@@ -2522,7 +2537,7 @@ function showRoundResult(name, description, distKm, pts) {
   qualityEl.style.color = _scoreColor;
   // Description + meta row — mirrors the review desc panel on the results screen
   document.getElementById('result-description').innerHTML =
-    `<div style="margin-bottom:8px">${description}</div>`
+    `<div style="margin-bottom:8px">${description} <a href="${locationSearchUrl(name)}" target="_blank" rel="noopener noreferrer" class="learn-more-link">— learn more</a></div>`
     + `<div class="review-desc-meta">`
     + `<span class="review-desc-dist">${formatDist(distKm)} away</span>`
     + `<span class="review-desc-pts" style="color:${_scoreColor}">${pts} pts · ${_scoreLabel}</span>`
@@ -3147,7 +3162,7 @@ function showReview(returnScreen = 'home') {
     const label = scoreToLabel(r.pts);
     descPanel.innerHTML = `
       <div class="review-desc-loc-name">${r.name}</div>
-      <div class="review-desc-text">${r.description || ''}</div>
+      <div class="review-desc-text">${r.description || ''} <a href="${locationSearchUrl(r.name)}" target="_blank" rel="noopener noreferrer" class="learn-more-link">— learn more</a></div>
       <div class="review-desc-meta">
         <span class="review-desc-dist">${formatDist(r.distKm)} away</span>
         <span class="review-desc-pts" style="color:${color}">${r.pts} pts · ${label}</span>
