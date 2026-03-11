@@ -88,6 +88,12 @@
     .day-card{background:var(--s1);border:1px solid var(--border);border-radius:14px;overflow:hidden}
     .day-card-locked{border-color:rgba(251,191,36,.3)}
     .day-card-override{border-color:rgba(71,200,255,.3)}
+    .day-card-prox{border-color:rgba(248,113,113,.35)}
+    .prox-badge{background:rgba(248,113,113,.15);color:var(--red);font-size:11px;font-weight:700;
+      padding:3px 8px;border-radius:6px;border:1px solid rgba(248,113,113,.25)}
+    .prox-warn-row{padding:6px 18px 10px;display:flex;flex-direction:column;gap:4px}
+    .prox-warn{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+    .prox-warn strong{color:var(--red)}
     .day-card-header{display:flex;align-items:center;gap:10px;padding:12px 18px;
       background:var(--s2);border-bottom:1px solid var(--border);flex-wrap:wrap}
     .day-num{background:var(--accent);color:#0a0a0f;font-weight:800;font-size:12px;
@@ -585,10 +591,19 @@ function renderUpcoming(days, container) {
     }).join('');
 
     var diffColor = day.avgDiff <= 2 ? 'var(--d1)' : day.avgDiff <= 3.5 ? 'var(--d3)' : 'var(--d5)';
-    var cardClass = day.locked ? ' day-card-locked' : day.adminOverride ? ' day-card-override' : '';
+    var hasProx = day.proximityWarnings && day.proximityWarnings.length > 0;
+    var cardClass = day.locked ? ' day-card-locked'
+      : hasProx ? ' day-card-prox' : '';
     var statusBadge = day.locked
-      ? '<div class="lock-badge">\uD83D\uDD12 Played</div>'
-      : day.adminOverride ? '<div class="override-set-badge">\u270E Override set</div>' : '';
+      ? '<div class="lock-badge">\uD83D\uDD12 Played</div>' : '';
+    var proxBadge = hasProx
+      ? '<div class="prox-badge">\u26A0 ' + day.proximityWarnings.length + ' proximity issue' + (day.proximityWarnings.length > 1 ? 's' : '') + '</div>'
+      : '';
+    var proxWarnHtml = hasProx
+      ? '<div class="prox-warn-row">' + day.proximityWarnings.map(function(w) {
+          return '<div class="prox-warn">\u26A0 <strong>' + esc(w.a) + '</strong> &amp; <strong>' + esc(w.b) + '</strong> are only ' + w.dist.toLocaleString() + '\u202fkm apart</div>';
+        }).join('') + '</div>'
+      : '';
     var overrideBtn = day.locked ? '' :
       '<button class="btn-override" onclick="openOverrideModal(' + dayIdx + ')">Override</button>';
 
@@ -597,10 +612,12 @@ function renderUpcoming(days, container) {
         '<div class="day-num">Day #' + day.dayNum + '</div>' +
         '<div class="day-date">' + esc(day.dateStr) + '</div>' +
         statusBadge +
+        proxBadge +
         '<div class="day-avg" style="margin-left:auto">avg difficulty <span style="color:' + diffColor + '">' + day.avgDiff + '</span></div>' +
         overrideBtn +
       '</div>' +
       '<div class="loc-rows">' + locRows + '</div>' +
+      proxWarnHtml +
     '</div>';
   }).join('');
   container.innerHTML = '<div class="days-grid">' + html + '</div>';

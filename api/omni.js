@@ -3,8 +3,8 @@ const crypto = require('crypto');
 const fs     = require('fs');
 const path   = require('path');
 const { embedSsoDashboard, embedSsoContentDiscovery } = require('@omni-co/embed');
-const { getAllLocations, getLockedDates, getPlayedDates, getLastUsedDates } = require('./_motherduck');
-const { getDayNumber, getTodayLocations } = require('./_game-data');
+const { getAllLocations, getPlayedDates } = require('./_motherduck');
+const { getDayNumber } = require('./_game-data');
 
 // ── Auth helpers (uses OMNI_DEMO_KEY, separate from ADMIN_PASSWORD) ─────────
 function normalizeEnvPassword() {
@@ -44,8 +44,7 @@ async function parseJsonBody(req) {
   });
 }
 
-// ── Deterministic scramble: replace real locations with fakes of same difficulty
-// Uses a simple LCG seeded from the date string — stable across refreshes
+// ── Deterministic LCG — seeded from date string, separate from the game engine seed
 function lcgRand(seed) {
   let s = seed >>> 0;
   return function() {
@@ -57,35 +56,11 @@ function dateSeed(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
   return (y * 10000 + m * 100 + d + 1337) >>> 0;
 }
-function scrambleDay(day, byDiff) {
-  const rng = lcgRand(dateSeed(day.dateStr));
-  const fakeLocs = day.locations.map(function(realLoc) {
-    const pool = byDiff[realLoc.difficulty] || [];
-    if (!pool.length) return realLoc;
-    const fake = pool[Math.floor(rng() * pool.length)];
-    return {
-      name:           fake.name,
-      description:    fake.description,
-      lat:            fake.lat,
-      lng:            fake.lng,
-      difficulty:     fake.difficulty,
-      perfectRadius:  fake.perfectRadius,
-      daysSinceLastUse: null  // don't reveal usage data
-    };
-  });
-  return {
-    dateStr:            day.dateStr,
-    dayNum:             day.dayNum,
-    avgDiff:            day.avgDiff,
-    locked:             day.locked,
-    adminOverride:      false,
-    locations:          fakeLocs,
-    proximityWarnings:  []       // no proximity info for fake combos
-  };
-}
 
-// ── Upcoming builder (mirrors admin.js getUpcomingDays but no last-used data) ─
-const { haversineKm, seededRand, getDailySeed, ROUNDS_PER_GAME, getLocDifficulty } = require('./_game-data');
+// ── Upcoming builder — fake combos only, no real game data ever read ──────────
+// Uses dateSeed (separate from the game engine seed) so results differ from real
+// combos. Enforces cross-day deduplication and within-day proximity filtering.
+const { haversineKm, ROUNDS_PER_GAME } = require('./_game-data');
 async function getUpcomingDays(fromDateStr, numDays) {
   const [fy, fm, fd] = fromDateStr.split('-').map(Number);
   const toD = new Date(Date.UTC(fy, fm - 1, fd + numDays - 1));
@@ -93,79 +68,71 @@ async function getUpcomingDays(fromDateStr, numDays) {
     + String(toD.getUTCMonth() + 1).padStart(2,'0') + '-'
     + String(toD.getUTCDate()).padStart(2,'0');
 
-  const [comboSet, playedSet] = await Promise.all([
-    getLockedDates(fromDateStr, toDateStr),
+  const [playedSet, allLocations] = await Promise.all([
     getPlayedDates(fromDateStr, toDateStr),
+    getAllLocations(),
   ]);
 
-  const allLocations = await getAllLocations();
   if (!allLocations) return [];
 
+  const usedAcrossDays = new Set(); // cross-day deduplication
   const days = [];
+
   for (let i = 0; i < numDays; i++) {
     const d = new Date(Date.UTC(fy, fm - 1, fd + i));
     const dateStr = d.getUTCFullYear() + '-'
       + String(d.getUTCMonth() + 1).padStart(2,'0') + '-'
       + String(d.getUTCDate()).padStart(2,'0');
-    const dayNum  = getDayNumber(dateStr);
-    const locked  = playedSet.has(dateStr);
+    const dayNum = getDayNumber(dateStr);
+    const locked = playedSet.has(dateStr);
 
-    let locationsForDay;
-    if (comboSet.has(dateStr)) {
-      locationsForDay = await getTodayLocations(dateStr);
-    } else {
-      const seed = getDailySeed(dateStr);
-      const rng  = seededRand(seed);
-      const pool = allLocations;
-      const picked = [];
-      const usedCountries = new Map();
-      for (let attempt = 0; attempt < pool.length * 3 && picked.length < ROUNDS_PER_GAME; attempt++) {
-        const idx = Math.floor(rng() * pool.length);
-        const loc = pool[idx];
-        if (picked.some(p => p.name === loc.name)) continue;
-        const country = loc.name.split(',').pop().trim();
-        const isUSA   = country === 'USA';
-        const cur     = usedCountries.get(country) || 0;
-        if (isUSA && cur >= 2) continue;
-        if (!isUSA && cur >= 1) continue;
-        picked.push(loc);
-        usedCountries.set(country, cur + 1);
-      }
-      locationsForDay = picked;
+    // Use dateSeed (not the game seed) — deliberately different from real combos
+    const rng  = lcgRand(dateSeed(dateStr));
+    // Only draw from locations not already used in an earlier day this window
+    const pool = allLocations.filter(l => !usedAcrossDays.has(l.name));
+
+    const picked = [];
+    const usedCountries = new Map();
+    for (let attempt = 0; attempt < pool.length * 5 && picked.length < ROUNDS_PER_GAME; attempt++) {
+      const idx = Math.floor(rng() * pool.length);
+      const loc = pool[idx];
+      if (picked.some(p => p.name === loc.name)) continue;
+      const country = loc.name.split(',').pop().trim();
+      const isUSA   = country === 'USA';
+      const cur     = usedCountries.get(country) || 0;
+      if (isUSA && cur >= 2) continue;
+      if (!isUSA && cur >= 1) continue;
+      // Skip if within 500 km of an already-picked location
+      if (picked.some(p => haversineKm(p.lat, p.lng, loc.lat, loc.lng) < 500)) continue;
+      picked.push(loc);
+      usedCountries.set(country, cur + 1);
     }
 
-    // getTodayLocations returns tuples [name, desc, lat, lng, diff]; getAllLocations returns objects.
-    // Normalize to objects so the rest of the code can use property names consistently.
-    locationsForDay = locationsForDay.map(l => Array.isArray(l)
-      ? { name: l[0], description: l[1], lat: l[2], lng: l[3], difficulty: getLocDifficulty(l), radius: l[4] || 30 }
-      : l
-    );
+    picked.forEach(l => usedAcrossDays.add(l.name));
 
-    const avgDiff = locationsForDay.length
-      ? +(locationsForDay.reduce((s, l) => s + (l.difficulty || 3), 0) / locationsForDay.length).toFixed(1)
+    const avgDiff = picked.length
+      ? +(picked.reduce((s, l) => s + (l.difficulty || 3), 0) / picked.length).toFixed(1)
       : 0;
 
+    // Proximity warnings on whatever was picked (should be empty given the filter above)
     const proximityWarnings = [];
-    for (let a = 0; a < locationsForDay.length; a++) {
-      for (let b = a + 1; b < locationsForDay.length; b++) {
-        const dist = Math.round(haversineKm(locationsForDay[a].lat, locationsForDay[a].lng,
-                                            locationsForDay[b].lat, locationsForDay[b].lng));
-        if (dist < 500) {
-          proximityWarnings.push({ a: locationsForDay[a].name, b: locationsForDay[b].name, dist });
-        }
+    for (let a = 0; a < picked.length; a++) {
+      for (let b = a + 1; b < picked.length; b++) {
+        const dist = Math.round(haversineKm(picked[a].lat, picked[a].lng, picked[b].lat, picked[b].lng));
+        if (dist < 500) proximityWarnings.push({ a: picked[a].name, b: picked[b].name, dist });
       }
     }
 
     days.push({
-      dateStr, dayNum, locked, adminOverride: comboSet.has(dateStr) && !locked,
-      locations: locationsForDay.map(l => ({
+      dateStr, dayNum, locked, adminOverride: false,
+      locations: picked.map(l => ({
         name: l.name, description: l.description,
         lat: l.lat, lng: l.lng,
         difficulty: l.difficulty || 3,
         perfectRadius: l.radius || l.perfectRadius || 30,
-        daysSinceLastUse: null
+        daysSinceLastUse: null,
       })),
-      avgDiff, proximityWarnings
+      avgDiff, proximityWarnings,
     });
   }
   return days;
@@ -271,7 +238,7 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // ── GET upcoming (scrambled — no real future answers exposed) ─────────────
+  // ── GET upcoming (fake combos — no real game data, deduped, proximity-filtered) ─
   if (action === 'upcoming' && req.method === 'GET') {
     try {
       const numDays = Math.min(parseInt((req.query && req.query.days) || '14', 10), 60);
@@ -281,26 +248,8 @@ module.exports = async function handler(req, res) {
           String(d.getUTCMonth() + 1).padStart(2,'0') + '-' +
           String(d.getUTCDate()).padStart(2,'0');
       })();
-
-      const [days, allLocations] = await Promise.all([
-        getUpcomingDays(from, numDays),
-        getAllLocations(),
-      ]);
-
-      // Build difficulty buckets for scrambling
-      const byDiff = {};
-      (allLocations || []).forEach(function(loc) {
-        const d = loc.difficulty;
-        if (!byDiff[d]) byDiff[d] = [];
-        byDiff[d].push(loc);
-      });
-
-      // Scramble future days; leave already-played days as-is (they're public)
-      const result = days.map(function(day) {
-        return day.locked ? day : scrambleDay(day, byDiff);
-      });
-
-      return res.status(200).json(result);
+      const days = await getUpcomingDays(from, numDays);
+      return res.status(200).json(days);
     } catch (e) {
       return res.status(500).json({ error: 'Failed to load upcoming: ' + e.message });
     }
