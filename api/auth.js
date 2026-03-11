@@ -145,10 +145,10 @@ function newUserId() {
 
 function getAppUrl(req) {
   if (process.env.APP_URL) return process.env.APP_URL;
-  // Infer from Vercel environment
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  const host = req.headers.host || 'localhost:3000';
-  const proto = host.startsWith('localhost') ? 'http' : 'https';
+  // Use the Host header (reflects the actual URL the user accessed — stable across redeployments).
+  // Fall back to VERCEL_URL only if the host header is missing.
+  const host = req.headers.host || process.env.VERCEL_URL || 'localhost:3000';
+  const proto = (host.startsWith('localhost') || host.startsWith('127.')) ? 'http' : 'https';
   return `${proto}://${host}`;
 }
 
