@@ -1654,8 +1654,32 @@
                   color:var(--text);font-family:'DM Mono',monospace;font-size:13px;
                   outline:none;box-sizing:border-box;" />
 
-    <!-- Email + password panel -->
-    <div id="panel-password" style="display:flex;width:100%;flex-direction:column;gap:8px;">
+    <!-- Tab selector: Magic Link | Password -->
+    <div style="width:100%;display:flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+      <button id="tab-magic" class="auth-tab auth-tab-active"
+              style="flex:1;height:34px;border:none;cursor:pointer;font-size:12px;font-weight:600;
+                     background:var(--accent);color:var(--btn-text);transition:all 0.15s;">
+        Magic Link
+      </button>
+      <button id="tab-password" class="auth-tab"
+              style="flex:1;height:34px;border:none;cursor:pointer;font-size:12px;font-weight:600;
+                     background:transparent;color:var(--muted);transition:all 0.15s;">
+        Password
+      </button>
+    </div>
+
+    <!-- Magic link panel -->
+    <div id="panel-magic" style="width:100%;">
+      <button id="btn-magic-link"
+              style="width:100%;height:44px;background:var(--accent);color:var(--btn-text);
+                     border:none;border-radius:12px;font-family:'Syne',sans-serif;
+                     font-size:14px;font-weight:700;cursor:pointer;">
+        Send Magic Link
+      </button>
+    </div>
+
+    <!-- Password panel (hidden by default) -->
+    <div id="panel-password" style="display:none;width:100%;flex-direction:column;gap:8px;">
       <input id="auth-password-input" type="password" placeholder="Password (min 8 chars)" autocomplete="current-password"
              style="width:100%;height:44px;background:var(--surface2, var(--surface));
                     border:1px solid var(--border);border-radius:10px;padding:0 14px;
@@ -1963,10 +1987,23 @@ function openAuthModal() {
   document.getElementById('auth-email-input').value  = '';
   if (document.getElementById('auth-password-input'))
     document.getElementById('auth-password-input').value = '';
+  switchAuthTab('magic'); // default to magic link tab
 }
 
 function closeAuthModal() {
   document.getElementById('auth-modal').classList.add('hidden');
+}
+
+function switchAuthTab(tab) {
+  const isMagic = tab === 'magic';
+  document.getElementById('panel-magic').style.display    = isMagic ? '' : 'none';
+  document.getElementById('panel-password').style.display = isMagic ? 'none' : 'flex';
+  document.getElementById('tab-magic').style.cssText    += isMagic
+    ? ';background:var(--accent);color:var(--btn-text);'
+    : ';background:transparent;color:var(--muted);';
+  document.getElementById('tab-password').style.cssText += !isMagic
+    ? ';background:var(--accent);color:var(--btn-text);'
+    : ';background:transparent;color:var(--muted);';
 }
 
 function setAuthStatus(msg, isError = false) {
@@ -1979,6 +2016,31 @@ function setAuthStatus(msg, isError = false) {
 // Google: navigate to server-side OAuth start
 function loginWithGoogle() {
   window.location.href = '/api/auth?action=login-google';
+}
+
+// Magic link: POST to request endpoint
+async function requestMagicLink() {
+  const email = (document.getElementById('auth-email-input').value || '').trim();
+  if (!email || !email.includes('@')) {
+    setAuthStatus('Enter a valid email address.', true);
+    return;
+  }
+  setAuthStatus('Sending…');
+  try {
+    const r = await fetch('/api/auth?action=magic-link-request', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email }),
+    });
+    if (r.ok) {
+      setAuthStatus('Check your email for a sign-in link!');
+    } else {
+      const errData = await r.json().catch(() => ({}));
+      setAuthStatus(errData.error || 'Something went wrong. Please try again.', true);
+    }
+  } catch {
+    setAuthStatus('Network error. Please try again.', true);
+  }
 }
 
 // Email + password: login or signup
@@ -3669,6 +3731,9 @@ document.getElementById('zoom-tip-overlay').addEventListener('click', function()
 // ── Auth event listeners ──────────────────────────────────
 document.getElementById('btn-auth-close').addEventListener('click', closeAuthModal);
 document.getElementById('btn-google-login').addEventListener('click', loginWithGoogle);
+document.getElementById('btn-magic-link').addEventListener('click', requestMagicLink);
+document.getElementById('tab-magic').addEventListener('click', () => switchAuthTab('magic'));
+document.getElementById('tab-password').addEventListener('click', () => switchAuthTab('password'));
 document.getElementById('btn-email-login').addEventListener('click', () => emailPasswordAuth('login'));
 document.getElementById('btn-email-signup').addEventListener('click', () => emailPasswordAuth('signup'));
 document.getElementById('btn-signin-summary').addEventListener('click', openAuthModal);
