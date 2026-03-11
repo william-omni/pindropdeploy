@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>PinDrop</title>
+  <link rel="icon" href="/icon_blue_round.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/icon_blue_round.png" />
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     [hidden]{display:none!important}
@@ -20,7 +22,8 @@
     #login-screen{display:flex;align-items:center;justify-content:center;height:100%;padding:24px}
     .login-card{background:var(--s1);border:1px solid var(--border);border-radius:20px;
       padding:40px 36px;width:100%;max-width:380px;text-align:center}
-    .login-logo{font-size:52px;margin-bottom:14px}
+    .login-logo{width:64px;height:64px;border-radius:16px;overflow:hidden;margin:0 auto 14px;display:block}
+    .login-logo img{width:100%;height:100%;object-fit:cover;display:block}
     .login-card h1{font-size:26px;font-weight:800;color:var(--accent);margin-bottom:28px}
     .login-card input{width:100%;padding:13px 16px;background:var(--s2);
       border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--text);
@@ -36,7 +39,8 @@
     #app{display:flex;flex-direction:column;height:100%}
     nav{display:flex;align-items:center;gap:6px;padding:10px 20px;
       background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;min-height:52px}
-    .nav-brand{font-weight:800;font-size:17px;color:var(--accent);margin-right:4px;white-space:nowrap}
+    .nav-brand{font-weight:800;font-size:17px;color:var(--accent);margin-right:4px;white-space:nowrap;display:flex;align-items:center;gap:8px}
+    .nav-brand img{width:24px;height:24px;border-radius:6px;flex-shrink:0}
     .nav-tab{padding:7px 14px;border-radius:8px;border:none;background:transparent;
       color:var(--muted);font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap}
     .nav-tab.active{background:var(--accent);color:#0a0a0f}
@@ -214,7 +218,7 @@
 <!-- ── LOGIN ── -->
 <div id="login-screen">
   <div class="login-card">
-    <div class="login-logo">&#128205;</div>
+    <div class="login-logo"><img src="/icon_blue.png" alt="PinDrop"></div>
     <h1>PinDrop</h1>
     <form id="form-login" onsubmit="doLogin(event)">
       <input type="password" id="pw-input" placeholder="Password"
@@ -228,7 +232,7 @@
 <!-- ── APP SHELL ── -->
 <div id="app" hidden>
   <nav>
-    <div class="nav-brand">&#128205; PinDrop</div>
+    <div class="nav-brand"><img src="/icon_blue.png" alt="">PinDrop</div>
     <button class="nav-tab active" data-tab="dashboard" onclick="switchTab('dashboard',this)">Dashboard</button>
     <button class="nav-tab"        data-tab="chat"      onclick="switchTab('chat',this)">AI Chat</button>
     <button class="nav-tab"        data-tab="upcoming"  onclick="switchTab('upcoming',this)">Upcoming</button>

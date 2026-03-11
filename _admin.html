@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>PinDrop Admin</title>
+  <link rel="icon" href="/icon_blue_round.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/icon_blue_round.png" />
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     [hidden]{display:none!important}
@@ -21,7 +23,8 @@
       height:100%;padding:24px}
     .login-card{background:var(--s1);border:1px solid var(--border);border-radius:20px;
       padding:40px 36px;width:100%;max-width:380px;text-align:center}
-    .login-logo{font-size:52px;margin-bottom:14px}
+    .login-logo{width:64px;height:64px;border-radius:16px;overflow:hidden;margin:0 auto 14px;display:block}
+    .login-logo img{width:100%;height:100%;object-fit:cover;display:block}
     .login-card h1{font-size:26px;font-weight:800;color:var(--accent);margin-bottom:4px}
     .login-card p{color:var(--muted);font-size:13px;margin-bottom:28px}
     .login-card input{width:100%;padding:13px 16px;background:var(--s2);
@@ -40,12 +43,14 @@
       background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;
       min-height:52px}
     .nav-brand{font-weight:800;font-size:17px;color:var(--accent);margin-right:8px;
-      white-space:nowrap}
+      white-space:nowrap;display:flex;align-items:center;gap:8px}
+    .nav-brand img{width:24px;height:24px;border-radius:6px;flex-shrink:0}
     .nav-tab{padding:7px 14px;border-radius:8px;border:none;background:transparent;
       color:var(--muted);font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;
       white-space:nowrap}
     .nav-tab.active{background:var(--accent);color:#0a0a0f}
     .nav-tab:not(.active):hover{background:var(--s2);color:var(--text)}
+    .nav-tabs{display:flex;align-items:center;gap:6px}
     #btn-logout{margin-left:auto;padding:6px 13px;border:1px solid rgba(255,255,255,.12);
       border-radius:8px;background:transparent;color:var(--muted);font-size:13px;cursor:pointer;
       transition:all .2s;white-space:nowrap}
@@ -271,10 +276,10 @@
     .char-count{font-size:13px;font-weight:600;color:var(--muted);min-width:30px;text-align:right}
     .char-count.warn{color:var(--d3)}
     .char-count.danger{color:var(--red)}
-    .compose-footer input[type=datetime-local]{background:var(--s2);
+    .compose-footer select{background:var(--s2);
       border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text);
-      padding:8px 12px;font-size:13px;outline:none;color-scheme:dark}
-    .compose-footer input[type=datetime-local]:focus{border-color:var(--accent)}
+      padding:8px 12px;font-size:13px;outline:none;cursor:pointer;min-width:220px}
+    .compose-footer select:focus{border-color:var(--accent)}
     .compose-actions{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
     .social-table{width:100%;border-collapse:collapse;font-size:13px}
     .social-table th{text-align:left;color:var(--muted);font-size:11px;font-weight:700;
@@ -310,6 +315,75 @@
     .edit-modal-actions{display:flex;gap:8px;justify-content:flex-end}
     .post-body-cell{max-width:360px;white-space:pre-wrap;font-size:13px;color:var(--text);line-height:1.5}
     .post-meta{font-size:11px;color:var(--muted);margin-top:3px}
+
+    /* ── MOBILE RESPONSIVE ── */
+    @media (max-width:640px) {
+      /* Nav: two-row layout — brand+logout top row, scrollable tabs below */
+      nav{flex-wrap:wrap;padding:0;gap:0;min-height:auto;align-items:center}
+      .nav-brand{order:1;padding:10px 14px;font-size:13px;margin-right:0;flex-shrink:0}
+      #btn-logout{order:2;margin-left:auto;padding:6px 11px;font-size:12px;margin-right:10px;flex-shrink:0}
+      .nav-tabs{order:3;width:100%;padding:4px 8px 8px;gap:4px;
+        overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;
+        border-top:1px solid var(--border)}
+      .nav-tabs::-webkit-scrollbar{display:none}
+      .nav-tab{padding:8px 12px;font-size:13px;flex-shrink:0}
+
+      /* Content: tighter padding */
+      #main-content{padding:14px 12px}
+
+      /* Tab headers */
+      .tab-header{margin-bottom:12px;gap:8px}
+      .tab-header h2{font-size:17px}
+      .tab-controls{gap:6px}
+
+      /* Compose footer: stack vertically */
+      .compose-footer{flex-direction:column;align-items:stretch;gap:8px}
+      .compose-footer .char-count{align-self:flex-end}
+      .compose-footer select{min-width:0}
+      .compose-actions{margin-left:0;display:flex;gap:8px}
+      .compose-actions .btn{flex:1;text-align:center}
+
+      /* Social compose card: tighter */
+      .compose-card{padding:14px}
+      .social-section h3{font-size:10px}
+
+      /* Social tables: horizontal scroll */
+      #social-history,#social-upcoming,#social-yesterday{overflow-x:auto;-webkit-overflow-scrolling:touch}
+      .social-table{min-width:460px}
+
+      /* Stat cards: 2-up */
+      .stat-card{min-width:calc(50% - 7px)}
+      .stat-val{font-size:22px}
+
+      /* Location table: hide lat/lng/radius/desc columns on mobile */
+      #loc-table th:nth-child(3),#loc-table td:nth-child(3),
+      #loc-table th:nth-child(4),#loc-table td:nth-child(4),
+      #loc-table th:nth-child(5),#loc-table td:nth-child(5),
+      #loc-table th:nth-child(6),#loc-table td:nth-child(6){display:none}
+
+      /* Location form: single column */
+      .form-grid{grid-template-columns:1fr}
+      .loc-form-card{padding:16px}
+
+      /* Edit post modal: bottom sheet */
+      .edit-modal-backdrop{align-items:flex-end;padding:0}
+      .edit-modal-card{width:100%;border-radius:20px 20px 0 0;padding:20px 16px 36px;max-height:88vh;overflow-y:auto}
+
+      /* Override modal: full width */
+      .override-card{width:calc(100vw - 24px);padding:20px 16px}
+
+      /* Cron result */
+      #cron-result{font-size:11px;padding:10px}
+
+      /* Day card header: wrap avg to new line */
+      .day-avg{width:100%;margin-left:0;margin-top:2px}
+
+      /* Loc search full width */
+      .loc-search{min-width:0;width:100%}
+
+      /* Tab controls wrap */
+      .tab-controls{flex-wrap:wrap}
+    }
   </style>
 </head>
 <body>
@@ -317,7 +391,7 @@
 <!-- ── LOGIN ── -->
 <div id="login-screen">
   <div class="login-card">
-    <div class="login-logo">&#128205;</div>
+    <div class="login-logo"><img src="/icon_blue.png" alt="PinDrop"></div>
     <h1>PinDrop Admin</h1>
     <p>Internal dashboard &mdash; authorised access only</p>
     <form id="form-login" onsubmit="doLogin(event)">
@@ -332,14 +406,16 @@
 <!-- ── APP SHELL ── -->
 <div id="app" hidden>
   <nav>
-    <div class="nav-brand">&#128205; PinDrop Admin</div>
-    <button class="nav-tab"        data-tab="chat"        onclick="switchTab('chat',this)">AI Chat</button>
-    <button class="nav-tab"        data-tab="dashboard"   onclick="switchTab('dashboard',this)">Dashboard</button>
-    <button class="nav-tab active" data-tab="upcoming"    onclick="switchTab('upcoming',this)">Upcoming</button>
-    <button class="nav-tab"        data-tab="preview"     onclick="switchTab('preview',this)">Preview</button>
-    <button class="nav-tab"        data-tab="locations"   onclick="switchTab('locations',this)">Locations</button>
-    <button class="nav-tab"        data-tab="social"      onclick="switchTab('social',this)">Social</button>
-    <button class="nav-tab"        data-tab="feedback"    onclick="switchTab('feedback',this)">Feedback</button>
+    <div class="nav-brand"><img src="/icon_blue.png" alt="">PinDrop Admin</div>
+    <div class="nav-tabs">
+      <button class="nav-tab"        data-tab="chat"        onclick="switchTab('chat',this)">AI Chat</button>
+      <button class="nav-tab"        data-tab="dashboard"   onclick="switchTab('dashboard',this)">Dashboard</button>
+      <button class="nav-tab active" data-tab="upcoming"    onclick="switchTab('upcoming',this)">Upcoming</button>
+      <button class="nav-tab"        data-tab="preview"     onclick="switchTab('preview',this)">Preview</button>
+      <button class="nav-tab"        data-tab="locations"   onclick="switchTab('locations',this)">Locations</button>
+      <button class="nav-tab"        data-tab="social"      onclick="switchTab('social',this)">Social</button>
+      <button class="nav-tab"        data-tab="feedback"    onclick="switchTab('feedback',this)">Feedback</button>
+    </div>
     <button id="btn-logout" onclick="logout()">Logout</button>
   </nav>
 
@@ -511,13 +587,24 @@
               oninput="updateCharCount()"></textarea>
             <div class="compose-footer">
               <span class="char-count" id="char-count">280</span>
-              <input type="datetime-local" id="compose-schedule" title="Leave empty to post immediately">
+              <select id="compose-schedule"><option value="">Pick a time&hellip;</option></select>
               <div class="compose-actions">
                 <button class="btn btn-ghost" onclick="postNow(event)">Post Now</button>
                 <button class="btn btn-primary" onclick="schedulePost(event)">Schedule</button>
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Cron Triggers -->
+        <div class="social-section">
+          <h3>Cron Triggers <span style="font-size:11px;font-weight:500;text-transform:none;color:var(--muted);margin-left:6px">Manually fire jobs &mdash; use this to test or recover if crons aren&rsquo;t running</span></h3>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+            <button class="btn btn-ghost" onclick="triggerCron('send-pending',this)">&#9654; Send Pending Posts</button>
+            <button class="btn btn-ghost" onclick="triggerCron('daily-drop',this)">&#9654; Daily Drop Tweet</button>
+            <button class="btn btn-ghost" onclick="triggerCron('daily-stats',this)">&#9654; Daily Stats Tweet</button>
+          </div>
+          <pre id="cron-result" hidden style="background:var(--s2);border-radius:8px;padding:12px;font-size:12px;color:var(--text);white-space:pre-wrap;word-break:break-all;max-height:180px;overflow:auto;margin:0"></pre>
         </div>
 
         <!-- History -->
@@ -573,7 +660,7 @@
       <h3>Edit Scheduled Post</h3>
       <textarea id="edit-post-text" maxlength="280" oninput="updateEditCharCount()"></textarea>
       <div class="edit-char-count"><span id="edit-char-count">280</span> remaining</div>
-      <input type="datetime-local" id="edit-post-schedule" style="background:var(--s2);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text);padding:8px 12px;font-size:13px;outline:none;color-scheme:dark;width:100%">
+      <select id="edit-post-schedule" style="background:var(--s2);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text);padding:8px 12px;font-size:13px;outline:none;cursor:pointer;width:100%"></select>
       <div class="edit-modal-actions">
         <button class="btn btn-ghost" onclick="closeEditPostModal()">Cancel</button>
         <button class="btn btn-primary" onclick="saveEditPost(event)">Save Changes</button>
@@ -711,6 +798,8 @@ function _activateTab(name, btn) {
   // Nav highlighting
   document.querySelectorAll('.nav-tab').forEach(function(b){ b.classList.remove('active'); });
   btn.classList.add('active');
+  // Scroll active tab into view (mobile nav)
+  setTimeout(function(){ btn.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'}); }, 0);
 
   var dashPane    = document.getElementById('tab-dashboard-pane');
   var chatPane    = document.getElementById('tab-chat-pane');
@@ -1269,7 +1358,80 @@ function escHtml(s) {
 /* ── Social tab ── */
 var socialUpcomingLoaded = false;
 
+// Good X engagement times (hour in ET, 24h)
+var GOOD_HOURS_ET = [8, 9, 12, 15, 17, 19, 21];
+
+// Returns the ET UTC offset in hours (−5 EST / −4 EDT) for a given date
+function getETOffset(date) {
+  var noonUTC = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 12, 0, 0));
+  var etHour  = parseInt(new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', hour: 'numeric', hour12: false
+  }).format(noonUTC), 10);
+  return etHour - 12; // −5 (EST) or −4 (EDT)
+}
+
+// Returns array of {iso, label} for the next ~10 good engagement slots
+function buildScheduleSlots() {
+  var now   = new Date();
+  var slots = [];
+  for (var dayOffset = 0; dayOffset <= 3 && slots.length < 10; dayOffset++) {
+    var refDate    = new Date(now.getTime() + dayOffset * 86400000);
+    var etDateStr  = refDate.toLocaleDateString('en-CA', { timeZone: 'America/New_York' }); // "YYYY-MM-DD"
+    var etOffset   = getETOffset(new Date(etDateStr + 'T12:00:00Z'));
+    for (var i = 0; i < GOOD_HOURS_ET.length; i++) {
+      var hourET   = GOOD_HOURS_ET[i];
+      var utcHour  = hourET - etOffset;
+      var slotDate = etDateStr;
+      if (utcHour >= 24) {
+        utcHour -= 24;
+        slotDate = new Date(new Date(etDateStr + 'T00:00:00Z').getTime() + 86400000).toISOString().slice(0, 10);
+      } else if (utcHour < 0) {
+        utcHour += 24;
+        slotDate = new Date(new Date(etDateStr + 'T00:00:00Z').getTime() - 86400000).toISOString().slice(0, 10);
+      }
+      var slot = new Date(slotDate + 'T' + String(utcHour).padStart(2, '0') + ':00:00Z');
+      if (slot.getTime() > now.getTime() + 5 * 60 * 1000) {
+        var todayET    = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+        var tomorrowET = new Date(now.getTime() + 86400000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+        var slotDayET  = slot.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+        var dayLabel   = slotDayET === todayET    ? 'Today' :
+                         slotDayET === tomorrowET ? 'Tomorrow' :
+                         slot.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric' });
+        var timeLabel  = slot.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
+        slots.push({ iso: slot.toISOString(), label: dayLabel + ', ' + timeLabel + ' ET' });
+        if (slots.length >= 10) break;
+      }
+    }
+  }
+  return slots;
+}
+
+// Populates a <select> with upcoming engagement slots.
+// If currentISO is provided and in the future but not in the slot list, adds it as first option.
+function populateScheduleDropdown(selectId, currentISO) {
+  var sel   = document.getElementById(selectId);
+  var slots = buildScheduleSlots();
+  sel.innerHTML = '<option value="">Pick a time\u2026</option>';
+  var alreadySelected = false;
+  if (currentISO && new Date(currentISO) > new Date()) {
+    var inList = slots.some(function(s) { return s.iso === currentISO; });
+    if (!inList) {
+      var customLabel = new Date(currentISO).toLocaleString('en-US', {
+        timeZone: 'America/New_York', month: 'short', day: 'numeric',
+        hour: 'numeric', minute: '2-digit', hour12: true
+      }) + ' ET (current)';
+      sel.add(new Option(customLabel, currentISO, false, true));
+      alreadySelected = true;
+    }
+  }
+  slots.forEach(function(s) {
+    var opt = new Option(s.label, s.iso, false, !alreadySelected && currentISO === s.iso);
+    sel.add(opt);
+  });
+}
+
 async function loadSocial() {
+  populateScheduleDropdown('compose-schedule', null);
   await Promise.all([loadSocialYesterday(), loadSocialUpcoming(), loadSocialHistory()]);
 }
 
@@ -1437,12 +1599,11 @@ async function postNow(event) {
 
 async function schedulePost(event) {
   var text  = document.getElementById('compose-text').value.trim();
-  var sched = document.getElementById('compose-schedule').value;
-  if (!text)  { alert('Please enter some text first.'); return; }
-  if (!sched) { alert('Please pick a date and time to schedule the post.'); return; }
+  var scheduledFor = document.getElementById('compose-schedule').value; // already ISO from select
+  if (!text)         { alert('Please enter some text first.'); return; }
+  if (!scheduledFor) { alert('Please pick a time to schedule the post.'); return; }
   if (text.length > 280) { alert('Post exceeds 280 characters.'); return; }
-  var scheduledFor = new Date(sched).toISOString();
-  if (new Date(sched) <= new Date()) { alert('Scheduled time must be in the future.'); return; }
+  if (new Date(scheduledFor) <= new Date()) { alert('Scheduled time must be in the future.'); return; }
   var btn = event.currentTarget;
   btn.disabled = true; btn.textContent = 'Scheduling\u2026';
   try {
@@ -1454,7 +1615,7 @@ async function schedulePost(event) {
     var d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Unknown error');
     document.getElementById('compose-text').value = '';
-    document.getElementById('compose-schedule').value = '';
+    populateScheduleDropdown('compose-schedule', null); // refresh slots
     updateCharCount();
     await loadSocialHistory();
   } catch(e) {
@@ -1480,6 +1641,30 @@ async function cancelPost(id) {
   }
 }
 
+// ── Cron triggers ─────────────────────────────────────────────────────────────
+async function triggerCron(action, btn) {
+  var origText = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Running\u2026';
+  var el = document.getElementById('cron-result');
+  el.hidden = true;
+  try {
+    var r = await fetch('/api/social?action=' + action, {
+      headers: { 'Authorization': 'Bearer ' + TOKEN }
+    });
+    var d = await r.json();
+    el.hidden = false;
+    el.style.color = r.ok ? 'var(--text)' : 'var(--red)';
+    el.textContent = JSON.stringify(d, null, 2);
+    if (action === 'send-pending') await loadSocialHistory();
+  } catch(e) {
+    el.hidden = false;
+    el.style.color = 'var(--red)';
+    el.textContent = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = origText;
+  }
+}
+
 // ── Edit post modal ───────────────────────────────────────────────────────────
 var _editPostId = null;
 
@@ -1487,12 +1672,7 @@ function openEditPost(id, body, scheduledFor) {
   _editPostId = id;
   document.getElementById('edit-post-text').value = body;
   updateEditCharCount();
-  // Pre-fill datetime picker (convert ISO → local datetime-local format)
-  var dt = scheduledFor ? new Date(scheduledFor) : null;
-  document.getElementById('edit-post-schedule').value = dt
-    ? (dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0') +
-       'T' + String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0'))
-    : '';
+  populateScheduleDropdown('edit-post-schedule', scheduledFor || null);
   document.getElementById('edit-post-modal').hidden = false;
 }
 
@@ -1510,13 +1690,12 @@ function updateEditCharCount() {
 
 async function saveEditPost(event) {
   var btn = event.currentTarget;
-  var text  = document.getElementById('edit-post-text').value.trim();
-  var sched = document.getElementById('edit-post-schedule').value;
-  if (!text)  { alert('Please enter some text.'); return; }
-  if (!sched) { alert('Please pick a scheduled date/time.'); return; }
+  var text         = document.getElementById('edit-post-text').value.trim();
+  var scheduledFor = document.getElementById('edit-post-schedule').value; // already ISO from select
+  if (!text)         { alert('Please enter some text.'); return; }
+  if (!scheduledFor) { alert('Please pick a scheduled time.'); return; }
   if (text.length > 280) { alert('Post exceeds 280 characters.'); return; }
-  var scheduledFor = new Date(sched).toISOString();
-  if (new Date(sched) <= new Date()) { alert('Scheduled time must be in the future.'); return; }
+  if (new Date(scheduledFor) <= new Date()) { alert('Scheduled time must be in the future.'); return; }
   btn.disabled = true; btn.textContent = 'Saving\u2026';
   try {
     var r = await fetch('/api/admin?action=social-post-edit', {

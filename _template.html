@@ -9,9 +9,8 @@
   <meta name="theme-color" content="#0a0a0f" media="(prefers-color-scheme: dark)" />
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
   <link rel="manifest" href="/manifest.json" />
-  <link rel="apple-touch-icon" href="/icon-192.png" />
-  <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
-  <link rel="icon" href="/icon-512.png" type="image/png" sizes="512x512" />
+  <link rel="apple-touch-icon" href="/icon_round.png" />
+  <link rel="icon" href="/icon_round.png" type="image/png" />
   <link rel="canonical" href="https://playpindrop.app" />
   <title>PinDrop — Daily Geography Challenge</title>
 
@@ -138,17 +137,20 @@
 
     .logo-mark {
       width: 72px; height: 72px;
-      background: var(--accent);
       border-radius: 20px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 36px;
+      overflow: hidden;
       margin-bottom: 24px;
-      box-shadow: 0 0 40px rgba(232,255,71,0.3);
+      flex-shrink: 0;
       animation: pulse-logo 3s ease-in-out infinite;
     }
+    .logo-mark img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    html:not(.light-mode) .logo-mark .logo-img-light { display: none; }
+    html.light-mode       .logo-mark .logo-img-dark  { display: none; }
     @keyframes pulse-logo {
-      0%,100% { box-shadow: 0 0 40px rgba(232,255,71,0.3); }
-      50%      { box-shadow: 0 0 60px rgba(232,255,71,0.5); }
+      0%,100% { box-shadow: 0 0 30px rgba(71,200,255,0.25); }
+      50%      { box-shadow: 0 0 50px rgba(71,200,255,0.45); }
     }
 
     .home-title {
@@ -1218,7 +1220,10 @@
 <div id="home" class="screen">
   <div class="home-bg"></div>
   <div class="home-inner">
-    <div class="logo-mark">📍</div>
+    <div class="logo-mark">
+      <img src="/icon.png"      class="logo-img-dark"  alt="PinDrop">
+      <img src="/icon_blue.png" class="logo-img-light" alt="PinDrop">
+    </div>
     <h1 class="home-title">PinDrop</h1>
     <p class="home-sub">Daily Geography Challenge</p>
 
