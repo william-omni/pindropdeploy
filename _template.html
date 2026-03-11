@@ -1092,6 +1092,10 @@
       margin-bottom: 12px;
       display: flex; align-items: center; gap: 12px;
     }
+    html.light-mode .home-played-banner {
+      background: rgba(71,200,255,0.09);
+      border-color: rgba(71,200,255,0.28);
+    }
     .home-played-icon { display:flex; align-items:center; justify-content:center; flex-shrink:0; }
     .home-played-text {}
     .home-played-label {
@@ -1111,14 +1115,17 @@
       bottom: max(20px, calc(var(--safe-bot) + 16px));
       right: 20px;
       z-index: 900;
-      width: 32px; height: 32px;
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
       display: flex; align-items: center; justify-content: center;
-      opacity: 0.35;
-      transition: opacity 0.2s;
       text-decoration: none;
+      transition: opacity 0.2s;
     }
     .x-social-link:hover { opacity: 0.75; }
-    .x-social-link svg { width: 18px; height: 18px; fill: var(--text); }
+    .x-social-link svg { width: 16px; height: 16px; fill: var(--text); }
     /* Show X icon only on home screen */
     #game:not(.hidden) ~ a.x-social-link,
     #summary:not(.hidden) ~ a.x-social-link,
