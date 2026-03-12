@@ -76,24 +76,37 @@ function getSessionFromRequest(req) {
 async function kvSet(key, value, ttlSeconds) {
   const url = process.env.KV_REST_API_URL;
   const tok = process.env.KV_REST_API_TOKEN;
-  if (!url || !tok) return false;
+  if (!url || !tok) {
+    console.error('[KV] kvSet failed: KV_REST_API_URL or KV_REST_API_TOKEN not set');
+    return false;
+  }
   // Use pipeline for safe key encoding
   const r = await fetch(url + '/pipeline', {
     method:  'POST',
     headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' },
     body:    JSON.stringify([['SETEX', key, ttlSeconds, value]]),
   });
+  if (!r.ok) {
+    const body = await r.text().catch(() => '');
+    console.error('[KV] kvSet failed:', r.status, body);
+  }
   return r.ok;
 }
 
 async function kvGet(key) {
   const url = process.env.KV_REST_API_URL;
   const tok = process.env.KV_REST_API_TOKEN;
-  if (!url || !tok) return null;
+  if (!url || !tok) {
+    console.error('[KV] kvGet failed: KV_REST_API_URL or KV_REST_API_TOKEN not set');
+    return null;
+  }
   const r = await fetch(url + `/get/${encodeURIComponent(key)}`, {
     headers: { Authorization: 'Bearer ' + tok },
   });
-  if (!r.ok) return null;
+  if (!r.ok) {
+    console.error('[KV] kvGet failed:', r.status);
+    return null;
+  }
   const { result } = await r.json();
   return result || null;
 }
@@ -192,8 +205,10 @@ module.exports = async function handler(req, res) {
     const token  = crypto.randomBytes(32).toString('hex');
     const appUrl = getAppUrl(req);
     const link   = `${appUrl}/api/auth?action=magic-link-verify&token=${token}`;
+    console.log('[Auth] magic-link appUrl:', appUrl);
 
-    await kvSet(`magic:${token}`, email, 900); // 15-minute TTL
+    const kvOk = await kvSet(`magic:${token}`, email, 900); // 15-minute TTL
+    if (!kvOk) console.error('[Auth] magic-link-request: kvSet failed — token not stored');
 
     try {
       const sendRes = await fetch('https://api.resend.com/emails', {
@@ -238,10 +253,12 @@ module.exports = async function handler(req, res) {
   if (action === 'magic-link-verify') {
     const { token } = req.query;
     const appUrl    = getAppUrl(req);
+    console.log('[Auth] magic-link-verify appUrl:', appUrl, 'token present:', !!token);
 
     if (!token) return res.redirect(302, `${appUrl}/?auth=expired`);
 
     const email = await kvGet(`magic:${token}`);
+    console.log('[Auth] magic-link-verify kvGet result:', email ? 'found' : 'NOT FOUND');
     if (!email)  return res.redirect(302, `${appUrl}/?auth=expired`);
 
     // Consume token immediately (single-use)
