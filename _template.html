@@ -2754,10 +2754,10 @@ function applyMapStyle(m, isDark, cityLabels = true) {
       (lid.includes('park') && !lid.includes('parking') && !lid.includes('-label'))
     );
 
-    // Forest → subtle green tint, fades in from zoom 2.5→5
+    // Forest → subtle green tint, fades in from zoom 2→5
     if (isForest) {
       try { m.setPaintProperty(layer.id, 'fill-color', isDark ? '#263530' : '#c0d9a8'); } catch(e) {}
-      try { m.setPaintProperty(layer.id, 'fill-opacity', ['interpolate', ['linear'], ['zoom'], 2.5, 0, 5, isDark ? 0.9 : 0.3]); } catch(e) {}
+      try { m.setPaintProperty(layer.id, 'fill-opacity', ['interpolate', ['linear'], ['zoom'], 2, 0, 5, isDark ? 0.9 : 0.3]); } catch(e) {}
       continue;
     }
 
@@ -2769,15 +2769,15 @@ function applyMapStyle(m, isDark, cityLabels = true) {
       continue;
     }
 
-    // Sand / beach — warm sandy tone, fades in zoom 2.5→5
+    // Sand / beach — warm sandy tone, fades in zoom 2→5
     const isSand = layer.type === 'fill' && (lid.includes('sand') || lid.includes('beach'));
     if (isSand) {
       try { m.setPaintProperty(layer.id, 'fill-color', isDark ? '#28251a' : '#e0d4a0'); } catch(e) {}
-      try { m.setPaintProperty(layer.id, 'fill-opacity', ['interpolate', ['linear'], ['zoom'], 2.5, 0, 5, isDark ? 0.9 : 0.3]); } catch(e) {}
+      try { m.setPaintProperty(layer.id, 'fill-opacity', ['interpolate', ['linear'], ['zoom'], 2, 0, 5, isDark ? 0.9 : 0.3]); } catch(e) {}
       continue;
     }
 
-    // Urban landuse (residential, commercial, retail) — subtle warm tint, fades in zoom 2.5→5
+    // Urban landuse (residential, commercial, retail) — subtle warm tint, fades in zoom 2→5
     const isUrban = layer.type === 'fill' && !isForest && (
       lid === 'landuse' ||
       lid.includes('residential') ||
@@ -2786,7 +2786,7 @@ function applyMapStyle(m, isDark, cityLabels = true) {
     );
     if (isUrban) {
       try { m.setPaintProperty(layer.id, 'fill-color', isDark ? '#2d2d3a' : '#d4c9b8'); } catch(e) {}
-      try { m.setPaintProperty(layer.id, 'fill-opacity', ['interpolate', ['linear'], ['zoom'], 2.5, 0, 5, isDark ? 0.6 : 0.25]); } catch(e) {}
+      try { m.setPaintProperty(layer.id, 'fill-opacity', ['interpolate', ['linear'], ['zoom'], 2, 0, 5, isDark ? 0.6 : 0.25]); } catch(e) {}
       continue;
     }
 
@@ -2820,7 +2820,7 @@ function applyMapStyle(m, isDark, cityLabels = true) {
     if (isDark) {
       // Land → lighter slate so it stands out; water → near-black to match app bg
       if (layer.type === 'background') {
-        try { m.setPaintProperty(layer.id, 'background-color', '#9fa3b3'); } catch(e) {}
+        try { m.setPaintProperty(layer.id, 'background-color', '#717585'); } catch(e) {}
       } else if (isWater && layer.type === 'fill') {
         try { m.setPaintProperty(layer.id, 'fill-color', '#05070f'); } catch(e) {}
       } else if (isWater && layer.type === 'line') {
