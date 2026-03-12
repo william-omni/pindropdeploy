@@ -950,6 +950,17 @@ async function ensureAuthTables(conn) {
       updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);
+  await conn.run(`
+    CREATE TABLE IF NOT EXISTS pindrop.magic_tokens (
+      token      VARCHAR PRIMARY KEY,
+      email      VARCHAR NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL
+    )
+  `);
+  // Profile fields added after initial schema — idempotent
+  await conn.run(`ALTER TABLE pindrop.users ADD COLUMN IF NOT EXISTS birthday DATE`);
+  await conn.run(`ALTER TABLE pindrop.users ADD COLUMN IF NOT EXISTS city    VARCHAR`);
+  await conn.run(`ALTER TABLE pindrop.users ADD COLUMN IF NOT EXISTS country VARCHAR`);
   _authTablesReady = true;
 }
 
@@ -1026,41 +1037,6 @@ async function upsertUser({ id, email, displayName, avatarUrl, provider, provide
   } finally { conn.closeSync(); }
 }
 
-// Create a new email+password user. Call after hashing the password.
-async function createEmailPasswordUser({ id, email, passwordHash, displayName }) {
-  const inst = await getDataInstance();
-  if (!inst) throw new Error('MotherDuck not available');
-  const conn = await inst.connect();
-  try {
-    await ensureAuthTables(conn);
-    await conn.run(
-      `INSERT INTO pindrop.users (id, email, display_name, provider, password_hash)
-       VALUES (?, ?, ?, 'email_password', ?)`,
-      [id, email.toLowerCase(), displayName || null, passwordHash]
-    );
-    await conn.run(
-      `INSERT INTO pindrop.user_stats (user_id) VALUES (?)`, [id]
-    );
-  } finally { conn.closeSync(); }
-}
-
-// Returns user row if email/password are valid, null otherwise.
-async function verifyEmailPasswordUser(email, password) {
-  const crypto = require('crypto');
-  const user = await findUserByEmail(email);
-  if (!user || !user.password_hash) return null;
-
-  // Format: $scrypt$<salt>$<hash>
-  const parts = user.password_hash.split('$');
-  if (parts.length !== 4 || parts[1] !== 'scrypt') return null;
-  const [, , salt, expectedHash] = parts;
-  try {
-    const hash = crypto.scryptSync(password, salt, 64).toString('hex');
-    const valid = crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(expectedHash));
-    return valid ? user : null;
-  } catch { return null; }
-}
-
 // Return user + stats in a single call (used by GET /api/auth?action=me).
 async function getUserWithStats(userId) {
   try {
@@ -1071,6 +1047,7 @@ async function getUserWithStats(userId) {
       await ensureAuthTables(conn);
       const res = await conn.runAndReadAll(
         `SELECT u.id, u.email, u.display_name, u.avatar_url,
+                CAST(u.birthday AS VARCHAR) AS birthday, u.city, u.country,
                 s.streak, s.best_score, s.last_score, s.games_played, s.last_played_day
          FROM pindrop.users u
          LEFT JOIN pindrop.user_stats s ON s.user_id = u.id
@@ -1081,7 +1058,8 @@ async function getUserWithStats(userId) {
       if (!rows.length) return null;
       const r = rows[0];
       return {
-        user:  { id: r.id, email: r.email, displayName: r.display_name, avatarUrl: r.avatar_url },
+        user:  { id: r.id, email: r.email, displayName: r.display_name, avatarUrl: r.avatar_url,
+                 birthday: r.birthday || null, city: r.city || null, country: r.country || null },
         stats: { streak: r.streak || 0, bestScore: r.best_score || 0, lastScore: r.last_score,
                  gamesPlayed: r.games_played || 0, lastPlayedDay: r.last_played_day },
       };
@@ -1156,6 +1134,93 @@ async function importUserStats({ userId, streak, bestScore, lastScore, gamesPlay
   }
 }
 
+// Update editable profile fields (name, birthday, city, country).
+async function updateUserProfile({ userId, displayName, birthday, city, country }) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) throw new Error('MotherDuck not available');
+    const conn = await inst.connect();
+    try {
+      await ensureAuthTables(conn);
+      await conn.run(
+        `UPDATE pindrop.users
+         SET display_name = ?,
+             birthday     = CAST(? AS DATE),
+             city         = ?,
+             country      = ?,
+             last_seen_at = now()
+         WHERE id = ?`,
+        [displayName || null,
+         birthday    || null,
+         city        || null,
+         country     || null,
+         userId]
+      );
+      return true;
+    } finally { conn.closeSync(); }
+  } catch (e) {
+    console.error('[MotherDuck] updateUserProfile error:', e.message);
+    return false;
+  }
+}
+
+// ── Magic link tokens ─────────────────────────────────────────────────────────
+
+async function storeMagicToken(token, email, ttlSeconds) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return false;
+    const conn = await inst.connect();
+    try {
+      await ensureAuthTables(conn);
+      // Opportunistically clean up expired tokens
+      await conn.run(`DELETE FROM pindrop.magic_tokens WHERE expires_at < now()`);
+      const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+      await conn.run(
+        `INSERT INTO pindrop.magic_tokens (token, email, expires_at) VALUES (?, ?, ?)`,
+        [token, email, expiresAt]
+      );
+      return true;
+    } finally { conn.closeSync(); }
+  } catch (e) {
+    console.error('[MotherDuck] storeMagicToken error:', e.message);
+    return false;
+  }
+}
+
+async function getMagicToken(token) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return null;
+    const conn = await inst.connect();
+    try {
+      await ensureAuthTables(conn);
+      const res = await conn.runAndReadAll(
+        `SELECT email FROM pindrop.magic_tokens WHERE token = ? AND expires_at > now()`,
+        [token]
+      );
+      const rows = res.getRowObjects();
+      return rows.length ? rows[0].email : null;
+    } finally { conn.closeSync(); }
+  } catch (e) {
+    console.error('[MotherDuck] getMagicToken error:', e.message);
+    return null;
+  }
+}
+
+async function deleteMagicToken(token) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return;
+    const conn = await inst.connect();
+    try {
+      await conn.run(`DELETE FROM pindrop.magic_tokens WHERE token = ?`, [token]);
+    } finally { conn.closeSync(); }
+  } catch (e) {
+    console.error('[MotherDuck] deleteMagicToken error:', e.message);
+  }
+}
+
 module.exports = {
   trackPlay, trackGame, trackShare, storeDailyCombo,
   getAllLocations, getLockedDailyCombo, getLockedDates, getPlayedDates,
@@ -1168,6 +1233,7 @@ module.exports = {
   trackFeedback, getFeedbackList, getFeedbackDetail, updateFeedback,
   // Auth
   findUserByProvider, findUserByEmail, upsertUser,
-  createEmailPasswordUser, verifyEmailPasswordUser,
-  getUserWithStats, updateUserStats, importUserStats,
+  getUserWithStats, updateUserStats, importUserStats, updateUserProfile,
+  // Magic link tokens
+  storeMagicToken, getMagicToken, deleteMagicToken,
 };

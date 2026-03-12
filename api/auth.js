@@ -1,31 +1,23 @@
 // api/auth.js — User authentication for PinDrop
 //
-// Supports:
-//   Google OAuth 2.0 (server-side Authorization Code flow)
-//   Email magic link  (passwordless, 15-min token via Vercel KV + Resend)
-//   Email + password  (scrypt hashing via Node built-in crypto)
-//
+// Sign-in: passwordless magic link (15-min token stored in MotherDuck + Resend email)
 // Session: HTTP-only `pd_session` cookie, HS256 JWT signed with JWT_SECRET.
-// All user data is stored in MotherDuck (pindrop.users, pindrop.user_stats).
-// Magic link tokens are stored in Vercel KV with a 900-second TTL.
+// All user data + magic link tokens stored in MotherDuck (pindrop schema).
 //
 // Routes (all via ?action=):
 //   GET  me                 — return current user + stats from cookie
-//   GET  login-google       — redirect to Google OAuth
-//   GET  callback-google    — handle Google OAuth callback
 //   POST magic-link-request — send sign-in link to email
 //   GET  magic-link-verify  — verify magic link token, set session
-//   POST email-signup       — register with email + password
-//   POST email-login        — sign in with email + password
 //   POST import-stats       — import localStorage stats (first login only)
+//   POST update-profile     — save name, birthday, city, country
 //   POST logout             — clear session cookie
 //   GET  dev-login          — create test session (non-production only)
 
 const crypto = require('crypto');
 const {
-  findUserByProvider, findUserByEmail, upsertUser,
-  createEmailPasswordUser, verifyEmailPasswordUser,
-  getUserWithStats, importUserStats,
+  findUserByEmail, upsertUser,
+  getUserWithStats, importUserStats, updateUserProfile,
+  storeMagicToken, getMagicToken, deleteMagicToken,
 } = require('./_motherduck');
 
 // ── JWT (HS256, zero npm deps) ────────────────────────────────────────────────
@@ -74,52 +66,6 @@ function getSessionFromRequest(req) {
   return verifyJwt(decodeURIComponent(match[1]), secret);
 }
 
-// ── KV helpers (Upstash/Vercel KV REST API) ───────────────────────────────────
-
-async function kvSet(key, value, ttlSeconds) {
-  const url = process.env.KV_REST_API_URL;
-  const tok = process.env.KV_REST_API_TOKEN;
-  if (!url || !tok) return false;
-  // Use pipeline for safe key encoding
-  const r = await fetch(url + '/pipeline', {
-    method:  'POST',
-    headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' },
-    body:    JSON.stringify([['SETEX', key, ttlSeconds, value]]),
-  });
-  return r.ok;
-}
-
-async function kvGet(key) {
-  const url = process.env.KV_REST_API_URL;
-  const tok = process.env.KV_REST_API_TOKEN;
-  if (!url || !tok) return null;
-  const r = await fetch(url + `/get/${encodeURIComponent(key)}`, {
-    headers: { Authorization: 'Bearer ' + tok },
-  });
-  if (!r.ok) return null;
-  const { result } = await r.json();
-  return result || null;
-}
-
-async function kvDel(key) {
-  const url = process.env.KV_REST_API_URL;
-  const tok = process.env.KV_REST_API_TOKEN;
-  if (!url || !tok) return;
-  await fetch(url + '/pipeline', {
-    method:  'POST',
-    headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' },
-    body:    JSON.stringify([['DEL', key]]),
-  });
-}
-
-// ── Password helpers (scrypt via Node crypto) ─────────────────────────────────
-
-function hashPassword(password) {
-  const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
-  return `$scrypt$${salt}$${hash}`;
-}
-
 // ── Body parser ───────────────────────────────────────────────────────────────
 
 function parseJsonBody(req) {
@@ -158,23 +104,9 @@ module.exports = async function handler(req, res) {
   const action = (req.query && req.query.action) || '';
   const secret = process.env.JWT_SECRET;
 
-  // Actions that create sessions require JWT_SECRET to be configured
-  const SESSION_ACTIONS = new Set([
-    'email-signup', 'email-login', 'callback-google', 'magic-link-verify', 'dev-login',
-  ]);
-  if (SESSION_ACTIONS.has(action) && !secret) {
+  // magic-link-verify and dev-login create sessions; both need JWT_SECRET
+  if ((action === 'magic-link-verify' || action === 'dev-login') && !secret) {
     return res.status(503).json({ error: 'Auth not configured on this deployment (missing JWT_SECRET). Set it in Vercel → Settings → Environment Variables.' });
-  }
-
-  // ── GET debug-url — show computed app URL (non-production only) ──────────
-  if (action === 'debug-url') {
-    const appUrl = getAppUrl(req);
-    return res.status(200).json({
-      appUrl,
-      redirectUri: `${appUrl}/api/auth?action=callback-google`,
-      host: req.headers.host,
-      vercelUrl: process.env.VERCEL_URL || null,
-    });
   }
 
   // ── GET me ── return current session user + stats ─────────────────────────
@@ -192,92 +124,6 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
-  // ── GET login-google — redirect to Google OAuth ───────────────────────────
-  if (action === 'login-google') {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    if (!clientId) return res.status(503).json({ error: 'Google OAuth not configured' });
-
-    const state = crypto.randomBytes(16).toString('hex');
-    await kvSet(`oauth_state:${state}`, '1', 600); // 10-min CSRF token
-
-    const appUrl = getAppUrl(req);
-    const redirectUri = `${appUrl}/api/auth?action=callback-google`;
-    const params = new URLSearchParams({
-      client_id:    clientId,
-      redirect_uri: redirectUri,
-      response_type: 'code',
-      scope:        'openid email profile',
-      state,
-      access_type:  'online',
-    });
-    return res.redirect(302, `https://accounts.google.com/o/oauth2/v2/auth?${params}`);
-  }
-
-  // ── GET callback-google — exchange code for token, create session ──────────
-  if (action === 'callback-google') {
-    const { code, state, error } = req.query;
-    const appUrl = getAppUrl(req);
-
-    if (error || !code || !state) {
-      return res.redirect(302, `${appUrl}/?auth=error`);
-    }
-
-    // Verify CSRF state
-    const stored = await kvGet(`oauth_state:${state}`);
-    if (!stored) return res.redirect(302, `${appUrl}/?auth=error`);
-    await kvDel(`oauth_state:${state}`);
-
-    try {
-      // Exchange auth code for tokens
-      const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body:    new URLSearchParams({
-          code,
-          client_id:     process.env.GOOGLE_CLIENT_ID,
-          client_secret: process.env.GOOGLE_CLIENT_SECRET,
-          redirect_uri:  `${appUrl}/api/auth?action=callback-google`,
-          grant_type:    'authorization_code',
-        }),
-      });
-      const tokens = await tokenRes.json();
-      if (!tokens.access_token) return res.redirect(302, `${appUrl}/?auth=error`);
-
-      // Fetch user profile
-      const profileRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-        headers: { Authorization: `Bearer ${tokens.access_token}` },
-      });
-      const profile = await profileRes.json();
-      if (!profile.sub) return res.redirect(302, `${appUrl}/?auth=error`);
-
-      // Find or create user
-      let user = await findUserByProvider('google', profile.sub);
-      if (!user) {
-        user = await upsertUser({
-          id:          newUserId(),
-          email:       profile.email || null,
-          displayName: profile.name  || profile.given_name || null,
-          avatarUrl:   profile.picture || null,
-          provider:    'google',
-          providerId:  profile.sub,
-        });
-      }
-      if (!user) return res.redirect(302, `${appUrl}/?auth=error`);
-
-      // Set session cookie and redirect
-      const jwt = signJwt(
-        { sub: user.id, email: user.email, exp: Math.floor(Date.now() / 1000) + 30 * 86400 },
-        secret
-      );
-      setSessionCookie(res, jwt);
-      return res.redirect(302, `${appUrl}/?auth=success`);
-
-    } catch (e) {
-      console.error('[Auth] callback-google error:', e.message);
-      return res.redirect(302, `${appUrl}/?auth=error`);
-    }
-  }
-
   // ── POST magic-link-request — send sign-in email ──────────────────────────
   if (action === 'magic-link-request' && req.method === 'POST') {
     const body  = await parseJsonBody(req);
@@ -293,7 +139,8 @@ module.exports = async function handler(req, res) {
     const appUrl = getAppUrl(req);
     const link   = `${appUrl}/api/auth?action=magic-link-verify&token=${token}`;
 
-    await kvSet(`magic:${token}`, email, 900); // 15-minute TTL
+    const stored = await storeMagicToken(token, email, 900); // 15-minute TTL
+    if (!stored) console.error('[Auth] magic-link-request: storeMagicToken failed — token not stored');
 
     try {
       const sendRes = await fetch('https://api.resend.com/emails', {
@@ -303,7 +150,7 @@ module.exports = async function handler(req, res) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from:    'PinDrop <noreply@playpindrop.app>',
+          from:    'PinDrop <noreply@contact.playpindrop.app>',
           to:      [email],
           subject: 'Your PinDrop sign-in link',
           html: `
@@ -341,11 +188,11 @@ module.exports = async function handler(req, res) {
 
     if (!token) return res.redirect(302, `${appUrl}/?auth=expired`);
 
-    const email = await kvGet(`magic:${token}`);
+    const email = await getMagicToken(token);
     if (!email)  return res.redirect(302, `${appUrl}/?auth=expired`);
 
     // Consume token immediately (single-use)
-    await kvDel(`magic:${token}`);
+    await deleteMagicToken(token);
 
     try {
       let user = await findUserByEmail(email);
@@ -371,56 +218,6 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // ── POST email-signup — register with email + password ────────────────────
-  if (action === 'email-signup' && req.method === 'POST') {
-    const body     = await parseJsonBody(req);
-    const email    = ((body && body.email) || '').toLowerCase().trim();
-    const password = (body && body.password) || '';
-    const name     = (body && body.displayName) || '';
-
-    if (!email || !email.includes('@')) return res.status(400).json({ error: 'Invalid email' });
-    if (password.length < 8)            return res.status(400).json({ error: 'Password must be at least 8 characters' });
-
-    // Check if email already exists
-    const existing = await findUserByEmail(email);
-    if (existing) return res.status(409).json({ error: 'An account with this email already exists. Try signing in.' });
-
-    try {
-      const id   = newUserId();
-      const hash = hashPassword(password);
-      await createEmailPasswordUser({ id, email, passwordHash: hash, displayName: name || null });
-
-      const jwt = signJwt(
-        { sub: id, email, exp: Math.floor(Date.now() / 1000) + 30 * 86400 },
-        secret
-      );
-      setSessionCookie(res, jwt);
-      return res.status(200).json({ ok: true });
-    } catch (e) {
-      console.error('[Auth] email-signup error:', e.message);
-      return res.status(500).json({ error: 'Could not create account. Please try again.' });
-    }
-  }
-
-  // ── POST email-login — sign in with email + password ─────────────────────
-  if (action === 'email-login' && req.method === 'POST') {
-    const body     = await parseJsonBody(req);
-    const email    = ((body && body.email) || '').toLowerCase().trim();
-    const password = (body && body.password) || '';
-
-    if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
-
-    const user = await verifyEmailPasswordUser(email, password);
-    if (!user) return res.status(401).json({ error: 'Incorrect email or password' });
-
-    const jwt = signJwt(
-      { sub: user.id, email: user.email, exp: Math.floor(Date.now() / 1000) + 30 * 86400 },
-      secret
-    );
-    setSessionCookie(res, jwt);
-    return res.status(200).json({ ok: true });
-  }
-
   // ── POST import-stats — one-time localStorage migration ───────────────────
   if (action === 'import-stats' && req.method === 'POST') {
     const session = getSessionFromRequest(req);
@@ -437,6 +234,25 @@ module.exports = async function handler(req, res) {
       anonymousPlayerId: body.anonymousPlayerId || null,
     });
     return res.status(200).json({ ok: true, imported });
+  }
+
+  // ── POST update-profile — save name, birthday, city, country ─────────────
+  if (action === 'update-profile' && req.method === 'POST') {
+    const session = getSessionFromRequest(req);
+    if (!session) return res.status(401).json({ error: 'Not signed in' });
+
+    const body = await parseJsonBody(req);
+    const ok = await updateUserProfile({
+      userId:      session.sub,
+      displayName: (body.displayName || '').trim() || null,
+      birthday:    body.birthday    || null,
+      city:        (body.city       || '').trim() || null,
+      country:     (body.country    || '').trim() || null,
+    });
+    if (!ok) return res.status(500).json({ error: 'Failed to save profile' });
+    // Return updated user so the client can refresh _authUser
+    const updated = await getUserWithStats(session.sub);
+    return res.status(200).json({ ok: true, user: updated?.user || null });
   }
 
   // ── GET dev-login — create a test session (non-production only) ───────────
