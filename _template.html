@@ -1665,7 +1665,7 @@
     </div>
     <div style="display:flex;gap:8px;">
       <button class="btn-home" id="btn-home-from-summary" style="flex:1;">← Back to Home</button>
-      <button class="btn-home" id="btn-view-history-summary" style="flex:1;">History →</button>
+      <button class="btn-home hidden" id="btn-view-history-summary" style="flex:1;">History →</button>
     </div>
   </div>
 </div>
@@ -1713,7 +1713,7 @@
     </button>
     <div style="display:flex;gap:8px;">
       <button class="btn-back-home" id="btn-back-home-review" style="flex:1;">← Back to Home</button>
-      <button class="btn-back-home" id="btn-view-history-review" style="flex:1;">History →</button>
+      <button class="btn-back-home hidden" id="btn-view-history-review" style="flex:1;">History →</button>
     </div>
   </div>
 </div>
@@ -2080,9 +2080,9 @@ function updateAuthUI() {
   if (_authUser) {
     if (cornerBtn)   cornerBtn.classList.add('signed-in');
     if (authNudge)   authNudge.classList.add('hidden');
-    // Signed-in users reach history through the profile icon — hide shortcut buttons
-    if (histSummary) histSummary.classList.add('hidden');
-    if (histReview)  histReview.classList.add('hidden');
+    // History buttons are a perk for signed-in users
+    if (histSummary) histSummary.classList.remove('hidden');
+    if (histReview)  histReview.classList.remove('hidden');
     // Show DB stats on home screen (authoritative source)
     if (_authStats) {
       document.getElementById('home-streak').textContent  = _authStats.streak      || 0;
@@ -2092,8 +2092,9 @@ function updateAuthUI() {
     }
   } else {
     if (cornerBtn)   cornerBtn.classList.remove('signed-in');
-    if (histSummary) histSummary.classList.remove('hidden');
-    if (histReview)  histReview.classList.remove('hidden');
+    // Hide all history access points for anonymous users — encourages sign-up
+    if (histSummary) histSummary.classList.add('hidden');
+    if (histReview)  histReview.classList.add('hidden');
     if (authNudge) {
       const store = loadStorage();
       if ((store.streak || 0) >= 2) authNudge.classList.remove('hidden');
@@ -2498,15 +2499,17 @@ function initHome() {
     btn.parentNode.insertBefore(countdown, btn);
   }
 
-  // History link — appears below stats row only after the user has played at least once
+  // History link — only shown to signed-in users (encourages anonymous players to create a profile)
   const existingHistLink = document.getElementById('history-link');
   if (existingHistLink) existingHistLink.remove();
-  const hist = store.history || [];
-  if (hist.length > 0) {
+  if (_authUser) {
+    const count    = _authStats?.gamesPlayed || (store.history || []).length;
     const histLink = document.createElement('button');
     histLink.id        = 'history-link';
     histLink.className = 'btn-ghost';
-    histLink.textContent = `View History (${hist.length} game${hist.length === 1 ? '' : 's'})`;
+    histLink.textContent = count > 0
+      ? `View History (${count} game${count === 1 ? '' : 's'})`
+      : 'View History';
     histLink.style.cssText = 'margin-top:8px;font-size:13px;height:36px;opacity:1;';
     histLink.addEventListener('click', () => { initHistory(); showScreen('history'); });
     document.querySelector('#home .streak-row').insertAdjacentElement('afterend', histLink);
