@@ -1041,23 +1041,53 @@ async function upsertUser({ id, email, displayName, avatarUrl, provider, provide
 // Return user + stats in a single call (used by GET /api/auth?action=me).
 async function getUserEmojiStats(conn, userId) {
   try {
-    // Emoji distribution across all authenticated plays
+    // Look up anonymous player ID so pre-sign-in plays are also counted
+    const anonRows = (await conn.runAndReadAll(
+      `SELECT anonymous_player_id FROM pindrop.users WHERE id = ?`, [userId]
+    )).getRowObjects();
+    const anonId = (anonRows.length && anonRows[0].anonymous_player_id) || null;
+
+    // Plays source: auth plays UNION anon plays for dates not already covered by auth
+    const playsSource = anonId
+      ? `(SELECT points FROM pindrop.plays WHERE user_id = ?
+         UNION ALL
+         SELECT points FROM pindrop.plays
+         WHERE player_id = ?
+           AND CAST(game_date AS VARCHAR) NOT IN (
+               SELECT CAST(game_date AS VARCHAR) FROM pindrop.plays WHERE user_id = ?
+           ))`
+      : `(SELECT points FROM pindrop.plays WHERE user_id = ?)`;
+    const playsParams = anonId ? [userId, anonId, userId] : [userId];
+
     const emojiRes = await conn.runAndReadAll(
       `SELECT
-         SUM(CASE WHEN points >= 200                        THEN 1 ELSE 0 END) AS perfect,
-         SUM(CASE WHEN points >= 150 AND points < 200       THEN 1 ELSE 0 END) AS great,
-         SUM(CASE WHEN points >= 100 AND points < 150       THEN 1 ELSE 0 END) AS good,
-         SUM(CASE WHEN points >= 50  AND points < 100       THEN 1 ELSE 0 END) AS okay,
-         SUM(CASE WHEN points >= 1   AND points < 50        THEN 1 ELSE 0 END) AS bad,
-         SUM(CASE WHEN points = 0                           THEN 1 ELSE 0 END) AS miss
-       FROM pindrop.plays WHERE user_id = ?`,
-      [userId]
+         SUM(CASE WHEN points >= 200                  THEN 1 ELSE 0 END) AS perfect,
+         SUM(CASE WHEN points >= 150 AND points < 200 THEN 1 ELSE 0 END) AS great,
+         SUM(CASE WHEN points >= 100 AND points < 150 THEN 1 ELSE 0 END) AS good,
+         SUM(CASE WHEN points >= 50  AND points < 100 THEN 1 ELSE 0 END) AS okay,
+         SUM(CASE WHEN points >= 1   AND points < 50  THEN 1 ELSE 0 END) AS bad,
+         SUM(CASE WHEN points = 0                     THEN 1 ELSE 0 END) AS miss
+       FROM ${playsSource} all_plays`,
+      playsParams
     );
-    // Average daily score across all authenticated games
+
+    // Games source: auth games UNION anon games for uncovered dates
+    const gamesSource = anonId
+      ? `(SELECT total_score FROM pindrop.games WHERE user_id = ?
+         UNION ALL
+         SELECT total_score FROM pindrop.games
+         WHERE player_id = ?
+           AND CAST(game_date AS VARCHAR) NOT IN (
+               SELECT CAST(game_date AS VARCHAR) FROM pindrop.games WHERE user_id = ?
+           ))`
+      : `(SELECT total_score FROM pindrop.games WHERE user_id = ?)`;
+    const gamesParams = anonId ? [userId, anonId, userId] : [userId];
+
     const avgRes = await conn.runAndReadAll(
-      `SELECT ROUND(AVG(total_score)) AS avg_score FROM pindrop.games WHERE user_id = ?`,
-      [userId]
+      `SELECT ROUND(AVG(total_score)) AS avg_score FROM ${gamesSource} all_games`,
+      gamesParams
     );
+
     const e = emojiRes.getRowObjects()[0] || {};
     const a = avgRes.getRowObjects()[0]   || {};
     return {

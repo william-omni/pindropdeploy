@@ -1156,6 +1156,14 @@
     #review:not(.hidden) ~ .feedback-fab,
     #history:not(.hidden) ~ .feedback-fab { display: none; }
 
+    /* History screen — scrollable when content is tall */
+    #history {
+      background: var(--bg);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      justify-content: flex-start;
+    }
+
     /* Dark / light mode toggle on home */
     .theme-toggle-btn {
       position: absolute;
@@ -1773,6 +1781,7 @@
       <button id="btn-history-back" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0 4px 0 0;line-height:1;" aria-label="Back">←</button>
       <h2 style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;margin:0;color:var(--text);">Your History</h2>
     </div>
+    <div id="history-emoji-stats"></div>
     <div id="history-list"></div>
     <p id="history-empty" style="display:none;text-align:center;color:var(--muted);font-size:14px;padding:40px 0;">
       No history yet — play your first game to start tracking!
@@ -2633,9 +2642,6 @@ function initHome() {
     btn.parentNode.insertBefore(countdown, btn);
   }
 
-  // Emoji stats card — render for signed-in users (cleans up stale inside renderEmojiStats)
-  renderEmojiStats();
-
   // History link — only shown to signed-in users (encourages anonymous players to create a profile)
   const existingHistLink = document.getElementById('history-link');
   if (existingHistLink) existingHistLink.remove();
@@ -2677,9 +2683,9 @@ function renderEmojiStats() {
   const card = document.createElement('div');
   card.id = 'emoji-stats-card';
   card.style.cssText = `
-    width:100%;max-width:360px;box-sizing:border-box;
+    width:100%;box-sizing:border-box;
     background:var(--surface);border:1px solid var(--border);
-    border-radius:16px;padding:16px 18px 14px;margin-top:12px;
+    border-radius:16px;padding:16px 18px 14px;
   `;
 
   const barsHTML = tiers.map(t => {
@@ -2718,9 +2724,13 @@ function renderEmojiStats() {
     ${barsHTML}${avgHTML}
   `;
 
-  // Insert after the .streak-row
-  const streakRow = document.querySelector('#home .streak-row');
-  if (streakRow) streakRow.insertAdjacentElement('afterend', card);
+  // Insert into the history screen placeholder
+  const slot = document.getElementById('history-emoji-stats');
+  if (slot) {
+    slot.innerHTML = '';
+    slot.style.cssText = 'margin-bottom:20px;';
+    slot.appendChild(card);
+  }
 }
 
 // Parse a date string that may be "YYYY-M-D" or "YYYY-MM-DD" into a UTC Date.
@@ -2804,6 +2814,7 @@ function _renderHistory(recorded, streak, lastPlayedDay, totalPlayed) {
 async function initHistory() {
   const list = document.getElementById('history-list');
   list.innerHTML = '';
+  renderEmojiStats();
 
   if (_authUser) {
     // Signed in: fetch game history from server (DB is authoritative)
