@@ -1665,7 +1665,7 @@
     </div>
     <div style="display:flex;gap:8px;">
       <button class="btn-home" id="btn-home-from-summary" style="flex:1;">← Back to Home</button>
-      <button class="btn-home hidden" id="btn-view-history-summary" style="flex:1;">History →</button>
+      <button class="btn-home" id="btn-view-history-summary" style="flex:1;display:none;">History →</button>
     </div>
   </div>
 </div>
@@ -1713,7 +1713,7 @@
     </button>
     <div style="display:flex;gap:8px;">
       <button class="btn-back-home" id="btn-back-home-review" style="flex:1;">← Back to Home</button>
-      <button class="btn-back-home hidden" id="btn-view-history-review" style="flex:1;">History →</button>
+      <button class="btn-back-home" id="btn-view-history-review" style="flex:1;display:none;">History →</button>
     </div>
   </div>
 </div>
@@ -2081,8 +2081,8 @@ function updateAuthUI() {
     if (cornerBtn)   cornerBtn.classList.add('signed-in');
     if (authNudge)   authNudge.classList.add('hidden');
     // History buttons are a perk for signed-in users
-    if (histSummary) histSummary.classList.remove('hidden');
-    if (histReview)  histReview.classList.remove('hidden');
+    if (histSummary) histSummary.style.display = '';
+    if (histReview)  histReview.style.display  = '';
     // Show DB stats on home screen (authoritative source)
     if (_authStats) {
       document.getElementById('home-streak').textContent  = _authStats.streak      || 0;
@@ -2093,8 +2093,8 @@ function updateAuthUI() {
   } else {
     if (cornerBtn)   cornerBtn.classList.remove('signed-in');
     // Hide all history access points for anonymous users — encourages sign-up
-    if (histSummary) histSummary.classList.add('hidden');
-    if (histReview)  histReview.classList.add('hidden');
+    if (histSummary) histSummary.style.display = 'none';
+    if (histReview)  histReview.style.display  = 'none';
     if (authNudge) {
       const store = loadStorage();
       if ((store.streak || 0) >= 2) authNudge.classList.remove('hidden');
