@@ -1196,7 +1196,8 @@
     }
     .auth-corner-btn:hover { opacity: 0.8; }
     .auth-corner-btn svg { width: 16px; height: 16px; stroke: var(--text); flex-shrink: 0; }
-    .auth-corner-btn.signed-in svg { stroke: var(--accent); }
+    .auth-corner-btn.signed-in { background: var(--accent); border-color: var(--accent); }
+    .auth-corner-btn.signed-in svg { stroke: var(--btn-text); }
     /* Profile modal */
     #profile-modal { display:flex; }
     #profile-modal.hidden { display:none; }
@@ -1961,20 +1962,32 @@ let _authStats = null;  // { streak, bestScore, gamesPlayed, lastScore, lastPlay
 async function initAuth() {
   try {
     const r = await fetch('/api/auth?action=me');
-    if (!r.ok) return;
-    const data = await r.json();
-    _authUser  = data.user  || null;
-    _authStats = data.stats || null;
-    if (_authUser) onAuthSuccess(false);
+    if (r.ok) {
+      const data = await r.json();
+      _authUser  = data.user  || null;
+      _authStats = data.stats || null;
+      if (_authUser) onAuthSuccess(false);
+    }
   } catch {}
-  // Handle OAuth redirect result
-  const params = new URLSearchParams(window.location.search);
+  // Handle auth redirect result — always runs even if me returned 5xx
+  const params     = new URLSearchParams(window.location.search);
   const authResult = params.get('auth');
   if (authResult) {
     history.replaceState({}, '', '/');
-    if (authResult === 'expired') showToast('Sign-in link expired. Please try again.', 3000);
-    if (authResult === 'error')   showToast('Sign-in failed. Please try again.', 3000);
-    if (authResult === 'success' && _authUser) maybePromptImport();
+    if (authResult === 'expired') {
+      showToast('Sign-in link expired — please request a new one.', 3500);
+      openAuthModal();
+    }
+    if (authResult === 'error') showToast('Sign-in failed. Please try again.', 3000);
+    if (authResult === 'success') {
+      if (_authUser) {
+        showToast('Signed in!', 2000);
+        maybePromptImport();
+      } else {
+        // me returned null (e.g. cold-start DB lag) — let user know
+        showToast("Signed in! Reload if the page doesn't update.", 3500);
+      }
+    }
   }
   updateAuthUI();
 }
