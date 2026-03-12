@@ -1,12 +1,11 @@
 // api/auth.js — User authentication for PinDrop
 //
 // Supports:
-//   Email magic link  (passwordless, 15-min token via Vercel KV + Resend)
+//   Email magic link  (passwordless, 15-min token stored in MotherDuck)
 //   Email + password  (scrypt hashing via Node built-in crypto)
 //
 // Session: HTTP-only `pd_session` cookie, HS256 JWT signed with JWT_SECRET.
-// All user data is stored in MotherDuck (pindrop.users, pindrop.user_stats).
-// Magic link tokens are stored in Vercel KV with a 900-second TTL.
+// All user data + magic link tokens stored in MotherDuck (pindrop schema).
 //
 // Routes (all via ?action=):
 //   GET  me                 — return current user + stats from cookie
@@ -23,6 +22,7 @@ const {
   findUserByProvider, findUserByEmail, upsertUser,
   createEmailPasswordUser, verifyEmailPasswordUser,
   getUserWithStats, importUserStats,
+  storeMagicToken, getMagicToken, deleteMagicToken,
 } = require('./_motherduck');
 
 // ── JWT (HS256, zero npm deps) ────────────────────────────────────────────────
@@ -69,57 +69,6 @@ function getSessionFromRequest(req) {
   const match = raw.match(/(?:^|;\s*)pd_session=([^;]+)/);
   if (!match) return null;
   return verifyJwt(decodeURIComponent(match[1]), secret);
-}
-
-// ── KV helpers (Upstash/Vercel KV REST API) ───────────────────────────────────
-
-async function kvSet(key, value, ttlSeconds) {
-  const url = process.env.KV_REST_API_URL;
-  const tok = process.env.KV_REST_API_TOKEN;
-  if (!url || !tok) {
-    console.error('[KV] kvSet failed: KV_REST_API_URL or KV_REST_API_TOKEN not set');
-    return false;
-  }
-  // Use pipeline for safe key encoding
-  const r = await fetch(url + '/pipeline', {
-    method:  'POST',
-    headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' },
-    body:    JSON.stringify([['SETEX', key, ttlSeconds, value]]),
-  });
-  if (!r.ok) {
-    const body = await r.text().catch(() => '');
-    console.error('[KV] kvSet failed:', r.status, body);
-  }
-  return r.ok;
-}
-
-async function kvGet(key) {
-  const url = process.env.KV_REST_API_URL;
-  const tok = process.env.KV_REST_API_TOKEN;
-  if (!url || !tok) {
-    console.error('[KV] kvGet failed: KV_REST_API_URL or KV_REST_API_TOKEN not set');
-    return null;
-  }
-  const r = await fetch(url + `/get/${encodeURIComponent(key)}`, {
-    headers: { Authorization: 'Bearer ' + tok },
-  });
-  if (!r.ok) {
-    console.error('[KV] kvGet failed:', r.status);
-    return null;
-  }
-  const { result } = await r.json();
-  return result || null;
-}
-
-async function kvDel(key) {
-  const url = process.env.KV_REST_API_URL;
-  const tok = process.env.KV_REST_API_TOKEN;
-  if (!url || !tok) return;
-  await fetch(url + '/pipeline', {
-    method:  'POST',
-    headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' },
-    body:    JSON.stringify([['DEL', key]]),
-  });
 }
 
 // ── Password helpers (scrypt via Node crypto) ─────────────────────────────────
@@ -205,10 +154,9 @@ module.exports = async function handler(req, res) {
     const token  = crypto.randomBytes(32).toString('hex');
     const appUrl = getAppUrl(req);
     const link   = `${appUrl}/api/auth?action=magic-link-verify&token=${token}`;
-    console.log('[Auth] magic-link appUrl:', appUrl);
 
-    const kvOk = await kvSet(`magic:${token}`, email, 900); // 15-minute TTL
-    if (!kvOk) console.error('[Auth] magic-link-request: kvSet failed — token not stored');
+    const stored = await storeMagicToken(token, email, 900); // 15-minute TTL
+    if (!stored) console.error('[Auth] magic-link-request: storeMagicToken failed — token not stored');
 
     try {
       const sendRes = await fetch('https://api.resend.com/emails', {
@@ -253,16 +201,14 @@ module.exports = async function handler(req, res) {
   if (action === 'magic-link-verify') {
     const { token } = req.query;
     const appUrl    = getAppUrl(req);
-    console.log('[Auth] magic-link-verify appUrl:', appUrl, 'token present:', !!token);
 
     if (!token) return res.redirect(302, `${appUrl}/?auth=expired`);
 
-    const email = await kvGet(`magic:${token}`);
-    console.log('[Auth] magic-link-verify kvGet result:', email ? 'found' : 'NOT FOUND');
+    const email = await getMagicToken(token);
     if (!email)  return res.redirect(302, `${appUrl}/?auth=expired`);
 
     // Consume token immediately (single-use)
-    await kvDel(`magic:${token}`);
+    await deleteMagicToken(token);
 
     try {
       let user = await findUserByEmail(email);

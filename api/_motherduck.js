@@ -950,6 +950,13 @@ async function ensureAuthTables(conn) {
       updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);
+  await conn.run(`
+    CREATE TABLE IF NOT EXISTS pindrop.magic_tokens (
+      token      VARCHAR PRIMARY KEY,
+      email      VARCHAR NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL
+    )
+  `);
   _authTablesReady = true;
 }
 
@@ -1156,6 +1163,63 @@ async function importUserStats({ userId, streak, bestScore, lastScore, gamesPlay
   }
 }
 
+// ── Magic link tokens ─────────────────────────────────────────────────────────
+
+async function storeMagicToken(token, email, ttlSeconds) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return false;
+    const conn = await inst.connect();
+    try {
+      await ensureAuthTables(conn);
+      // Opportunistically clean up expired tokens
+      await conn.run(`DELETE FROM pindrop.magic_tokens WHERE expires_at < now()`);
+      const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+      await conn.run(
+        `INSERT INTO pindrop.magic_tokens (token, email, expires_at) VALUES (?, ?, ?)`,
+        [token, email, expiresAt]
+      );
+      return true;
+    } finally { conn.closeSync(); }
+  } catch (e) {
+    console.error('[MotherDuck] storeMagicToken error:', e.message);
+    return false;
+  }
+}
+
+async function getMagicToken(token) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return null;
+    const conn = await inst.connect();
+    try {
+      await ensureAuthTables(conn);
+      const res = await conn.runAndReadAll(
+        `SELECT email FROM pindrop.magic_tokens WHERE token = ? AND expires_at > now()`,
+        [token]
+      );
+      const rows = res.getRowObjects();
+      return rows.length ? rows[0].email : null;
+    } finally { conn.closeSync(); }
+  } catch (e) {
+    console.error('[MotherDuck] getMagicToken error:', e.message);
+    return null;
+  }
+}
+
+async function deleteMagicToken(token) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return;
+    const conn = await inst.connect();
+    try {
+      await conn.run(`DELETE FROM pindrop.magic_tokens WHERE token = ?`, [token]);
+    } finally { conn.closeSync(); }
+  } catch (e) {
+    console.error('[MotherDuck] deleteMagicToken error:', e.message);
+  }
+}
+
 module.exports = {
   trackPlay, trackGame, trackShare, storeDailyCombo,
   getAllLocations, getLockedDailyCombo, getLockedDates, getPlayedDates,
@@ -1170,4 +1234,6 @@ module.exports = {
   findUserByProvider, findUserByEmail, upsertUser,
   createEmailPasswordUser, verifyEmailPasswordUser,
   getUserWithStats, updateUserStats, importUserStats,
+  // Magic link tokens
+  storeMagicToken, getMagicToken, deleteMagicToken,
 };
