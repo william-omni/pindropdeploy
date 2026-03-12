@@ -1367,7 +1367,8 @@
                          display:flex;align-items:center;gap:5px;">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="2.5"
-                 stroke-linecap="round" stroke-linejoin="round">
+                 stroke-linecap="round" stroke-linejoin="round"
+                 style="transform:rotate(-30deg);flex-shrink:0;">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
             </svg>
@@ -2071,14 +2072,28 @@ function onAuthSuccess(justSignedIn = true) {
 }
 
 function updateAuthUI() {
-  const cornerBtn = document.getElementById('btn-auth-corner');
-  const authNudge = document.getElementById('auth-nudge');
+  const cornerBtn    = document.getElementById('btn-auth-corner');
+  const authNudge    = document.getElementById('auth-nudge');
+  const histSummary  = document.getElementById('btn-view-history-summary');
+  const histReview   = document.getElementById('btn-view-history-review');
 
   if (_authUser) {
-    if (cornerBtn) cornerBtn.classList.add('signed-in');
-    if (authNudge) authNudge.classList.add('hidden');
+    if (cornerBtn)   cornerBtn.classList.add('signed-in');
+    if (authNudge)   authNudge.classList.add('hidden');
+    // Signed-in users reach history through the profile icon — hide shortcut buttons
+    if (histSummary) histSummary.classList.add('hidden');
+    if (histReview)  histReview.classList.add('hidden');
+    // Show DB stats on home screen (authoritative source)
+    if (_authStats) {
+      document.getElementById('home-streak').textContent  = _authStats.streak      || 0;
+      document.getElementById('home-best').textContent    = _authStats.bestScore
+        ? _authStats.bestScore.toLocaleString() : '—';
+      document.getElementById('home-played').textContent  = _authStats.gamesPlayed || 0;
+    }
   } else {
-    if (cornerBtn) cornerBtn.classList.remove('signed-in');
+    if (cornerBtn)   cornerBtn.classList.remove('signed-in');
+    if (histSummary) histSummary.classList.remove('hidden');
+    if (histReview)  histReview.classList.remove('hidden');
     if (authNudge) {
       const store = loadStorage();
       if ((store.streak || 0) >= 2) authNudge.classList.remove('hidden');
@@ -2178,7 +2193,8 @@ async function openProfileModal() {
         const data = await r.json();
         if (data.user)  { _authUser  = data.user;  }
         if (data.stats) { _authStats = data.stats; }
-        _renderProfileModal(); // re-render with fresh data
+        _renderProfileModal(); // re-render modal with fresh data
+        updateAuthUI();        // sync home-screen stats too
       }
     } catch {}
   }

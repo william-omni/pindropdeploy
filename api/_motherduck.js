@@ -1071,6 +1071,7 @@ async function getUserWithStats(userId) {
 }
 
 // Return per-game history for a signed-in user from pindrop.games + pindrop.plays.
+// Also resolves pre-sign-in games via the user's stored anonymous_player_id.
 async function getUserGameHistory(userId) {
   try {
     const inst = await getDataInstance();
@@ -1078,35 +1079,73 @@ async function getUserGameHistory(userId) {
     const conn = await inst.connect();
     try {
       await ensureAuthTables(conn);
+
+      // Look up the anonymous player ID so we can include pre-sign-in games
+      const userRes = await conn.runAndReadAll(
+        `SELECT anonymous_player_id FROM pindrop.users WHERE id = ?`,
+        [userId]
+      );
+      const userRows = userRes.getRowObjects();
+      const anonId = (userRows.length && userRows[0].anonymous_player_id) || null;
+
+      // Build parameterised WHERE that covers both authenticated and anonymous rows
+      const gamesWhere  = anonId ? `WHERE user_id = ? OR player_id = ?`  : `WHERE user_id = ?`;
+      const gamesParams = anonId ? [userId, anonId]                        : [userId];
+
       const gamesRes = await conn.runAndReadAll(
         `SELECT CAST(game_date AS VARCHAR) AS game_date,
                 day_number, total_score, streak_at_time
          FROM pindrop.games
-         WHERE user_id = ?
+         ${gamesWhere}
          ORDER BY game_date DESC
          LIMIT 90`,
-        [userId]
+        gamesParams
       );
-      const games = gamesRes.getRowObjects();
-      if (!games.length) return [];
+      const allGames = gamesRes.getRowObjects();
+      if (!allGames.length) return [];
+
+      // Deduplicate by game_date (first occurrence wins — results ordered by date DESC,
+      // authenticated records appear first because user_id rows sort before player_id rows
+      // on the same date — dedup keeps whichever came first)
+      const seenDates = new Set();
+      const games = [];
+      for (const g of allGames) {
+        if (!seenDates.has(g.game_date)) {
+          seenDates.add(g.game_date);
+          games.push(g);
+        }
+      }
 
       const dates = games.map(g => g.game_date);
+      const inList = dates.map(() => '?').join(',');
+
+      const playsWhere  = anonId
+        ? `WHERE (user_id = ? OR player_id = ?) AND CAST(game_date AS VARCHAR) IN (${inList})`
+        : `WHERE user_id = ? AND CAST(game_date AS VARCHAR) IN (${inList})`;
+      const playsParams = anonId ? [userId, anonId, ...dates] : [userId, ...dates];
+
       const playsRes = await conn.runAndReadAll(
         `SELECT CAST(game_date AS VARCHAR) AS game_date,
                 round, location, dist_km, points
          FROM pindrop.plays
-         WHERE user_id = ?
-           AND CAST(game_date AS VARCHAR) IN (${dates.map(() => '?').join(',')})
+         ${playsWhere}
          ORDER BY game_date DESC, round ASC`,
-        [userId, ...dates]
+        playsParams
       );
-      const plays = playsRes.getRowObjects();
+      const allPlays = playsRes.getRowObjects();
 
+      // Deduplicate plays by (game_date, round) — same round could appear twice if both
+      // user_id and player_id rows exist
+      const playsSeen = new Set();
       const byDate = {};
-      for (const p of plays) {
+      for (const p of allPlays) {
+        const key = `${p.game_date}|${p.round}`;
+        if (playsSeen.has(key)) continue;
+        playsSeen.add(key);
         if (!byDate[p.game_date]) byDate[p.game_date] = [];
         byDate[p.game_date].push({ pts: p.points, name: p.location, distKm: p.dist_km });
       }
+
       return games.map(g => ({
         date:   g.game_date,
         dayNum: g.day_number,
