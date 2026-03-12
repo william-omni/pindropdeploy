@@ -1037,41 +1037,6 @@ async function upsertUser({ id, email, displayName, avatarUrl, provider, provide
   } finally { conn.closeSync(); }
 }
 
-// Create a new email+password user. Call after hashing the password.
-async function createEmailPasswordUser({ id, email, passwordHash, displayName }) {
-  const inst = await getDataInstance();
-  if (!inst) throw new Error('MotherDuck not available');
-  const conn = await inst.connect();
-  try {
-    await ensureAuthTables(conn);
-    await conn.run(
-      `INSERT INTO pindrop.users (id, email, display_name, provider, password_hash)
-       VALUES (?, ?, ?, 'email_password', ?)`,
-      [id, email.toLowerCase(), displayName || null, passwordHash]
-    );
-    await conn.run(
-      `INSERT INTO pindrop.user_stats (user_id) VALUES (?)`, [id]
-    );
-  } finally { conn.closeSync(); }
-}
-
-// Returns user row if email/password are valid, null otherwise.
-async function verifyEmailPasswordUser(email, password) {
-  const crypto = require('crypto');
-  const user = await findUserByEmail(email);
-  if (!user || !user.password_hash) return null;
-
-  // Format: $scrypt$<salt>$<hash>
-  const parts = user.password_hash.split('$');
-  if (parts.length !== 4 || parts[1] !== 'scrypt') return null;
-  const [, , salt, expectedHash] = parts;
-  try {
-    const hash = crypto.scryptSync(password, salt, 64).toString('hex');
-    const valid = crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(expectedHash));
-    return valid ? user : null;
-  } catch { return null; }
-}
-
 // Return user + stats in a single call (used by GET /api/auth?action=me).
 async function getUserWithStats(userId) {
   try {
@@ -1268,7 +1233,6 @@ module.exports = {
   trackFeedback, getFeedbackList, getFeedbackDetail, updateFeedback,
   // Auth
   findUserByProvider, findUserByEmail, upsertUser,
-  createEmailPasswordUser, verifyEmailPasswordUser,
   getUserWithStats, updateUserStats, importUserStats, updateUserProfile,
   // Magic link tokens
   storeMagicToken, getMagicToken, deleteMagicToken,

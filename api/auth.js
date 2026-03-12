@@ -1,9 +1,6 @@
 // api/auth.js — User authentication for PinDrop
 //
-// Supports:
-//   Email magic link  (passwordless, 15-min token stored in MotherDuck)
-//   Email + password  (scrypt hashing via Node built-in crypto)
-//
+// Sign-in: passwordless magic link (15-min token stored in MotherDuck + Resend email)
 // Session: HTTP-only `pd_session` cookie, HS256 JWT signed with JWT_SECRET.
 // All user data + magic link tokens stored in MotherDuck (pindrop schema).
 //
@@ -11,16 +8,14 @@
 //   GET  me                 — return current user + stats from cookie
 //   POST magic-link-request — send sign-in link to email
 //   GET  magic-link-verify  — verify magic link token, set session
-//   POST email-signup       — register with email + password
-//   POST email-login        — sign in with email + password
 //   POST import-stats       — import localStorage stats (first login only)
+//   POST update-profile     — save name, birthday, city, country
 //   POST logout             — clear session cookie
 //   GET  dev-login          — create test session (non-production only)
 
 const crypto = require('crypto');
 const {
-  findUserByProvider, findUserByEmail, upsertUser,
-  createEmailPasswordUser, verifyEmailPasswordUser,
+  findUserByEmail, upsertUser,
   getUserWithStats, importUserStats, updateUserProfile,
   storeMagicToken, getMagicToken, deleteMagicToken,
 } = require('./_motherduck');
@@ -71,14 +66,6 @@ function getSessionFromRequest(req) {
   return verifyJwt(decodeURIComponent(match[1]), secret);
 }
 
-// ── Password helpers (scrypt via Node crypto) ─────────────────────────────────
-
-function hashPassword(password) {
-  const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
-  return `$scrypt$${salt}$${hash}`;
-}
-
 // ── Body parser ───────────────────────────────────────────────────────────────
 
 function parseJsonBody(req) {
@@ -117,11 +104,8 @@ module.exports = async function handler(req, res) {
   const action = (req.query && req.query.action) || '';
   const secret = process.env.JWT_SECRET;
 
-  // Actions that create sessions require JWT_SECRET to be configured
-  const SESSION_ACTIONS = new Set([
-    'email-signup', 'email-login', 'magic-link-verify', 'dev-login',
-  ]);
-  if (SESSION_ACTIONS.has(action) && !secret) {
+  // magic-link-verify and dev-login create sessions; both need JWT_SECRET
+  if ((action === 'magic-link-verify' || action === 'dev-login') && !secret) {
     return res.status(503).json({ error: 'Auth not configured on this deployment (missing JWT_SECRET). Set it in Vercel → Settings → Environment Variables.' });
   }
 
@@ -232,56 +216,6 @@ module.exports = async function handler(req, res) {
       console.error('[Auth] magic-link-verify error:', e.message);
       return res.redirect(302, `${appUrl}/?auth=error`);
     }
-  }
-
-  // ── POST email-signup — register with email + password ────────────────────
-  if (action === 'email-signup' && req.method === 'POST') {
-    const body     = await parseJsonBody(req);
-    const email    = ((body && body.email) || '').toLowerCase().trim();
-    const password = (body && body.password) || '';
-    const name     = (body && body.displayName) || '';
-
-    if (!email || !email.includes('@')) return res.status(400).json({ error: 'Invalid email' });
-    if (password.length < 8)            return res.status(400).json({ error: 'Password must be at least 8 characters' });
-
-    // Check if email already exists
-    const existing = await findUserByEmail(email);
-    if (existing) return res.status(409).json({ error: 'An account with this email already exists. Try signing in.' });
-
-    try {
-      const id   = newUserId();
-      const hash = hashPassword(password);
-      await createEmailPasswordUser({ id, email, passwordHash: hash, displayName: name || null });
-
-      const jwt = signJwt(
-        { sub: id, email, exp: Math.floor(Date.now() / 1000) + 30 * 86400 },
-        secret
-      );
-      setSessionCookie(res, jwt);
-      return res.status(200).json({ ok: true });
-    } catch (e) {
-      console.error('[Auth] email-signup error:', e.message);
-      return res.status(500).json({ error: 'Could not create account. Please try again.' });
-    }
-  }
-
-  // ── POST email-login — sign in with email + password ─────────────────────
-  if (action === 'email-login' && req.method === 'POST') {
-    const body     = await parseJsonBody(req);
-    const email    = ((body && body.email) || '').toLowerCase().trim();
-    const password = (body && body.password) || '';
-
-    if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
-
-    const user = await verifyEmailPasswordUser(email, password);
-    if (!user) return res.status(401).json({ error: 'Incorrect email or password' });
-
-    const jwt = signJwt(
-      { sub: user.id, email: user.email, exp: Math.floor(Date.now() / 1000) + 30 * 86400 },
-      secret
-    );
-    setSessionCookie(res, jwt);
-    return res.status(200).json({ ok: true });
   }
 
   // ── POST import-stats — one-time localStorage migration ───────────────────

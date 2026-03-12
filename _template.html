@@ -1355,11 +1355,42 @@
         </div>
       </div>
 
-      <!-- Edit profile fields -->
-      <div style="display:flex;flex-direction:column;gap:10px;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);">Edit Profile</div>
-        <div style="display:flex;flex-direction:column;gap:8px;">
+      <!-- Profile info: view mode -->
+      <div id="profile-view-section" style="display:flex;flex-direction:column;gap:6px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;
+                      letter-spacing:0.08em;color:var(--muted);">About</div>
+          <button id="btn-profile-edit"
+                  style="height:26px;padding:0 10px;background:var(--surface2);color:var(--muted);
+                         border:1px solid var(--border);border-radius:8px;cursor:pointer;
+                         font-family:'Syne',sans-serif;font-size:11px;font-weight:600;">
+            ✏ Edit
+          </button>
+        </div>
+        <div id="profile-view-name-row"
+             style="display:flex;align-items:baseline;gap:8px;padding:4px 0;">
+          <span style="font-size:11px;color:var(--muted);font-weight:600;min-width:68px;">Name</span>
+          <span id="profile-view-name" style="font-size:14px;color:var(--text);font-weight:600;"></span>
+        </div>
+        <div id="profile-view-birthday-row"
+             style="display:flex;align-items:baseline;gap:8px;padding:4px 0;">
+          <span style="font-size:11px;color:var(--muted);font-weight:600;min-width:68px;">Birthday</span>
+          <span id="profile-view-birthday" style="font-size:13px;color:var(--text);"></span>
+        </div>
+        <div id="profile-view-location-row"
+             style="display:flex;align-items:baseline;gap:8px;padding:4px 0;">
+          <span style="font-size:11px;color:var(--muted);font-weight:600;min-width:68px;">Location</span>
+          <span id="profile-view-location" style="font-size:13px;color:var(--text);"></span>
+        </div>
+      </div>
 
+      <!-- Profile info: edit mode (hidden by default) -->
+      <div id="profile-edit-section" style="display:none;flex-direction:column;gap:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;
+                      letter-spacing:0.08em;color:var(--muted);">Edit Profile</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
           <div style="display:flex;flex-direction:column;gap:4px;">
             <label style="font-size:11px;color:var(--muted);font-weight:600;">Name</label>
             <input id="profile-input-name" type="text" placeholder="Your name"
@@ -1368,7 +1399,6 @@
                           border:1px solid var(--border);border-radius:10px;
                           font-family:'Syne',sans-serif;font-size:14px;outline:none;"/>
           </div>
-
           <div style="display:flex;flex-direction:column;gap:4px;">
             <label style="font-size:11px;color:var(--muted);font-weight:600;">Birthday</label>
             <input id="profile-input-birthday" type="date"
@@ -1378,7 +1408,6 @@
                           font-family:'Syne',sans-serif;font-size:14px;outline:none;
                           color-scheme:dark;"/>
           </div>
-
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
             <div style="display:flex;flex-direction:column;gap:4px;">
               <label style="font-size:11px;color:var(--muted);font-weight:600;">City</label>
@@ -1397,14 +1426,19 @@
                             font-family:'Syne',sans-serif;font-size:14px;outline:none;"/>
             </div>
           </div>
-
         </div>
-        <div style="display:flex;align-items:center;gap:10px;">
+        <div style="display:flex;align-items:center;gap:8px;">
           <button id="btn-profile-save"
                   style="height:38px;padding:0 20px;background:var(--accent);color:var(--btn-text);
                          border:none;border-radius:10px;font-family:'Syne',sans-serif;
                          font-size:13px;font-weight:700;cursor:pointer;">
             Save
+          </button>
+          <button id="btn-profile-edit-cancel"
+                  style="height:38px;padding:0 14px;background:transparent;color:var(--muted);
+                         border:1px solid var(--border);border-radius:10px;font-family:'Syne',sans-serif;
+                         font-size:13px;font-weight:600;cursor:pointer;">
+            Cancel
           </button>
           <span id="profile-save-status" style="font-size:12px;color:var(--muted);"></span>
         </div>
@@ -1752,52 +1786,13 @@
                   color:var(--text);font-family:'DM Mono',monospace;font-size:13px;
                   outline:none;box-sizing:border-box;" />
 
-    <!-- Tab selector: Magic Link | Password -->
-    <div style="width:100%;display:flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;">
-      <button id="tab-magic" class="auth-tab auth-tab-active"
-              style="flex:1;height:34px;border:none;cursor:pointer;font-size:12px;font-weight:600;
-                     background:var(--accent);color:var(--btn-text);transition:all 0.15s;">
-        Magic Link
-      </button>
-      <button id="tab-password" class="auth-tab"
-              style="flex:1;height:34px;border:none;cursor:pointer;font-size:12px;font-weight:600;
-                     background:transparent;color:var(--muted);transition:all 0.15s;">
-        Password
-      </button>
-    </div>
-
-    <!-- Magic link panel -->
-    <div id="panel-magic" style="width:100%;">
-      <button id="btn-magic-link"
-              style="width:100%;height:44px;background:var(--accent);color:var(--btn-text);
-                     border:none;border-radius:12px;font-family:'Syne',sans-serif;
-                     font-size:14px;font-weight:700;cursor:pointer;">
-        Send Magic Link
-      </button>
-    </div>
-
-    <!-- Password panel (hidden by default) -->
-    <div id="panel-password" style="display:none;width:100%;flex-direction:column;gap:8px;">
-      <input id="auth-password-input" type="password" placeholder="Password (min 8 chars)" autocomplete="current-password"
-             style="width:100%;height:44px;background:var(--surface2, var(--surface));
-                    border:1px solid var(--border);border-radius:10px;padding:0 14px;
-                    color:var(--text);font-family:'DM Mono',monospace;font-size:13px;
-                    outline:none;box-sizing:border-box;" />
-      <div style="display:flex;gap:8px;">
-        <button id="btn-email-login"
-                style="flex:1;height:44px;background:var(--accent);color:var(--btn-text);
-                       border:none;border-radius:12px;font-family:'Syne',sans-serif;
-                       font-size:13px;font-weight:700;cursor:pointer;">
-          Sign In
-        </button>
-        <button id="btn-email-signup"
-                style="flex:1;height:44px;background:transparent;color:var(--text);
-                       border:1px solid var(--border);border-radius:12px;font-family:'Syne',sans-serif;
-                       font-size:13px;font-weight:700;cursor:pointer;">
-          Create Account
-        </button>
-      </div>
-    </div>
+    <!-- Magic link button -->
+    <button id="btn-magic-link"
+            style="width:100%;height:44px;background:var(--accent);color:var(--btn-text);
+                   border:none;border-radius:12px;font-family:'Syne',sans-serif;
+                   font-size:14px;font-weight:700;cursor:pointer;">
+      Send Magic Link
+    </button>
 
     <div id="auth-status" style="font-size:12px;color:var(--muted);min-height:16px;text-align:center;"></div>
   </div>
@@ -2090,27 +2085,12 @@ function escHtml(str) {
 
 function openAuthModal() {
   document.getElementById('auth-modal').classList.remove('hidden');
-  document.getElementById('auth-status').textContent = '';
-  document.getElementById('auth-email-input').value  = '';
-  if (document.getElementById('auth-password-input'))
-    document.getElementById('auth-password-input').value = '';
-  switchAuthTab('magic'); // default to magic link tab
+  document.getElementById('auth-status').textContent    = '';
+  document.getElementById('auth-email-input').value     = '';
 }
 
 function closeAuthModal() {
   document.getElementById('auth-modal').classList.add('hidden');
-}
-
-function switchAuthTab(tab) {
-  const isMagic = tab === 'magic';
-  document.getElementById('panel-magic').style.display    = isMagic ? '' : 'none';
-  document.getElementById('panel-password').style.display = isMagic ? 'none' : 'flex';
-  document.getElementById('tab-magic').style.cssText    += isMagic
-    ? ';background:var(--accent);color:var(--btn-text);'
-    : ';background:transparent;color:var(--muted);';
-  document.getElementById('tab-password').style.cssText += !isMagic
-    ? ';background:var(--accent);color:var(--btn-text);'
-    : ';background:transparent;color:var(--muted);';
 }
 
 function setAuthStatus(msg, isError = false) {
@@ -2122,6 +2102,32 @@ function setAuthStatus(msg, isError = false) {
 
 // ── Profile modal ─────────────────────────────────────────────────────────
 
+function _formatBirthday(iso) {
+  if (!iso) return '';
+  // iso is YYYY-MM-DD
+  try {
+    const [y, m, d] = iso.split('-').map(Number);
+    const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${names[m - 1]} ${d}, ${y}`;
+  } catch { return iso; }
+}
+
+function _profileShowView() {
+  document.getElementById('profile-view-section').style.display = 'flex';
+  document.getElementById('profile-edit-section').style.display = 'none';
+}
+
+function _profileShowEdit() {
+  const user = _authUser || {};
+  document.getElementById('profile-input-name').value     = user.displayName || '';
+  document.getElementById('profile-input-birthday').value = user.birthday    || '';
+  document.getElementById('profile-input-city').value     = user.city        || '';
+  document.getElementById('profile-input-country').value  = user.country     || '';
+  document.getElementById('profile-save-status').textContent = '';
+  document.getElementById('profile-view-section').style.display = 'none';
+  document.getElementById('profile-edit-section').style.display = 'flex';
+}
+
 function openProfileModal() {
   const user  = _authUser  || {};
   const stats = _authStats || {};
@@ -2129,22 +2135,26 @@ function openProfileModal() {
   // Avatar: first letter of name or email
   const initial = (user.displayName || user.email || '?')[0].toUpperCase();
   document.getElementById('profile-avatar').textContent = initial;
-
-  document.getElementById('profile-name').textContent  = user.displayName || '—';
-  document.getElementById('profile-email').textContent = user.email || '';
+  document.getElementById('profile-name').textContent   = user.displayName || '—';
+  document.getElementById('profile-email').textContent  = user.email || '';
 
   // Stats — prefer server stats, fall back to localStorage
   const local = loadStorage();
-  document.getElementById('profile-streak').textContent = stats.streak  ?? local.streak       ?? '—';
-  document.getElementById('profile-best').textContent   = stats.bestScore ?? local.bestScore  ?? '—';
+  document.getElementById('profile-streak').textContent = stats.streak      ?? local.streak      ?? '—';
+  document.getElementById('profile-best').textContent   = stats.bestScore   ?? local.bestScore   ?? '—';
   document.getElementById('profile-played').textContent = stats.gamesPlayed ?? local.gamesPlayed ?? '—';
 
-  // Editable fields
-  document.getElementById('profile-input-name').value     = user.displayName || '';
-  document.getElementById('profile-input-birthday').value = user.birthday    || '';
-  document.getElementById('profile-input-city').value     = user.city        || '';
-  document.getElementById('profile-input-country').value  = user.country     || '';
-  document.getElementById('profile-save-status').textContent = '';
+  // View mode fields
+  const nameRow     = document.getElementById('profile-view-name-row');
+  const bdayRow     = document.getElementById('profile-view-birthday-row');
+  const locRow      = document.getElementById('profile-view-location-row');
+  document.getElementById('profile-view-name').textContent     = user.displayName || '—';
+  document.getElementById('profile-view-birthday').textContent = _formatBirthday(user.birthday) || '—';
+  const loc = [user.city, user.country].filter(Boolean).join(', ');
+  document.getElementById('profile-view-location').textContent = loc || '—';
+
+  // Start in view mode
+  _profileShowView();
 
   document.getElementById('profile-modal').classList.remove('hidden');
 }
@@ -2173,39 +2183,6 @@ async function requestMagicLink() {
       const errData = await r.json().catch(() => ({}));
       setAuthStatus(errData.error || 'Something went wrong. Please try again.', true);
     }
-  } catch {
-    setAuthStatus('Network error. Please try again.', true);
-  }
-}
-
-// Email + password: login or signup
-async function emailPasswordAuth(mode) {
-  const email    = (document.getElementById('auth-email-input').value    || '').trim();
-  const password = (document.getElementById('auth-password-input').value || '');
-  if (!email || !email.includes('@')) { setAuthStatus('Enter a valid email.', true); return; }
-  if (!password)                       { setAuthStatus('Enter your password.',  true); return; }
-  setAuthStatus('…');
-  try {
-    const action = mode === 'signup' ? 'email-signup' : 'email-login';
-    const r = await fetch(`/api/auth?action=${action}`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ email, password }),
-    });
-    const data = await r.json();
-    if (!r.ok) {
-      setAuthStatus(data.error || 'Something went wrong.', true);
-      return;
-    }
-    // Refresh session
-    const me = await fetch('/api/auth?action=me');
-    if (me.ok) {
-      const meData = await me.json();
-      _authUser  = meData.user  || null;
-      _authStats = meData.stats || null;
-    }
-    onAuthSuccess(true);
-    if (_authUser) maybePromptImport();
   } catch {
     setAuthStatus('Network error. Please try again.', true);
   }
@@ -3866,10 +3843,6 @@ document.getElementById('zoom-tip-overlay').addEventListener('click', function()
 // ── Auth event listeners ──────────────────────────────────
 document.getElementById('btn-auth-close').addEventListener('click', closeAuthModal);
 document.getElementById('btn-magic-link').addEventListener('click', requestMagicLink);
-document.getElementById('tab-magic').addEventListener('click', () => switchAuthTab('magic'));
-document.getElementById('tab-password').addEventListener('click', () => switchAuthTab('password'));
-document.getElementById('btn-email-login').addEventListener('click', () => emailPasswordAuth('login'));
-document.getElementById('btn-email-signup').addEventListener('click', () => emailPasswordAuth('signup'));
 document.getElementById('btn-signin-summary').addEventListener('click', openAuthModal);
 document.getElementById('btn-import-yes').addEventListener('click', () => doImportStats(true));
 document.getElementById('btn-import-no').addEventListener('click',  () => doImportStats(false));
@@ -3888,6 +3861,8 @@ document.getElementById('btn-profile-history').addEventListener('click', functio
   initHistory();
   showScreen('history');
 });
+document.getElementById('btn-profile-edit').addEventListener('click', _profileShowEdit);
+document.getElementById('btn-profile-edit-cancel').addEventListener('click', _profileShowView);
 document.getElementById('btn-profile-save').addEventListener('click', async function() {
   const btn    = this;
   const status = document.getElementById('profile-save-status');
@@ -3910,13 +3885,18 @@ document.getElementById('btn-profile-save').addEventListener('click', async func
     if (r.ok && data.ok) {
       if (data.user) {
         _authUser = data.user;
-        // Refresh the display name shown at the top of the modal
+        // Refresh top of modal
         const initial = (_authUser.displayName || _authUser.email || '?')[0].toUpperCase();
         document.getElementById('profile-avatar').textContent = initial;
         document.getElementById('profile-name').textContent   = _authUser.displayName || '—';
+        // Refresh view-mode fields
+        document.getElementById('profile-view-name').textContent     = _authUser.displayName || '—';
+        document.getElementById('profile-view-birthday').textContent = _formatBirthday(_authUser.birthday) || '—';
+        const loc = [_authUser.city, _authUser.country].filter(Boolean).join(', ');
+        document.getElementById('profile-view-location').textContent = loc || '—';
       }
-      status.style.color = 'var(--accent, #3b82f6)';
-      status.textContent = 'Saved!';
+      // Return to view mode
+      _profileShowView();
     } else {
       status.style.color = 'var(--danger, #f87171)';
       status.textContent = data.error || 'Could not save. Please try again.';
