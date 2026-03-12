@@ -158,7 +158,7 @@ export default function handler(req, res) {
   <hr class="divider">
 
   <h2>13. Governing Law</h2>
-  <p>These Terms are governed by the laws of the State of New York, United States, without regard to its conflict of law principles. Any disputes arising under these Terms shall be resolved in the state or federal courts located in New York County, New York, and you consent to personal jurisdiction in those courts.</p>
+  <p>These Terms are governed by the laws of the State of Illinois, United States, without regard to its conflict of law principles. Any disputes arising under these Terms shall be resolved in the state or federal courts located in Cook County, Illinois, and you consent to personal jurisdiction in those courts.</p>
 
   <hr class="divider">
 
