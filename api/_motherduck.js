@@ -958,9 +958,10 @@ async function ensureAuthTables(conn) {
     )
   `);
   // Profile fields added after initial schema — idempotent
-  await conn.run(`ALTER TABLE pindrop.users ADD COLUMN IF NOT EXISTS birthday DATE`);
-  await conn.run(`ALTER TABLE pindrop.users ADD COLUMN IF NOT EXISTS city    VARCHAR`);
-  await conn.run(`ALTER TABLE pindrop.users ADD COLUMN IF NOT EXISTS country VARCHAR`);
+  await conn.run(`ALTER TABLE pindrop.users ADD COLUMN IF NOT EXISTS birthday          DATE`);
+  await conn.run(`ALTER TABLE pindrop.users ADD COLUMN IF NOT EXISTS city              VARCHAR`);
+  await conn.run(`ALTER TABLE pindrop.users ADD COLUMN IF NOT EXISTS country           VARCHAR`);
+  await conn.run(`ALTER TABLE pindrop.users ADD COLUMN IF NOT EXISTS import_opted_out  BOOLEAN DEFAULT FALSE`);
   _authTablesReady = true;
 }
 
@@ -1048,6 +1049,7 @@ async function getUserWithStats(userId) {
       const res = await conn.runAndReadAll(
         `SELECT u.id, u.email, u.display_name, u.avatar_url,
                 CAST(u.birthday AS VARCHAR) AS birthday, u.city, u.country,
+                u.import_opted_out,
                 s.streak, s.best_score, s.last_score, s.games_played, s.last_played_day
          FROM pindrop.users u
          LEFT JOIN pindrop.user_stats s ON s.user_id = u.id
@@ -1061,7 +1063,8 @@ async function getUserWithStats(userId) {
         user:  { id: r.id, email: r.email, displayName: r.display_name, avatarUrl: r.avatar_url,
                  birthday: r.birthday || null, city: r.city || null, country: r.country || null },
         stats: { streak: r.streak || 0, bestScore: r.best_score || 0, lastScore: r.last_score,
-                 gamesPlayed: r.games_played || 0, lastPlayedDay: r.last_played_day },
+                 gamesPlayed: r.games_played || 0, lastPlayedDay: r.last_played_day,
+                 importOptedOut: r.import_opted_out || false },
       };
     } finally { conn.closeSync(); }
   } catch (e) {
@@ -1311,6 +1314,27 @@ async function deleteMagicToken(token) {
   }
 }
 
+// Persist the user's decision not to import anonymous stats so it's respected
+// on all devices (cross-device "No" flag).
+async function setImportOptedOut(userId) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return false;
+    const conn = await inst.connect();
+    try {
+      await ensureAuthTables(conn);
+      await conn.run(
+        `UPDATE pindrop.users SET import_opted_out = TRUE WHERE id = ?`,
+        [userId]
+      );
+      return true;
+    } finally { conn.closeSync(); }
+  } catch (e) {
+    console.error('[MotherDuck] setImportOptedOut error:', e.message);
+    return false;
+  }
+}
+
 module.exports = {
   trackPlay, trackGame, trackShare, storeDailyCombo,
   getAllLocations, getLockedDailyCombo, getLockedDates, getPlayedDates,
@@ -1324,6 +1348,7 @@ module.exports = {
   // Auth
   findUserByProvider, findUserByEmail, upsertUser,
   getUserWithStats, getUserGameHistory, updateUserStats, importUserStats, updateUserProfile,
+  setImportOptedOut,
   // Magic link tokens
   storeMagicToken, getMagicToken, deleteMagicToken,
 };

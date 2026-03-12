@@ -2088,9 +2088,6 @@ async function initAuth() {
     }
     if (authResult === 'error') showToast('Sign-in failed. Please try again.', 3000);
     if (authResult === 'success') {
-      // Flag that we want to check for import — persists across reloads so a
-      // cold-start null _authUser doesn't permanently lose this opportunity
-      localStorage.setItem('pd_pending_import', '1');
       if (_authUser) {
         showToast('Signed in!', 2000);
       } else {
@@ -2100,12 +2097,10 @@ async function initAuth() {
     }
   }
   updateAuthUI();
-  // Show import prompt whenever the flag is set and we have an authenticated user —
-  // handles both the immediate ?auth=success load and any subsequent reload
-  if (_authUser && localStorage.getItem('pd_pending_import')) {
-    localStorage.removeItem('pd_pending_import');
-    setTimeout(maybePromptImport, 600);
-  }
+  // Always check for import whenever we have a signed-in user — handles same-device
+  // sign-up, cold-start reloads, AND cross-device (2nd phone with anonymous data).
+  // maybePromptImport() has guards for server-has-data, opted-out, and no local data.
+  if (_authUser) setTimeout(maybePromptImport, 600);
   if (!_authUser) setTimeout(maybeShowSignupCallout, 1400);
 }
 
@@ -2298,6 +2293,8 @@ async function requestMagicLink() {
     setAuthStatus('Enter a valid email address.', true);
     return;
   }
+  const sendBtn = document.getElementById('btn-magic-link');
+  if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending…'; }
   setAuthStatus('Sending…');
   try {
     const r = await fetch('/api/auth?action=magic-link-request', {
@@ -2307,12 +2304,15 @@ async function requestMagicLink() {
     });
     if (r.ok) {
       setAuthStatus('Check your email for a sign-in link!');
+      // Leave button disabled — no need to resend once confirmed
     } else {
       const errData = await r.json().catch(() => ({}));
       setAuthStatus(errData.error || 'Something went wrong. Please try again.', true);
+      if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send Magic Link'; }
     }
   } catch {
     setAuthStatus('Network error. Please try again.', true);
+    if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send Magic Link'; }
   }
 }
 
@@ -2327,7 +2327,8 @@ async function signOut() {
 // Show import prompt if user has local stats and server has none
 async function maybePromptImport() {
   if (!_authUser) return;
-  if (_authStats && (_authStats.gamesPlayed || 0) > 0) return; // server already has data
+  if (_authStats?.importOptedOut) return;                        // user said No on any device
+  if (_authStats && (_authStats.gamesPlayed || 0) > 0) return;  // server already has data
   const local = loadStorage();
   if ((local.played || 0) === 0) return; // nothing to import
 
@@ -2342,7 +2343,13 @@ async function maybePromptImport() {
 
 async function doImportStats(confirm) {
   document.getElementById('import-prompt').classList.add('hidden');
-  if (!confirm || !_authUser) return;
+  if (!_authUser) return;
+  if (!confirm) {
+    // Persist "No" to DB so this prompt never shows on any device again
+    fetch('/api/auth?action=skip-import', { method: 'POST' }).catch(() => {});
+    if (_authStats) _authStats.importOptedOut = true; // optimistic local update
+    return;
+  }
   const local = loadStorage();
   try {
     await fetch('/api/auth?action=import-stats', {
@@ -3550,6 +3557,7 @@ function updateReviewAvgStat(round) {
 }
 
 function buildSummary() {
+  updateAuthUI(); // ensure sign-in nudge is hidden for logged-in users
   const today = new Date();
   document.getElementById('summary-date').textContent = formatDate(today);
   document.getElementById('final-score').textContent = state.totalScore;

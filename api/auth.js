@@ -17,6 +17,7 @@ const crypto = require('crypto');
 const {
   findUserByEmail, upsertUser,
   getUserWithStats, getUserGameHistory, importUserStats, updateUserProfile,
+  setImportOptedOut,
   storeMagicToken, getMagicToken, deleteMagicToken,
 } = require('./_motherduck');
 
@@ -47,7 +48,7 @@ function verifyJwt(token, secret) {
 // ── Cookie helpers ────────────────────────────────────────────────────────────
 
 function setSessionCookie(res, token) {
-  const maxAge = 30 * 24 * 60 * 60; // 30 days
+  const maxAge = 90 * 24 * 60 * 60; // 90 days
   res.setHeader('Set-Cookie',
     `pd_session=${encodeURIComponent(token)}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${maxAge}`
   );
@@ -115,6 +116,13 @@ module.exports = async function handler(req, res) {
     if (!session) return res.status(200).json({ user: null, stats: null });
     const data = await getUserWithStats(session.sub);
     if (!data) return res.status(200).json({ user: null, stats: null });
+    // Slide the session forward on every visit so active users never expire
+    const freshJwt = signJwt(
+      { sub: session.sub, email: session.email,
+        exp: Math.floor(Date.now() / 1000) + 90 * 86400 },
+      secret
+    );
+    setSessionCookie(res, freshJwt);
     return res.status(200).json(data);
   }
 
@@ -206,7 +214,7 @@ module.exports = async function handler(req, res) {
   p{font-size:16px;letter-spacing:0.03em;}
 </style></head>
 <body><p>Signing you in…</p>
-<form id="f" method="POST" action="/api/auth?action=magic-link-verify">
+<form id="f" method="POST" action="/api/auth?action=magic-link-verify&token=${token}">
   <input type="hidden" name="token" value="${token}">
 </form>
 <script>document.getElementById('f').submit();</script>
@@ -215,7 +223,7 @@ module.exports = async function handler(req, res) {
 
   // ── POST magic-link-verify — consume token, create session ─────────────────
   if (action === 'magic-link-verify' && req.method === 'POST') {
-    const token  = req.body?.token;
+    const token  = req.body?.token || req.query.token;
     const appUrl = getAppUrl(req);
 
     if (!token) return res.redirect(302, `${appUrl}/?auth=expired`);
@@ -238,7 +246,7 @@ module.exports = async function handler(req, res) {
       if (!user) return res.redirect(302, `${appUrl}/?auth=error`);
 
       const jwt = signJwt(
-        { sub: user.id, email: user.email, exp: Math.floor(Date.now() / 1000) + 30 * 86400 },
+        { sub: user.id, email: user.email, exp: Math.floor(Date.now() / 1000) + 90 * 86400 },
         secret
       );
       setSessionCookie(res, jwt);
@@ -285,6 +293,14 @@ module.exports = async function handler(req, res) {
     // Return updated user so the client can refresh _authUser
     const updated = await getUserWithStats(session.sub);
     return res.status(200).json({ ok: true, user: updated?.user || null });
+  }
+
+  // ── POST skip-import — persist "No" across devices ────────────────────────
+  if (action === 'skip-import' && req.method === 'POST') {
+    const session = getSessionFromRequest(req);
+    if (!session) return res.status(401).json({ error: 'Not signed in' });
+    await setImportOptedOut(session.sub);
+    return res.status(200).json({ ok: true });
   }
 
   // ── GET history — game history from pindrop.games + pindrop.plays ─────────
