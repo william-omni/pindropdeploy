@@ -2803,7 +2803,7 @@ function applyMapStyle(m, isDark, cityLabels = true) {
     const isUrban = layer.type === 'fill' && !isForest && lid.includes('residential');
     if (isUrban) {
       try { m.setPaintProperty(layer.id, 'fill-color', isDark ? '#2d2d3a' : '#d4c9b8'); } catch(e) {}
-      try { m.setPaintProperty(layer.id, 'fill-opacity', ['interpolate', ['exponential', 1.2], ['zoom'], 1, 0, 8, isDark ? 0.55 : 0.45]); } catch(e) {}
+      try { m.setPaintProperty(layer.id, 'fill-opacity', ['interpolate', ['exponential', 1.2], ['zoom'], 1, 0, 8, isDark ? 0.6 : 0.55]); } catch(e) {}
       continue;
     }
 
