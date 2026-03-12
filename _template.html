@@ -2144,10 +2144,25 @@ function onAuthSuccess(justSignedIn = true) {
       local.bestScore   = Math.max(_authStats.bestScore || 0, local.bestScore || 0);
       local.lastScore   = _authStats.lastScore   || local.lastScore;
       local.played      = _authStats.gamesPlayed || local.played      || 0;
-      local.lastPlayedDay = _authStats.lastPlayedDay || local.lastPlayedDay;
+      // Only accept DB's date if local hasn't already recorded today — prevents
+      // a stale DB value from overwriting a correct local date and re-opening the game.
+      if (local.lastPlayedDay !== getTodayKey()) {
+        local.lastPlayedDay = _authStats.lastPlayedDay || local.lastPlayedDay;
+      }
       saveStorage(local);
     }
   }
+  // Always link the anonymous player ID to the account so pre-login plays are
+  // attributed to this user even if they skip the explicit stats import.
+  const localForLink = loadStorage();
+  if (localForLink.playerId) {
+    fetch('/api/auth?action=link-player', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ anonymousPlayerId: localForLink.playerId }),
+    }).catch(() => {});
+  }
+
   updateAuthUI();
   if (justSignedIn) closeAuthModal();
 }
@@ -3464,6 +3479,7 @@ function finishGame() {
       action:               'complete',
       date:                 getLocalDateStr(),
       playerId:             getPlayerId(),
+      userId:               _authUser?.id || null,
       totalScore:           state.totalScore,
       gameDurationSeconds:  gameStartTime ? Math.round((Date.now() - gameStartTime) / 1000) : null,
       streakAtTime:         store.streak || 0,

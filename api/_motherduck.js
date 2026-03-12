@@ -1227,6 +1227,29 @@ async function importUserStats({ userId, streak, bestScore, lastScore, gamesPlay
   }
 }
 
+// Link an anonymous player ID to a user account without importing stats.
+// Only sets the column if it's currently NULL, so an existing link is preserved.
+async function linkAnonymousPlayer(userId, anonymousPlayerId) {
+  if (!userId || !anonymousPlayerId) return false;
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return false;
+    const conn = await inst.connect();
+    try {
+      await ensureAuthTables(conn);
+      await conn.run(
+        `UPDATE pindrop.users SET anonymous_player_id = ?
+         WHERE id = ? AND anonymous_player_id IS NULL`,
+        [anonymousPlayerId, userId]
+      );
+      return true;
+    } finally { conn.closeSync(); }
+  } catch (e) {
+    console.error('[MotherDuck] linkAnonymousPlayer error:', e.message);
+    return false;
+  }
+}
+
 // Update editable profile fields (name, birthday, city, country).
 async function updateUserProfile({ userId, displayName, birthday, city, country }) {
   try {
@@ -1348,7 +1371,7 @@ module.exports = {
   // Auth
   findUserByProvider, findUserByEmail, upsertUser,
   getUserWithStats, getUserGameHistory, updateUserStats, importUserStats, updateUserProfile,
-  setImportOptedOut,
+  setImportOptedOut, linkAnonymousPlayer,
   // Magic link tokens
   storeMagicToken, getMagicToken, deleteMagicToken,
 };

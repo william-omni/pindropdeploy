@@ -11,13 +11,14 @@
 //   POST import-stats       — import localStorage stats (first login only)
 //   POST update-profile     — save name, birthday, city, country
 //   POST logout             — clear session cookie
+//   POST link-player        — associate anonymous player ID with account
 //   GET  dev-login          — create test session (non-production only)
 
 const crypto = require('crypto');
 const {
   findUserByEmail, upsertUser,
   getUserWithStats, getUserGameHistory, importUserStats, updateUserProfile,
-  setImportOptedOut,
+  setImportOptedOut, linkAnonymousPlayer,
   storeMagicToken, getMagicToken, deleteMagicToken,
 } = require('./_motherduck');
 
@@ -300,6 +301,15 @@ module.exports = async function handler(req, res) {
     const session = getSessionFromRequest(req);
     if (!session) return res.status(401).json({ error: 'Not signed in' });
     await setImportOptedOut(session.sub);
+    return res.status(200).json({ ok: true });
+  }
+
+  // ── POST link-player — store anonymous player ID (silent, no stats import) ─
+  if (action === 'link-player' && req.method === 'POST') {
+    const session = getSessionFromRequest(req);
+    if (!session) return res.status(401).json({ error: 'Not signed in' });
+    const { anonymousPlayerId } = req.body || {};
+    if (anonymousPlayerId) await linkAnonymousPlayer(session.sub, anonymousPlayerId);
     return res.status(200).json({ ok: true });
   }
 
