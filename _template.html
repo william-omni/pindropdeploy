@@ -2148,7 +2148,8 @@ function onAuthSuccess(justSignedIn = true) {
       // Only accept DB's date if local hasn't already recorded today — prevents
       // a stale DB value from overwriting a correct local date and re-opening the game.
       if (local.lastPlayedDay !== getTodayKey()) {
-        local.lastPlayedDay = _authStats.lastPlayedDay || local.lastPlayedDay;
+        // Normalize from DB's zero-padded format (YYYY-MM-DD) to getTodayKey() format (YYYY-M-D)
+        local.lastPlayedDay = normalizeDateKey(_authStats.lastPlayedDay) || local.lastPlayedDay;
       }
       saveStorage(local);
     }
@@ -2166,6 +2167,13 @@ function onAuthSuccess(justSignedIn = true) {
 
   updateAuthUI();
   if (justSignedIn) closeAuthModal();
+
+  // Re-render the home screen so the played/unplayed state reflects server data.
+  // Only needed on page-load auth (justSignedIn=false); fresh sign-ins navigate away anyway.
+  if (!justSignedIn) {
+    const homeEl = document.getElementById('home');
+    if (homeEl && !homeEl.classList.contains('hidden')) initHome();
+  }
 }
 
 function updateAuthUI() {
@@ -2421,6 +2429,14 @@ function getTodayKey() {
   return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
 }
 
+// Normalize any date string (YYYY-MM-DD or YYYY-M-D) to the same unpadded format
+// as getTodayKey() so DB dates and local dates compare correctly.
+function normalizeDateKey(s) {
+  if (!s) return null;
+  const [y, m, d] = s.split('-').map(Number);
+  return isNaN(y) ? null : `${y}-${m}-${d}`;
+}
+
 function updateStats(finalScore) {
   if (PREVIEW_MODE) return; // don't touch real stats during preview
   const store = loadStorage();
@@ -2443,8 +2459,14 @@ function updateStats(finalScore) {
 
 function hasPlayedToday() {
   if (PREVIEW_MODE) return false; // always allow replays in preview
-  const store = loadStorage();
-  return store.lastPlayedDay === getTodayKey();
+  const today = getTodayKey();
+  // For signed-in users: trust the server's authoritative record first.
+  // This handles the cross-device case where localStorage is empty/stale but
+  // the DB already knows the user played today on another device.
+  if (_authStats?.lastPlayedDay && normalizeDateKey(_authStats.lastPlayedDay) === today) {
+    return true;
+  }
+  return loadStorage().lastPlayedDay === today;
 }
 
 // ── Mid-game state persistence ──────────────────────────────────────────────
