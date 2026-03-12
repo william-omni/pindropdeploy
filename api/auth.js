@@ -181,10 +181,42 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
-  // ── GET magic-link-verify — consume token, create session ─────────────────
-  if (action === 'magic-link-verify') {
+  // ── GET magic-link-verify — serve JS-redirect page (scanner-safe) ──────────
+  // Email security scanners (Microsoft Safe Links, Gmail) pre-fetch magic links
+  // on GET to check for malware. If we consumed the token here, real users would
+  // always land on /?auth=expired. Instead we return a tiny HTML page that
+  // auto-submits a POST via JavaScript — scanners don't execute JS, so the
+  // token is preserved until the real user's browser runs the script.
+  if (action === 'magic-link-verify' && req.method === 'GET') {
     const { token } = req.query;
     const appUrl    = getAppUrl(req);
+    if (!token) return res.redirect(302, `${appUrl}/?auth=expired`);
+    // Confirm token exists before serving the page (still no side-effects)
+    const emailCheck = await getMagicToken(token);
+    if (!emailCheck) return res.redirect(302, `${appUrl}/?auth=expired`);
+    // Token chars are hex-only so no XSS risk from embedding directly
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.status(200).send(`<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Signing you in — PinDrop</title>
+<style>
+  body{margin:0;display:flex;align-items:center;justify-content:center;
+       min-height:100vh;background:#0a0a0f;font-family:sans-serif;color:#ccc;}
+  p{font-size:16px;letter-spacing:0.03em;}
+</style></head>
+<body><p>Signing you in…</p>
+<form id="f" method="POST" action="/api/auth?action=magic-link-verify">
+  <input type="hidden" name="token" value="${token}">
+</form>
+<script>document.getElementById('f').submit();</script>
+</body></html>`);
+  }
+
+  // ── POST magic-link-verify — consume token, create session ─────────────────
+  if (action === 'magic-link-verify' && req.method === 'POST') {
+    const token  = req.body?.token;
+    const appUrl = getAppUrl(req);
 
     if (!token) return res.redirect(302, `${appUrl}/?auth=expired`);
 
