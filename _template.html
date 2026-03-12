@@ -1313,6 +1313,53 @@
       <circle cx="12" cy="7" r="4"/>
     </svg>
   </button>
+  <!-- Sign-up callout — shown once to anonymous users, points at corner button -->
+  <div id="signup-callout"
+       style="display:none;position:absolute;
+              top:calc(max(16px, var(--safe-top, 0px) + 12px) + 48px);left:12px;
+              width:220px;background:var(--surface);border:1px solid var(--border);
+              border-radius:14px;padding:14px 12px 12px;z-index:20;
+              box-shadow:0 6px 24px rgba(0,0,0,0.18);
+              opacity:0;transform:translateY(-6px);
+              transition:opacity 0.3s ease,transform 0.3s ease;">
+    <!-- arrow pointing up toward corner button -->
+    <div style="position:absolute;top:-6px;left:18px;width:10px;height:10px;
+                background:var(--surface);border-left:1px solid var(--border);
+                border-top:1px solid var(--border);transform:rotate(45deg);"></div>
+    <!-- dismiss -->
+    <button id="signup-callout-close"
+            style="position:absolute;top:8px;right:10px;background:none;border:none;
+                   cursor:pointer;color:var(--muted);font-size:15px;line-height:1;padding:2px 4px;">✕</button>
+    <!-- header -->
+    <div style="font-size:12px;font-weight:700;color:var(--text);
+                font-family:'Syne',sans-serif;margin-bottom:6px;padding-right:18px;">
+      Save your streak! 🔥
+    </div>
+    <!-- body — inline icon mimics the corner button -->
+    <p style="font-size:11px;color:var(--muted);margin:0 0 11px;line-height:1.55;">
+      Tap the
+      <span style="display:inline-flex;align-items:center;justify-content:center;
+                   width:17px;height:17px;border-radius:50%;
+                   background:var(--surface2);border:1px solid var(--border);
+                   vertical-align:middle;margin:0 2px;position:relative;top:-1px;">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+      </span>
+      button to create a free account — your streak, best score, and history are saved across every device.
+    </p>
+    <!-- CTA -->
+    <button id="signup-callout-cta"
+            style="width:100%;padding:8px 0;background:var(--accent);color:var(--btn-text);
+                   border:none;border-radius:9px;cursor:pointer;
+                   font-family:'Syne',sans-serif;font-size:12px;font-weight:700;
+                   letter-spacing:0.03em;">
+      Create Account →
+    </button>
+  </div>
   <!-- ── Profile modal (shown when signed in, corner button clicked) ───── -->
   <div id="profile-modal" class="hidden"
        style="position:fixed;inset:0;background:rgba(0,0,0,0.55);
@@ -2051,6 +2098,37 @@ async function initAuth() {
     }
   }
   updateAuthUI();
+  if (!_authUser) setTimeout(maybeShowSignupCallout, 1400);
+}
+
+// Show a one-time callout pointing at the corner button for anonymous users.
+function maybeShowSignupCallout() {
+  if (_authUser) return;
+  if (localStorage.getItem('pd_nudge')) return;
+  const callout = document.getElementById('signup-callout');
+  if (!callout) return;
+
+  localStorage.setItem('pd_nudge', '1');
+  callout.style.display = 'block';
+  // Allow display:block to paint before transitioning opacity/transform
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    callout.style.opacity = '1';
+    callout.style.transform = 'translateY(0)';
+  }));
+
+  function hideCallout() {
+    callout.style.opacity = '0';
+    callout.style.transform = 'translateY(-6px)';
+    setTimeout(() => { callout.style.display = 'none'; }, 300);
+  }
+
+  document.getElementById('signup-callout-close').addEventListener('click', hideCallout);
+  document.getElementById('signup-callout-cta').addEventListener('click', () => {
+    hideCallout();
+    openAuthModal();
+  });
+  // Also hide if the corner button itself is tapped
+  document.getElementById('btn-auth-corner').addEventListener('click', hideCallout, { once: true });
 }
 
 // Called after a successful sign-in. Merges server stats into localStorage if richer.
