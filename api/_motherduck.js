@@ -1039,6 +1039,44 @@ async function upsertUser({ id, email, displayName, avatarUrl, provider, provide
 }
 
 // Return user + stats in a single call (used by GET /api/auth?action=me).
+async function getUserEmojiStats(conn, userId) {
+  try {
+    // Emoji distribution across all authenticated plays
+    const emojiRes = await conn.runAndReadAll(
+      `SELECT
+         SUM(CASE WHEN points >= 200                        THEN 1 ELSE 0 END) AS perfect,
+         SUM(CASE WHEN points >= 150 AND points < 200       THEN 1 ELSE 0 END) AS great,
+         SUM(CASE WHEN points >= 100 AND points < 150       THEN 1 ELSE 0 END) AS good,
+         SUM(CASE WHEN points >= 50  AND points < 100       THEN 1 ELSE 0 END) AS okay,
+         SUM(CASE WHEN points >= 1   AND points < 50        THEN 1 ELSE 0 END) AS bad,
+         SUM(CASE WHEN points = 0                           THEN 1 ELSE 0 END) AS miss
+       FROM pindrop.plays WHERE user_id = ?`,
+      [userId]
+    );
+    // Average daily score across all authenticated games
+    const avgRes = await conn.runAndReadAll(
+      `SELECT ROUND(AVG(total_score)) AS avg_score FROM pindrop.games WHERE user_id = ?`,
+      [userId]
+    );
+    const e = emojiRes.getRowObjects()[0] || {};
+    const a = avgRes.getRowObjects()[0]   || {};
+    return {
+      emojiCounts: {
+        perfect: Number(e.perfect || 0),
+        great:   Number(e.great   || 0),
+        good:    Number(e.good    || 0),
+        okay:    Number(e.okay    || 0),
+        bad:     Number(e.bad     || 0),
+        miss:    Number(e.miss    || 0),
+      },
+      avgScore: a.avg_score != null ? Math.round(Number(a.avg_score)) : null,
+    };
+  } catch (e) {
+    console.error('[MotherDuck] getUserEmojiStats error:', e.message);
+    return { emojiCounts: null, avgScore: null };
+  }
+}
+
 async function getUserWithStats(userId) {
   try {
     const inst = await getDataInstance();
@@ -1059,12 +1097,15 @@ async function getUserWithStats(userId) {
       const rows = res.getRowObjects();
       if (!rows.length) return null;
       const r = rows[0];
+      // Fetch emoji distribution + avg score in parallel (reuse same connection)
+      const { emojiCounts, avgScore } = await getUserEmojiStats(conn, userId);
       return {
         user:  { id: r.id, email: r.email, displayName: r.display_name, avatarUrl: r.avatar_url,
                  birthday: r.birthday || null, city: r.city || null, country: r.country || null },
         stats: { streak: r.streak || 0, bestScore: r.best_score || 0, lastScore: r.last_score,
                  gamesPlayed: r.games_played || 0, lastPlayedDay: r.last_played_day,
-                 importOptedOut: r.import_opted_out || false },
+                 importOptedOut: r.import_opted_out || false,
+                 emojiCounts, avgScore },
       };
     } finally { conn.closeSync(); }
   } catch (e) {
@@ -1091,50 +1132,60 @@ async function getUserGameHistory(userId) {
       const userRows = userRes.getRowObjects();
       const anonId = (userRows.length && userRows[0].anonymous_player_id) || null;
 
-      // Build parameterised WHERE that covers both authenticated and anonymous rows
-      const gamesWhere  = anonId ? `WHERE user_id = ? OR player_id = ?`  : `WHERE user_id = ?`;
-      const gamesParams = anonId ? [userId, anonId]                        : [userId];
-
-      const gamesRes = await conn.runAndReadAll(
-        `SELECT CAST(game_date AS VARCHAR) AS game_date,
+      // Authenticated games take absolute priority. Anonymous games only fill in
+      // dates not already covered by an authenticated game (UNION + NOT IN).
+      const gamesSQL = anonId ? `
+        SELECT CAST(game_date AS VARCHAR) AS game_date,
+               day_number, total_score, streak_at_time
+        FROM pindrop.games WHERE user_id = ?
+        UNION ALL
+        SELECT CAST(game_date AS VARCHAR) AS game_date,
+               day_number, total_score, streak_at_time
+        FROM pindrop.games
+        WHERE player_id = ?
+          AND CAST(game_date AS VARCHAR) NOT IN (
+              SELECT CAST(game_date AS VARCHAR) FROM pindrop.games WHERE user_id = ?
+          )
+        ORDER BY game_date DESC
+        LIMIT 90`
+      : `SELECT CAST(game_date AS VARCHAR) AS game_date,
                 day_number, total_score, streak_at_time
-         FROM pindrop.games
-         ${gamesWhere}
-         ORDER BY game_date DESC, (user_id IS NOT NULL) DESC
-         LIMIT 90`,
-        gamesParams
-      );
-      const allGames = gamesRes.getRowObjects();
-      if (!allGames.length) return [];
+         FROM pindrop.games WHERE user_id = ?
+         ORDER BY game_date DESC LIMIT 90`;
+      const gamesParams = anonId ? [userId, anonId, userId] : [userId];
 
-      // Deduplicate by game_date — first occurrence wins.
-      // Secondary sort (user_id IS NOT NULL) DESC ensures authenticated records take
-      // priority over anonymous same-day plays (e.g. played anon then signed in).
-      const seenDates = new Set();
-      const games = [];
-      for (const g of allGames) {
-        if (!seenDates.has(g.game_date)) {
-          seenDates.add(g.game_date);
-          games.push(g);
-        }
-      }
+      const gamesRes = await conn.runAndReadAll(gamesSQL, gamesParams);
+      const games = gamesRes.getRowObjects(); // UNION guarantees no duplicate dates
+      if (!games.length) return [];
 
-      const dates = games.map(g => g.game_date);
+      const dates  = games.map(g => g.game_date);
       const inList = dates.map(() => '?').join(',');
 
-      const playsWhere  = anonId
-        ? `WHERE (user_id = ? OR player_id = ?) AND CAST(game_date AS VARCHAR) IN (${inList})`
-        : `WHERE user_id = ? AND CAST(game_date AS VARCHAR) IN (${inList})`;
-      const playsParams = anonId ? [userId, anonId, ...dates] : [userId, ...dates];
-
-      const playsRes = await conn.runAndReadAll(
-        `SELECT CAST(game_date AS VARCHAR) AS game_date,
-                round, location, dist_km, points
+      // Same UNION pattern for plays: authenticated plays first, anonymous plays
+      // only for dates that have no authenticated play rows.
+      const playsSQL = anonId ? `
+        SELECT CAST(game_date AS VARCHAR) AS game_date, round, location, dist_km, points
+        FROM pindrop.plays
+        WHERE user_id = ? AND CAST(game_date AS VARCHAR) IN (${inList})
+        UNION ALL
+        SELECT CAST(game_date AS VARCHAR) AS game_date, round, location, dist_km, points
+        FROM pindrop.plays
+        WHERE player_id = ?
+          AND CAST(game_date AS VARCHAR) IN (${inList})
+          AND CAST(game_date AS VARCHAR) NOT IN (
+              SELECT CAST(game_date AS VARCHAR) FROM pindrop.plays
+              WHERE user_id = ? AND CAST(game_date AS VARCHAR) IN (${inList})
+          )
+        ORDER BY game_date DESC, round ASC`
+      : `SELECT CAST(game_date AS VARCHAR) AS game_date, round, location, dist_km, points
          FROM pindrop.plays
-         ${playsWhere}
-         ORDER BY game_date DESC, (user_id IS NOT NULL) DESC, round ASC`,
-        playsParams
-      );
+         WHERE user_id = ? AND CAST(game_date AS VARCHAR) IN (${inList})
+         ORDER BY game_date DESC, round ASC`;
+      const playsParams = anonId
+        ? [userId, ...dates, anonId, ...dates, userId, ...dates]
+        : [userId, ...dates];
+
+      const playsRes = await conn.runAndReadAll(playsSQL, playsParams);
       const allPlays = playsRes.getRowObjects();
 
       // Deduplicate plays by (game_date, round) — same round could appear twice if both

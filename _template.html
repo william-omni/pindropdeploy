@@ -2204,6 +2204,9 @@ function updateAuthUI() {
       const store = loadStorage();
       if ((store.streak || 0) >= 2) authNudge.classList.remove('hidden');
     }
+    // Remove emoji stats card on sign-out
+    const ec = document.getElementById('emoji-stats-card');
+    if (ec) ec.remove();
   }
 }
 
@@ -2630,6 +2633,9 @@ function initHome() {
     btn.parentNode.insertBefore(countdown, btn);
   }
 
+  // Emoji stats card — render for signed-in users (cleans up stale inside renderEmojiStats)
+  renderEmojiStats();
+
   // History link — only shown to signed-in users (encourages anonymous players to create a profile)
   const existingHistLink = document.getElementById('history-link');
   if (existingHistLink) existingHistLink.remove();
@@ -2645,6 +2651,76 @@ function initHome() {
     histLink.addEventListener('click', () => { initHistory(); showScreen('history'); });
     document.querySelector('#home .streak-row').insertAdjacentElement('afterend', histLink);
   }
+}
+
+// ── Emoji stats card (logged-in users only) ──────────────────────────────────
+function renderEmojiStats() {
+  // Remove stale card
+  const old = document.getElementById('emoji-stats-card');
+  if (old) old.remove();
+
+  const ec = _authStats?.emojiCounts;
+  const gp = _authStats?.gamesPlayed || 0;
+  if (!_authUser || !ec || gp < 1) return;
+
+  const tiers = [
+    { emoji: '🎯', label: 'Perfect',  count: ec.perfect, color: 'var(--accent)'         },
+    { emoji: '🟢', label: 'Great',    count: ec.great,   color: '#22c55e'               },
+    { emoji: '🟡', label: 'Good',     count: ec.good,    color: '#eab308'               },
+    { emoji: '🟠', label: 'Okay',     count: ec.okay,    color: '#f97316'               },
+    { emoji: '🔴', label: 'Miss',     count: ec.bad,     color: '#ef4444'               },
+    { emoji: '⚫', label: 'Way off',  count: ec.miss,    color: 'var(--muted)'          },
+  ];
+  const maxCount = Math.max(...tiers.map(t => t.count), 1);
+  const avgScore = _authStats?.avgScore;
+
+  const card = document.createElement('div');
+  card.id = 'emoji-stats-card';
+  card.style.cssText = `
+    width:100%;max-width:360px;box-sizing:border-box;
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:16px;padding:16px 18px 14px;margin-top:12px;
+  `;
+
+  const barsHTML = tiers.map(t => {
+    const pct = Math.max((t.count / maxCount) * 100, t.count > 0 ? 4 : 0);
+    return `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span style="font-size:15px;width:22px;text-align:center;flex-shrink:0;">${t.emoji}</span>
+        <div style="flex:1;background:var(--border);border-radius:4px;height:8px;overflow:hidden;">
+          <div style="width:${pct}%;height:100%;background:${t.color};border-radius:4px;transition:width 0.4s ease;"></div>
+        </div>
+        <span style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;width:24px;text-align:right;flex-shrink:0;">${t.count}</span>
+      </div>`;
+  }).join('');
+
+  const avgHTML = avgScore != null ? `
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);
+                display:flex;gap:0;justify-content:space-around;text-align:center;">
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:var(--accent);">${avgScore}</div>
+        <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-top:2px;">Avg Score</div>
+      </div>
+      <div style="width:1px;background:var(--border);"></div>
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:var(--accent);">${(_authStats.bestScore || 0).toLocaleString()}</div>
+        <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-top:2px;">Best</div>
+      </div>
+      <div style="width:1px;background:var(--border);"></div>
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:var(--accent);">${gp}</div>
+        <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-top:2px;">Played</div>
+      </div>
+    </div>` : '';
+
+  card.innerHTML = `
+    <div style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;font-family:'DM Mono',monospace;">Your Scores</div>
+    ${barsHTML}${avgHTML}
+  `;
+
+  // Insert after the .streak-row
+  const streakRow = document.querySelector('#home .streak-row');
+  if (streakRow) streakRow.insertAdjacentElement('afterend', card);
 }
 
 // Parse a date string that may be "YYYY-M-D" or "YYYY-MM-DD" into a UTC Date.
