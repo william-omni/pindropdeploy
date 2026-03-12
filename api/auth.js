@@ -162,20 +162,33 @@ module.exports = async function handler(req, res) {
           from:    'PinDrop <noreply@contact.playpindrop.app>',
           to:      [email],
           subject: 'Your PinDrop sign-in link',
-          html: `
-            <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">
-              <h2 style="margin:0 0 8px;font-size:22px;">Sign in to PinDrop</h2>
-              <p style="color:#666;margin:0 0 24px;">Click the link below to sign in. It expires in 15 minutes.</p>
-              <a href="${link}"
-                 style="display:inline-block;background:#3b82f6;color:#fff;padding:14px 28px;
-                        border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;">
-                Sign In to PinDrop
-              </a>
-              <p style="color:#999;margin:24px 0 0;font-size:12px;">
-                If you didn't request this, you can safely ignore this email.
-              </p>
-            </div>
-          `,
+          text:    `Sign in to PinDrop\n\nClick the link below to sign in (expires in 15 minutes):\n${link}\n\nIf you didn't request this, you can safely ignore this email.\n\nPinDrop — Daily Geography Challenge\nhttps://playpindrop.app`,
+          html: `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;">
+  <div style="font-family:sans-serif;max-width:480px;margin:32px auto;padding:32px 24px;background:#fff;border-radius:12px;">
+    <h2 style="margin:0 0 8px;font-size:22px;color:#111;">Sign in to PinDrop</h2>
+    <p style="color:#555;margin:0 0 24px;font-size:15px;line-height:1.5;">
+      Click the button below to sign in to your account. This link expires in 15 minutes.
+    </p>
+    <a href="${link}"
+       style="display:inline-block;background:#3b82f6;color:#fff;padding:14px 28px;
+              border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;">
+      Sign In to PinDrop →
+    </a>
+    <p style="color:#999;margin:24px 0 8px;font-size:12px;line-height:1.5;">
+      If you didn't request this link, you can safely ignore this email —
+      your account won't be affected.
+    </p>
+    <hr style="border:none;border-top:1px solid #eee;margin:16px 0;">
+    <p style="color:#bbb;margin:0;font-size:11px;">
+      PinDrop · Daily Geography Challenge ·
+      <a href="https://playpindrop.app" style="color:#bbb;">playpindrop.app</a>
+    </p>
+  </div>
+</body>
+</html>`,
         }),
       });
       if (!sendRes.ok) {
