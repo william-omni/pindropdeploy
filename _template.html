@@ -2088,9 +2088,11 @@ async function initAuth() {
     }
     if (authResult === 'error') showToast('Sign-in failed. Please try again.', 3000);
     if (authResult === 'success') {
+      // Flag that we want to check for import — persists across reloads so a
+      // cold-start null _authUser doesn't permanently lose this opportunity
+      localStorage.setItem('pd_pending_import', '1');
       if (_authUser) {
         showToast('Signed in!', 2000);
-        maybePromptImport();
       } else {
         // me returned null (e.g. cold-start DB lag) — let user know
         showToast("Signed in! Reload if the page doesn't update.", 3500);
@@ -2098,6 +2100,12 @@ async function initAuth() {
     }
   }
   updateAuthUI();
+  // Show import prompt whenever the flag is set and we have an authenticated user —
+  // handles both the immediate ?auth=success load and any subsequent reload
+  if (_authUser && localStorage.getItem('pd_pending_import')) {
+    localStorage.removeItem('pd_pending_import');
+    setTimeout(maybePromptImport, 600);
+  }
   if (!_authUser) setTimeout(maybeShowSignupCallout, 1400);
 }
 
