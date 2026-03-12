@@ -21,7 +21,7 @@ const crypto = require('crypto');
 const {
   findUserByProvider, findUserByEmail, upsertUser,
   createEmailPasswordUser, verifyEmailPasswordUser,
-  getUserWithStats, importUserStats,
+  getUserWithStats, importUserStats, updateUserProfile,
   storeMagicToken, getMagicToken, deleteMagicToken,
 } = require('./_motherduck');
 
@@ -300,6 +300,25 @@ module.exports = async function handler(req, res) {
       anonymousPlayerId: body.anonymousPlayerId || null,
     });
     return res.status(200).json({ ok: true, imported });
+  }
+
+  // ── POST update-profile — save name, birthday, city, country ─────────────
+  if (action === 'update-profile' && req.method === 'POST') {
+    const session = getSessionFromRequest(req);
+    if (!session) return res.status(401).json({ error: 'Not signed in' });
+
+    const body = await parseJsonBody(req);
+    const ok = await updateUserProfile({
+      userId:      session.sub,
+      displayName: (body.displayName || '').trim() || null,
+      birthday:    body.birthday    || null,
+      city:        (body.city       || '').trim() || null,
+      country:     (body.country    || '').trim() || null,
+    });
+    if (!ok) return res.status(500).json({ error: 'Failed to save profile' });
+    // Return updated user so the client can refresh _authUser
+    const updated = await getUserWithStats(session.sub);
+    return res.status(200).json({ ok: true, user: updated?.user || null });
   }
 
   // ── GET dev-login — create a test session (non-production only) ───────────

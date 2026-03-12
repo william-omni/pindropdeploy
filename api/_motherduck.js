@@ -957,6 +957,10 @@ async function ensureAuthTables(conn) {
       expires_at TIMESTAMPTZ NOT NULL
     )
   `);
+  // Profile fields added after initial schema — idempotent
+  await conn.run(`ALTER TABLE pindrop.users ADD COLUMN IF NOT EXISTS birthday DATE`);
+  await conn.run(`ALTER TABLE pindrop.users ADD COLUMN IF NOT EXISTS city    VARCHAR`);
+  await conn.run(`ALTER TABLE pindrop.users ADD COLUMN IF NOT EXISTS country VARCHAR`);
   _authTablesReady = true;
 }
 
@@ -1078,6 +1082,7 @@ async function getUserWithStats(userId) {
       await ensureAuthTables(conn);
       const res = await conn.runAndReadAll(
         `SELECT u.id, u.email, u.display_name, u.avatar_url,
+                CAST(u.birthday AS VARCHAR) AS birthday, u.city, u.country,
                 s.streak, s.best_score, s.last_score, s.games_played, s.last_played_day
          FROM pindrop.users u
          LEFT JOIN pindrop.user_stats s ON s.user_id = u.id
@@ -1088,7 +1093,8 @@ async function getUserWithStats(userId) {
       if (!rows.length) return null;
       const r = rows[0];
       return {
-        user:  { id: r.id, email: r.email, displayName: r.display_name, avatarUrl: r.avatar_url },
+        user:  { id: r.id, email: r.email, displayName: r.display_name, avatarUrl: r.avatar_url,
+                 birthday: r.birthday || null, city: r.city || null, country: r.country || null },
         stats: { streak: r.streak || 0, bestScore: r.best_score || 0, lastScore: r.last_score,
                  gamesPlayed: r.games_played || 0, lastPlayedDay: r.last_played_day },
       };
@@ -1163,6 +1169,36 @@ async function importUserStats({ userId, streak, bestScore, lastScore, gamesPlay
   }
 }
 
+// Update editable profile fields (name, birthday, city, country).
+async function updateUserProfile({ userId, displayName, birthday, city, country }) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) throw new Error('MotherDuck not available');
+    const conn = await inst.connect();
+    try {
+      await ensureAuthTables(conn);
+      await conn.run(
+        `UPDATE pindrop.users
+         SET display_name = ?,
+             birthday     = CAST(? AS DATE),
+             city         = ?,
+             country      = ?,
+             last_seen_at = now()
+         WHERE id = ?`,
+        [displayName || null,
+         birthday    || null,
+         city        || null,
+         country     || null,
+         userId]
+      );
+      return true;
+    } finally { conn.closeSync(); }
+  } catch (e) {
+    console.error('[MotherDuck] updateUserProfile error:', e.message);
+    return false;
+  }
+}
+
 // ── Magic link tokens ─────────────────────────────────────────────────────────
 
 async function storeMagicToken(token, email, ttlSeconds) {
@@ -1233,7 +1269,7 @@ module.exports = {
   // Auth
   findUserByProvider, findUserByEmail, upsertUser,
   createEmailPasswordUser, verifyEmailPasswordUser,
-  getUserWithStats, updateUserStats, importUserStats,
+  getUserWithStats, updateUserStats, importUserStats, updateUserProfile,
   // Magic link tokens
   storeMagicToken, getMagicToken, deleteMagicToken,
 };

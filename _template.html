@@ -1355,6 +1355,64 @@
         </div>
       </div>
 
+      <!-- Edit profile fields -->
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);">Edit Profile</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:11px;color:var(--muted);font-weight:600;">Name</label>
+            <input id="profile-input-name" type="text" placeholder="Your name"
+                   style="width:100%;box-sizing:border-box;height:38px;padding:0 12px;
+                          background:var(--surface2);color:var(--text);
+                          border:1px solid var(--border);border-radius:10px;
+                          font-family:'Syne',sans-serif;font-size:14px;outline:none;"/>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:11px;color:var(--muted);font-weight:600;">Birthday</label>
+            <input id="profile-input-birthday" type="date"
+                   style="width:100%;box-sizing:border-box;height:38px;padding:0 12px;
+                          background:var(--surface2);color:var(--text);
+                          border:1px solid var(--border);border-radius:10px;
+                          font-family:'Syne',sans-serif;font-size:14px;outline:none;
+                          color-scheme:dark;"/>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <label style="font-size:11px;color:var(--muted);font-weight:600;">City</label>
+              <input id="profile-input-city" type="text" placeholder="City"
+                     style="width:100%;box-sizing:border-box;height:38px;padding:0 10px;
+                            background:var(--surface2);color:var(--text);
+                            border:1px solid var(--border);border-radius:10px;
+                            font-family:'Syne',sans-serif;font-size:14px;outline:none;"/>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <label style="font-size:11px;color:var(--muted);font-weight:600;">Country</label>
+              <input id="profile-input-country" type="text" placeholder="Country"
+                     style="width:100%;box-sizing:border-box;height:38px;padding:0 10px;
+                            background:var(--surface2);color:var(--text);
+                            border:1px solid var(--border);border-radius:10px;
+                            font-family:'Syne',sans-serif;font-size:14px;outline:none;"/>
+            </div>
+          </div>
+
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button id="btn-profile-save"
+                  style="height:38px;padding:0 20px;background:var(--accent);color:var(--btn-text);
+                         border:none;border-radius:10px;font-family:'Syne',sans-serif;
+                         font-size:13px;font-weight:700;cursor:pointer;">
+            Save
+          </button>
+          <span id="profile-save-status" style="font-size:12px;color:var(--muted);"></span>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div style="height:1px;background:var(--border);margin:0 -4px;"></div>
+
       <!-- History link -->
       <button id="btn-profile-history"
               style="width:100%;height:44px;background:var(--surface2);color:var(--text);
@@ -2080,6 +2138,13 @@ function openProfileModal() {
   document.getElementById('profile-streak').textContent = stats.streak  ?? local.streak       ?? '—';
   document.getElementById('profile-best').textContent   = stats.bestScore ?? local.bestScore  ?? '—';
   document.getElementById('profile-played').textContent = stats.gamesPlayed ?? local.gamesPlayed ?? '—';
+
+  // Editable fields
+  document.getElementById('profile-input-name').value     = user.displayName || '';
+  document.getElementById('profile-input-birthday').value = user.birthday    || '';
+  document.getElementById('profile-input-city').value     = user.city        || '';
+  document.getElementById('profile-input-country').value  = user.country     || '';
+  document.getElementById('profile-save-status').textContent = '';
 
   document.getElementById('profile-modal').classList.remove('hidden');
 }
@@ -3822,6 +3887,46 @@ document.getElementById('btn-profile-history').addEventListener('click', functio
   closeProfileModal();
   initHistory();
   showScreen('history');
+});
+document.getElementById('btn-profile-save').addEventListener('click', async function() {
+  const btn    = this;
+  const status = document.getElementById('profile-save-status');
+  const payload = {
+    displayName: document.getElementById('profile-input-name').value.trim(),
+    birthday:    document.getElementById('profile-input-birthday').value || null,
+    city:        document.getElementById('profile-input-city').value.trim(),
+    country:     document.getElementById('profile-input-country').value.trim(),
+  };
+  btn.disabled = true;
+  status.style.color = 'var(--muted)';
+  status.textContent = 'Saving…';
+  try {
+    const r = await fetch('/api/auth?action=update-profile', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.ok && data.ok) {
+      if (data.user) {
+        _authUser = data.user;
+        // Refresh the display name shown at the top of the modal
+        const initial = (_authUser.displayName || _authUser.email || '?')[0].toUpperCase();
+        document.getElementById('profile-avatar').textContent = initial;
+        document.getElementById('profile-name').textContent   = _authUser.displayName || '—';
+      }
+      status.style.color = 'var(--accent, #3b82f6)';
+      status.textContent = 'Saved!';
+    } else {
+      status.style.color = 'var(--danger, #f87171)';
+      status.textContent = data.error || 'Could not save. Please try again.';
+    }
+  } catch {
+    status.style.color = 'var(--danger, #f87171)';
+    status.textContent = 'Network error. Please try again.';
+  } finally {
+    btn.disabled = false;
+  }
 });
 // Close modals on backdrop click
 document.getElementById('auth-modal').addEventListener('click', function(e) {
