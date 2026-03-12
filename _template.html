@@ -2820,7 +2820,7 @@ function applyMapStyle(m, isDark, cityLabels = true) {
     if (isDark) {
       // Land → lighter slate so it stands out; water → near-black to match app bg
       if (layer.type === 'background') {
-        try { m.setPaintProperty(layer.id, 'background-color', '#3a3f52'); } catch(e) {}
+        try { m.setPaintProperty(layer.id, 'background-color', '#484e64'); } catch(e) {}
       } else if (isWater && layer.type === 'fill') {
         try { m.setPaintProperty(layer.id, 'fill-color', '#05070f'); } catch(e) {}
       } else if (isWater && layer.type === 'line') {
