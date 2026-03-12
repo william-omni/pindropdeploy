@@ -2745,7 +2745,21 @@ function applyMapStyle(m, isDark, cityLabels = true) {
   // ── Contrast colours + border distinction ─────────────
   for (const layer of m.getStyle().layers) {
     const lid = layer.id.toLowerCase();
-    const isWater = lid.includes('water') || lid.includes('waterway') || lid.includes('ocean');
+    const isWater  = lid.includes('water') || lid.includes('waterway') || lid.includes('ocean');
+    // Forest / park / landcover green-space layers — includes national parks,
+    // vegetation landcover, and park landuse. Excludes parking + label layers.
+    const isForest = layer.type === 'fill' && (
+      lid === 'national-park' ||
+      lid.includes('landcover') ||
+      (lid.includes('park') && !lid.includes('parking') && !lid.includes('-label'))
+    );
+
+    // Forest → subtle green tint distinct from both land base and urban gray
+    if (isForest) {
+      try { m.setPaintProperty(layer.id, 'fill-color', isDark ? '#263530' : '#c0d9a8'); } catch(e) {}
+      try { m.setPaintProperty(layer.id, 'fill-opacity', isDark ? 0.9 : 0.65); } catch(e) {}
+      continue;
+    }
 
     // National borders — bold & clearly visible
     if (lid === 'admin-0-boundary' && layer.type === 'line') {
