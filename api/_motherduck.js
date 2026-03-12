@@ -1100,16 +1100,16 @@ async function getUserGameHistory(userId) {
                 day_number, total_score, streak_at_time
          FROM pindrop.games
          ${gamesWhere}
-         ORDER BY game_date DESC
+         ORDER BY game_date DESC, (user_id IS NOT NULL) DESC
          LIMIT 90`,
         gamesParams
       );
       const allGames = gamesRes.getRowObjects();
       if (!allGames.length) return [];
 
-      // Deduplicate by game_date (first occurrence wins — results ordered by date DESC,
-      // authenticated records appear first because user_id rows sort before player_id rows
-      // on the same date — dedup keeps whichever came first)
+      // Deduplicate by game_date — first occurrence wins.
+      // Secondary sort (user_id IS NOT NULL) DESC ensures authenticated records take
+      // priority over anonymous same-day plays (e.g. played anon then signed in).
       const seenDates = new Set();
       const games = [];
       for (const g of allGames) {
@@ -1132,7 +1132,7 @@ async function getUserGameHistory(userId) {
                 round, location, dist_km, points
          FROM pindrop.plays
          ${playsWhere}
-         ORDER BY game_date DESC, round ASC`,
+         ORDER BY game_date DESC, (user_id IS NOT NULL) DESC, round ASC`,
         playsParams
       );
       const allPlays = playsRes.getRowObjects();
