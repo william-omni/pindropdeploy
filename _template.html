@@ -1363,8 +1363,15 @@
           <button id="btn-profile-edit"
                   style="height:26px;padding:0 10px;background:var(--surface2);color:var(--muted);
                          border:1px solid var(--border);border-radius:8px;cursor:pointer;
-                         font-family:'Syne',sans-serif;font-size:11px;font-weight:600;">
-            ✏ Edit
+                         font-family:'Syne',sans-serif;font-size:11px;font-weight:600;
+                         display:flex;align-items:center;gap:5px;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            Edit
           </button>
         </div>
         <div id="profile-view-name-row"
@@ -2128,35 +2135,53 @@ function _profileShowEdit() {
   document.getElementById('profile-edit-section').style.display = 'flex';
 }
 
-function openProfileModal() {
+function _renderProfileModal() {
   const user  = _authUser  || {};
   const stats = _authStats || {};
+  const local = loadStorage();
 
-  // Avatar: first letter of name or email
+  // Avatar + header
   const initial = (user.displayName || user.email || '?')[0].toUpperCase();
   document.getElementById('profile-avatar').textContent = initial;
   document.getElementById('profile-name').textContent   = user.displayName || '—';
   document.getElementById('profile-email').textContent  = user.email || '';
 
-  // Stats — prefer server stats, fall back to localStorage
-  const local = loadStorage();
-  document.getElementById('profile-streak').textContent = stats.streak      ?? local.streak      ?? '—';
-  document.getElementById('profile-best').textContent   = stats.bestScore   ?? local.bestScore   ?? '—';
-  document.getElementById('profile-played').textContent = stats.gamesPlayed ?? local.gamesPlayed ?? '—';
+  // Stats — signed-in users see DB stats only; guests see localStorage
+  if (_authUser) {
+    document.getElementById('profile-streak').textContent = stats.streak      ?? '—';
+    document.getElementById('profile-best').textContent   = stats.bestScore   ?? '—';
+    document.getElementById('profile-played').textContent = stats.gamesPlayed ?? '—';
+  } else {
+    document.getElementById('profile-streak').textContent = local.streak      ?? '—';
+    document.getElementById('profile-best').textContent   = local.bestScore   ?? '—';
+    document.getElementById('profile-played').textContent = local.gamesPlayed ?? '—';
+  }
 
-  // View mode fields
-  const nameRow     = document.getElementById('profile-view-name-row');
-  const bdayRow     = document.getElementById('profile-view-birthday-row');
-  const locRow      = document.getElementById('profile-view-location-row');
+  // View mode profile fields
   document.getElementById('profile-view-name').textContent     = user.displayName || '—';
   document.getElementById('profile-view-birthday').textContent = _formatBirthday(user.birthday) || '—';
   const loc = [user.city, user.country].filter(Boolean).join(', ');
   document.getElementById('profile-view-location').textContent = loc || '—';
+}
 
-  // Start in view mode
+async function openProfileModal() {
+  // Show modal immediately with whatever we have cached
+  _renderProfileModal();
   _profileShowView();
-
   document.getElementById('profile-modal').classList.remove('hidden');
+
+  // If signed in, refresh from server in the background so stats are always live
+  if (_authUser) {
+    try {
+      const r = await fetch('/api/auth?action=me');
+      if (r.ok) {
+        const data = await r.json();
+        if (data.user)  { _authUser  = data.user;  }
+        if (data.stats) { _authStats = data.stats; }
+        _renderProfileModal(); // re-render with fresh data
+      }
+    } catch {}
+  }
 }
 
 function closeProfileModal() {
@@ -2481,23 +2506,15 @@ function _parseDateKey(str) {
   return isNaN(dt.getTime()) ? null : dt;
 }
 
-function initHistory() {
-  const store   = loadStorage();
-  const list    = document.getElementById('history-list');
-  const empty   = document.getElementById('history-empty');
+function _renderHistory(recorded, streak, lastPlayedDay, totalPlayed) {
+  const list  = document.getElementById('history-list');
+  const empty = document.getElementById('history-empty');
   list.innerHTML = '';
 
-  // Build working list (copy so we don't mutate store)
-  const recorded = (store.history || []).map(e => ({ ...e, placeholder: false }));
-
-  // Generate placeholder entries for streak days that lack real data.
-  // We know the player played streak-many consecutive days ending on lastPlayedDay.
-  const streak = store.streak || 0;
-  const lp     = store.lastPlayedDay; // e.g. "2026-3-10"
-  if (streak > 1 && lp) {
-    const lastDt   = _parseDateKey(lp);
-    // Normalised set of dates already in recorded history (strip leading zeros for comparison)
-    const recKeys  = new Set(recorded.map(h => {
+  // Generate placeholder entries for streak days that lack recorded data
+  if (streak > 1 && lastPlayedDay) {
+    const lastDt  = _parseDateKey(lastPlayedDay);
+    const recKeys = new Set(recorded.map(h => {
       const dt = _parseDateKey(h.date);
       return dt ? dt.getTime() : null;
     }).filter(Boolean));
@@ -2520,10 +2537,7 @@ function initHistory() {
     return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
   });
 
-  if (!recorded.length) {
-    empty.style.display = '';
-    return;
-  }
+  if (!recorded.length) { empty.style.display = ''; return; }
   empty.style.display = 'none';
 
   recorded.forEach(entry => {
@@ -2550,16 +2564,44 @@ function initHistory() {
     list.appendChild(row);
   });
 
-  // Footer note for games played before tracking started
-  const totalPlayed    = store.played || 0;
-  const knownCount     = recorded.length; // real + placeholder
-  const unknownCount   = totalPlayed - knownCount;
+  // Footer: games played before user_id tracking / before sign-in
+  const knownCount   = recorded.filter(e => !e.placeholder).length;
+  const unknownCount = Math.max(0, totalPlayed - knownCount);
   if (unknownCount > 0) {
     const note = document.createElement('p');
     note.style.cssText = 'text-align:center;color:var(--muted);font-size:11px;padding:16px 0 4px;opacity:0.6;';
     note.textContent   = `+ ${unknownCount} earlier game${unknownCount === 1 ? '' : 's'} · scores not available`;
     list.appendChild(note);
   }
+}
+
+async function initHistory() {
+  const list = document.getElementById('history-list');
+  list.innerHTML = '';
+
+  if (_authUser) {
+    // Signed in: fetch game history from server (DB is authoritative)
+    try {
+      const r = await fetch('/api/auth?action=history');
+      if (r.ok) {
+        const data = await r.json();
+        const recorded = (data.history || []).map(e => ({ ...e, placeholder: false }));
+        _renderHistory(
+          recorded,
+          _authStats?.streak        || 0,
+          _authStats?.lastPlayedDay || null,
+          _authStats?.gamesPlayed   || 0
+        );
+        return;
+      }
+    } catch {}
+    // Server fetch failed — fall through to localStorage
+  }
+
+  // Not signed in or server unavailable: use localStorage
+  const store    = loadStorage();
+  const recorded = (store.history || []).map(e => ({ ...e, placeholder: false }));
+  _renderHistory(recorded, store.streak || 0, store.lastPlayedDay, store.played || 0);
 }
 
 // ─────────────────────────────────────────────────────────

@@ -16,7 +16,7 @@
 const crypto = require('crypto');
 const {
   findUserByEmail, upsertUser,
-  getUserWithStats, importUserStats, updateUserProfile,
+  getUserWithStats, getUserGameHistory, importUserStats, updateUserProfile,
   storeMagicToken, getMagicToken, deleteMagicToken,
 } = require('./_motherduck');
 
@@ -253,6 +253,14 @@ module.exports = async function handler(req, res) {
     // Return updated user so the client can refresh _authUser
     const updated = await getUserWithStats(session.sub);
     return res.status(200).json({ ok: true, user: updated?.user || null });
+  }
+
+  // ── GET history — game history from pindrop.games + pindrop.plays ─────────
+  if (action === 'history' && req.method === 'GET') {
+    const session = getSessionFromRequest(req);
+    if (!session) return res.status(401).json({ error: 'Not signed in' });
+    const history = await getUserGameHistory(session.sub);
+    return res.status(200).json({ history });
   }
 
   // ── GET dev-login — create a test session (non-production only) ───────────

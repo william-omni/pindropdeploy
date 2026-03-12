@@ -1070,6 +1070,57 @@ async function getUserWithStats(userId) {
   }
 }
 
+// Return per-game history for a signed-in user from pindrop.games + pindrop.plays.
+async function getUserGameHistory(userId) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return [];
+    const conn = await inst.connect();
+    try {
+      await ensureAuthTables(conn);
+      const gamesRes = await conn.runAndReadAll(
+        `SELECT CAST(game_date AS VARCHAR) AS game_date,
+                day_number, total_score, streak_at_time
+         FROM pindrop.games
+         WHERE user_id = ?
+         ORDER BY game_date DESC
+         LIMIT 90`,
+        [userId]
+      );
+      const games = gamesRes.getRowObjects();
+      if (!games.length) return [];
+
+      const dates = games.map(g => g.game_date);
+      const playsRes = await conn.runAndReadAll(
+        `SELECT CAST(game_date AS VARCHAR) AS game_date,
+                round, location, dist_km, points
+         FROM pindrop.plays
+         WHERE user_id = ?
+           AND CAST(game_date AS VARCHAR) IN (${dates.map(() => '?').join(',')})
+         ORDER BY game_date DESC, round ASC`,
+        [userId, ...dates]
+      );
+      const plays = playsRes.getRowObjects();
+
+      const byDate = {};
+      for (const p of plays) {
+        if (!byDate[p.game_date]) byDate[p.game_date] = [];
+        byDate[p.game_date].push({ pts: p.points, name: p.location, distKm: p.dist_km });
+      }
+      return games.map(g => ({
+        date:   g.game_date,
+        dayNum: g.day_number,
+        score:  g.total_score,
+        streak: g.streak_at_time || 0,
+        rounds: byDate[g.game_date] || [],
+      }));
+    } finally { conn.closeSync(); }
+  } catch (e) {
+    console.error('[MotherDuck] getUserGameHistory error:', e.message);
+    return [];
+  }
+}
+
 // Update user stats after a game completes. Fire-and-forget safe.
 async function updateUserStats({ userId, streak, bestScore, lastScore, gamesPlayed, lastPlayedDay }) {
   try {
@@ -1233,7 +1284,7 @@ module.exports = {
   trackFeedback, getFeedbackList, getFeedbackDetail, updateFeedback,
   // Auth
   findUserByProvider, findUserByEmail, upsertUser,
-  getUserWithStats, updateUserStats, importUserStats, updateUserProfile,
+  getUserWithStats, getUserGameHistory, updateUserStats, importUserStats, updateUserProfile,
   // Magic link tokens
   storeMagicToken, getMagicToken, deleteMagicToken,
 };
