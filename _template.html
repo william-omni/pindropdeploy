@@ -2757,7 +2757,7 @@ function applyMapStyle(m, isDark, cityLabels = true) {
     // Forest → subtle green tint distinct from both land base and urban gray
     if (isForest) {
       try { m.setPaintProperty(layer.id, 'fill-color', isDark ? '#263530' : '#c0d9a8'); } catch(e) {}
-      try { m.setPaintProperty(layer.id, 'fill-opacity', isDark ? 0.9 : 0.65); } catch(e) {}
+      try { m.setPaintProperty(layer.id, 'fill-opacity', isDark ? 0.9 : 0.3); } catch(e) {}
       continue;
     }
 
