@@ -2,9 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "pindrop-dev",
-      "runtimeExecutable": "vercel",
-      "runtimeArgs": ["dev", "--listen", "3000", "--yes"],
+      "name": "vercel-dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vercel", "dev", "--listen", "3000", "--yes"],
       "port": 3000
     }
   ]

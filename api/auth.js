@@ -17,7 +17,7 @@
 const crypto = require('crypto');
 const {
   findUserByEmail, upsertUser,
-  getUserWithStats, getUserGameHistory, importUserStats, updateUserProfile,
+  getUserWithStats, getUserGameHistory, getUserTodayRounds, importUserStats, updateUserProfile,
   setImportOptedOut, linkAnonymousPlayer,
   storeMagicToken, getMagicToken, deleteMagicToken,
 } = require('./_motherduck');
@@ -332,6 +332,17 @@ module.exports = async function handler(req, res) {
     if (!session) return res.status(401).json({ error: 'Not signed in' });
     const history = await getUserGameHistory(session.sub);
     return res.status(200).json({ history });
+  }
+
+  // ── GET today-rounds — full round-level results for today's game ──────────
+  // Returns [ { pts, name, description, distKm, userLat, userLng, targetLat, targetLng }, … ]
+  // Used by the cross-device "View My Results" flow where localStorage is empty/stale.
+  if (action === 'today-rounds' && req.method === 'GET') {
+    const session = getSessionFromRequest(req);
+    if (!session) return res.status(401).json({ error: 'Not signed in' });
+    const gameDate = req.query.date || new Date().toISOString().slice(0, 10);
+    const rounds = await getUserTodayRounds(session.sub, gameDate);
+    return res.status(200).json({ rounds: rounds || [] });
   }
 
   // ── GET dev-login — create a test session (non-production only) ───────────

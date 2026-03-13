@@ -426,6 +426,28 @@ async function setDayOverride({ gameDate, dayNumber, locationNames }) {
   }
 }
 
+// Deletes a locked daily combo so the RNG takes over for that date.
+// Only works if the date has NO plays yet (safety: can't erase a played day).
+// Returns { deleted: true } or throws if there are plays.
+async function deleteDailyCombo(gameDate) {
+  const inst = await getDataInstance();
+  if (!inst) throw new Error('MotherDuck not available');
+  const conn = await inst.connect();
+  try {
+    // Safety check — reject if any real plays exist for this date
+    const check = await conn.runAndReadAll(
+      `SELECT COUNT(*) AS cnt FROM pindrop.plays WHERE game_date = ?`,
+      [gameDate]
+    );
+    const cnt = Number(check.getRowObjects()[0]?.cnt ?? 0);
+    if (cnt > 0) throw new Error(`Cannot clear ${gameDate}: ${cnt} play(s) already recorded`);
+    await conn.run(`DELETE FROM pindrop.daily_combinations WHERE game_date = ?`, [gameDate]);
+    return { deleted: true };
+  } finally {
+    conn.closeSync();
+  }
+}
+
 // Returns a Set of date strings (YYYY-MM-DD) that have at least one play row in the range.
 // A day is only truly locked (admin cannot re-override it) once a real player has played it.
 async function getPlayedDates(fromDateStr, toDateStr) {
@@ -1244,6 +1266,85 @@ async function getUserGameHistory(userId) {
   }
 }
 
+// Returns the full round-by-round results for a specific user+date from the plays table,
+// joined with locations for descriptions and including guess+target coordinates.
+// Used by the cross-device "View My Results" flow so a user who played on another device
+// can see the full review screen with map on a new device.
+// Returns null if no plays found (game wasn't played yet / not this user's game).
+async function getUserTodayRounds(userId, gameDate) {
+  try {
+    const inst = await getDataInstance();
+    if (!inst) return null;
+    const conn = await inst.connect();
+    try {
+      // Look up anonymous_player_id so pre-sign-in plays are included
+      const userRes = await conn.runAndReadAll(
+        `SELECT anonymous_player_id FROM pindrop.users WHERE id = ?`, [userId]
+      );
+      const anonId = (userRes.getRowObjects()[0]?.anonymous_player_id) || null;
+
+      // Fetch plays for this date: prefer user_id rows; fall back to player_id (pre-login)
+      const sql = anonId ? `
+        SELECT p.round, p.location, p.dist_km, p.points,
+               p.guess_lat, p.guess_lng, p.target_lat, p.target_lng,
+               l.description
+        FROM pindrop.plays p
+        LEFT JOIN pindrop.locations l ON l.name = p.location
+        WHERE p.user_id = ? AND CAST(p.game_date AS VARCHAR) = ?
+        UNION ALL
+        SELECT p.round, p.location, p.dist_km, p.points,
+               p.guess_lat, p.guess_lng, p.target_lat, p.target_lng,
+               l.description
+        FROM pindrop.plays p
+        LEFT JOIN pindrop.locations l ON l.name = p.location
+        WHERE p.player_id = ? AND CAST(p.game_date AS VARCHAR) = ?
+          AND CAST(p.game_date AS VARCHAR) NOT IN (
+              SELECT CAST(game_date AS VARCHAR) FROM pindrop.plays
+              WHERE user_id = ? AND CAST(game_date AS VARCHAR) = ?
+          )
+        ORDER BY round ASC`
+      : `
+        SELECT p.round, p.location, p.dist_km, p.points,
+               p.guess_lat, p.guess_lng, p.target_lat, p.target_lng,
+               l.description
+        FROM pindrop.plays p
+        LEFT JOIN pindrop.locations l ON l.name = p.location
+        WHERE p.user_id = ? AND CAST(p.game_date AS VARCHAR) = ?
+        ORDER BY round ASC`;
+
+      const params = anonId
+        ? [userId, gameDate, anonId, gameDate, userId, gameDate]
+        : [userId, gameDate];
+
+      const res = await conn.runAndReadAll(sql, params);
+      const rows = res.getRowObjects();
+      if (!rows.length) return null;
+
+      // Dedup by round (user_id rows take priority via UNION order)
+      const seen = new Set();
+      const rounds = [];
+      for (const r of rows) {
+        if (seen.has(r.round)) continue;
+        seen.add(r.round);
+        rounds.push({
+          pts:         r.points,
+          name:        r.location,
+          description: r.description || '',
+          distKm:      r.dist_km,
+          userLat:     r.guess_lat,
+          userLng:     r.guess_lng,
+          targetLat:   r.target_lat,
+          targetLng:   r.target_lng,
+        });
+      }
+      return rounds.sort((a, b) => 0); // already ordered by round ASC from SQL
+    } finally { conn.closeSync(); }
+  } catch (e) {
+    console.error('[MotherDuck] getUserTodayRounds error:', e.message);
+    return null;
+  }
+}
+
 // Update user stats after a game completes. Fire-and-forget safe.
 async function updateUserStats({ userId, streak, bestScore, lastScore, gamesPlayed, lastPlayedDay }) {
   try {
@@ -1442,7 +1543,7 @@ async function setImportOptedOut(userId) {
 module.exports = {
   trackPlay, trackGame, trackShare, storeDailyCombo,
   getAllLocations, getLockedDailyCombo, getLockedDates, getPlayedDates,
-  getLockedCombosForRange, getLastUsedDates, setDayOverride,
+  getLockedCombosForRange, getLastUsedDates, setDayOverride, deleteDailyCombo,
   upsertLocation, deleteLocation, replaceAllLocations,
   getDailyAvgScore, getDailyAvgRoundScore,
   getYesterdayGameStats,
@@ -1451,7 +1552,7 @@ module.exports = {
   trackFeedback, getFeedbackList, getFeedbackDetail, updateFeedback,
   // Auth
   findUserByProvider, findUserByEmail, upsertUser,
-  getUserWithStats, getUserGameHistory, updateUserStats, importUserStats, updateUserProfile,
+  getUserWithStats, getUserGameHistory, getUserTodayRounds, updateUserStats, importUserStats, updateUserProfile,
   setImportOptedOut, linkAnonymousPlayer,
   // Magic link tokens
   storeMagicToken, getMagicToken, deleteMagicToken,

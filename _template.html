@@ -2616,7 +2616,7 @@ function initHome() {
       <div class="home-played-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="var(--accent)" fill-opacity="0.18" stroke="var(--accent)" stroke-width="1.5"/><polyline points="7 12 10.5 15.5 17 9" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       <div class="home-played-text">
         <div class="home-played-label">Today's Score</div>
-        <div class="home-played-score">${store.lastScore || 0} <span style="font-size:14px;color:var(--muted);font-family:'DM Mono',monospace;font-weight:400">/ 1000</span></div>
+        <div class="home-played-score">${(_authStats?.lastPlayedDay && normalizeDateKey(_authStats.lastPlayedDay) === getTodayKey() ? (_authStats.lastScore ?? store.lastScore) : store.lastScore) || 0} <span style="font-size:14px;color:var(--muted);font-family:'DM Mono',monospace;font-weight:400">/ 1000</span></div>
       </div>
     `;
     btn.parentNode.insertBefore(banner, btn);
@@ -2816,29 +2816,41 @@ async function initHistory() {
   list.innerHTML = '';
   renderEmojiStats();
 
+  // Always render localStorage first — instant, no flash of empty content.
+  // This also ensures today's just-finished game is visible immediately, even
+  // if the server write hasn't completed yet (fire-and-forget analytics call).
+  const store = loadStorage();
+  const localRecorded = (store.history || []).map(e => ({ ...e, placeholder: false }));
+  _renderHistory(localRecorded, store.streak || 0, store.lastPlayedDay, store.played || 0);
+
   if (_authUser) {
-    // Signed in: fetch game history from server (DB is authoritative)
+    // Signed in: silently refresh from server in the background.
+    // Server is authoritative for cross-device history.  When the response
+    // arrives we merge: keep any local entry whose date isn't in the server
+    // response yet (in-flight DB write case), then re-render.
     try {
       const r = await fetch('/api/auth?action=history');
       if (r.ok) {
         const data = await r.json();
-        const recorded = (data.history || []).map(e => ({ ...e, placeholder: false }));
+        const serverEntries = (data.history || []).map(e => ({ ...e, placeholder: false }));
+        const serverDates = new Set(serverEntries.map(e => normalizeDateKey(e.date)));
+        // Prepend any local-only entries (today's game may not be in DB yet)
+        const localOnly = localRecorded.filter(e => !serverDates.has(normalizeDateKey(e.date)));
+        const merged = [...localOnly, ...serverEntries]
+          .sort((a, b) => {
+            const [ay, am, ad] = a.date.split('-').map(Number);
+            const [by, bm, bd] = b.date.split('-').map(Number);
+            return (by - ay) || (bm - am) || (bd - ad);
+          });
         _renderHistory(
-          recorded,
-          _authStats?.streak        || 0,
-          _authStats?.lastPlayedDay || null,
-          _authStats?.gamesPlayed   || 0
+          merged,
+          _authStats?.streak        || store.streak || 0,
+          _authStats?.lastPlayedDay || store.lastPlayedDay || null,
+          _authStats?.gamesPlayed   || store.played || 0
         );
-        return;
       }
-    } catch {}
-    // Server fetch failed — fall through to localStorage
+    } catch {} // server unavailable — local render already shown, nothing to do
   }
-
-  // Not signed in or server unavailable: use localStorage
-  const store    = loadStorage();
-  const recorded = (store.history || []).map(e => ({ ...e, placeholder: false }));
-  _renderHistory(recorded, store.streak || 0, store.lastPlayedDay, store.played || 0);
 }
 
 // ─────────────────────────────────────────────────────────
@@ -3931,18 +3943,63 @@ function populateReviewMap(results) {
   }
 }
 
-function showReview(returnScreen = 'home') {
+async function showReview(returnScreen = 'home') {
   const store = loadStorage();
-  const results = store.lastRoundResults;
+  let results = store.lastRoundResults;
+  let score   = store.lastScore || 0;
+
+  // Cross-device: signed-in user played on another device — localStorage is stale/empty.
+  // Fetch today's round data from the server so the review screen shows the correct game.
+  const todayKey = getTodayKey();
+  const localIsToday = store.lastPlayedDay === todayKey;
+  if (_authUser && (!results || !results.length || !localIsToday)) {
+    showScreen('review'); // navigate now so back button works; map will render after fetch
+    reviewFocusedRound = -1;
+    reviewReturnScreen = returnScreen;
+    const backBtn = document.getElementById('btn-back-home-review');
+    if (backBtn) backBtn.textContent = returnScreen === 'summary' ? '← Back to Results' : '← Back to Home';
+    document.getElementById('review-score-num').textContent = '…';
+    document.getElementById('review-title').textContent = formatDate(new Date());
+    document.getElementById('review-eyebrow').textContent = 'Day #' + getDayNumber();
+    document.getElementById('review-rounds').innerHTML = '';
+    try {
+      const r = await fetch(`/api/auth?action=today-rounds&date=${getLocalDateStr()}`);
+      if (r.ok) {
+        const data = await r.json();
+        if (data.rounds && data.rounds.length) {
+          results = data.rounds;
+          score   = results.reduce((s, r) => s + (r.pts || 0), 0);
+          // Persist to localStorage so subsequent opens are instant
+          const fresh = loadStorage();
+          fresh.lastRoundResults = results;
+          fresh.lastScore = score;
+          fresh.lastPlayedDay = todayKey;
+          saveStorage(fresh);
+        }
+      }
+    } catch {}
+    if (!results || !results.length) {
+      document.getElementById('review-score-num').textContent = '—';
+      return; // nothing to show
+    }
+    _renderReview(results, score); // helper defined below
+    return;
+  }
+
   if (!results || results.length === 0) return;
 
-  const score = store.lastScore || 0;
   reviewFocusedRound = -1;
   reviewReturnScreen = returnScreen;
+  showScreen('review');
+  _renderReview(results, score);
+}
 
-  // Update back button label to match destination
+// Renders the review screen UI for a given set of round results + total score.
+// Called both from the same-device path (results already in state/localStorage)
+// and the cross-device path (results fetched from the server).
+function _renderReview(results, score) {
   const backBtn = document.getElementById('btn-back-home-review');
-  if (backBtn) backBtn.textContent = returnScreen === 'summary' ? '← Back to Results' : '← Back to Home';
+  if (backBtn) backBtn.textContent = reviewReturnScreen === 'summary' ? '← Back to Results' : '← Back to Home';
 
   document.getElementById('review-score-num').textContent = score;
   document.getElementById('review-title').textContent = formatDate(new Date());
@@ -4009,7 +4066,6 @@ function showReview(returnScreen = 'home') {
     chipsEl.appendChild(chip);
   });
 
-  showScreen('review');
   initReviewMap(results);
 }
 

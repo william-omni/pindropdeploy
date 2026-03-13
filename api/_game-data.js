@@ -314,6 +314,13 @@ function scoreFromDistance(km, perfectRadius = 30) {
 
 // ── Vercel Handler ────────────────────────────────────────────────────────
 
+// Bust the locked-combo cache — call this before any admin read that needs
+// up-to-date daily_combinations data (e.g. the Upcoming tab after a manual edit).
+function clearLockedComboCache() {
+  _lockedCacheExp  = 0;
+  _lockedCacheUpTo = '';
+}
+
 module.exports = {
   ROUNDS_PER_GAME,
   seededRand,
@@ -323,4 +330,5 @@ module.exports = {
   getTodayLocations,
   haversineKm,
   scoreFromDistance,
+  clearLockedComboCache,
 };

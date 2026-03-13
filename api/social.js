@@ -3,10 +3,11 @@
 // Called by Vercel cron jobs (see vercel.json):
 //   daily-drop    — "Day #N is live"   posted each morning (~7am ET)
 //   daily-stats   — yesterday's recap  posted each morning (~9am ET)
-//   send-pending  — checks DB for scheduled manual posts
+//   send-pending  — checks DB for scheduled manual posts (runs every hour)
 //
-// Also callable manually via GET with X-Cron-Secret header for testing.
+// Also callable manually from the admin portal (uses same Bearer token as /admin).
 
+const crypto  = require('crypto');
 const { getDayNumber } = require('./_game-data');
 const { getYesterdayGameStats, getPendingScheduledPosts, updateSocialPost } = require('./_motherduck');
 const { postTweet } = require('./_twitter');
@@ -14,12 +15,24 @@ const { postTweet } = require('./_twitter');
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 module.exports = async function handler(req, res) {
-  // Auth: Vercel sets x-vercel-cron: 1 on cron calls; manual calls pass X-Cron-Secret
-  const isCron   = req.headers['x-vercel-cron'] === '1';
-  const secret   = process.env.SOCIAL_CRON_SECRET;
-  const hasToken = secret && req.headers['x-cron-secret'] === secret;
+  // Auth: Vercel sets x-vercel-cron: 1 on cron calls.
+  // Admin portal can also trigger with its Bearer token (same as /admin auth).
+  const isCron    = req.headers['x-vercel-cron'] === '1';
+  const secret    = process.env.SOCIAL_CRON_SECRET;
+  const hasToken  = secret && req.headers['x-cron-secret'] === secret;
 
-  if (!isCron && !hasToken) {
+  // Admin Bearer token auth (allows manual triggering from the admin portal)
+  let pw = (process.env.ADMIN_PASSWORD || '').trim();
+  if (pw.length >= 2 &&
+      ((pw[0] === '"'  && pw[pw.length - 1] === '"')  ||
+       (pw[0] === '\'' && pw[pw.length - 1] === '\''))) {
+    pw = pw.slice(1, -1);
+  }
+  const adminToken = pw ? crypto.createHash('sha256').update(pw + ':pindrop-admin').digest('hex') : null;
+  const isAdmin    = adminToken &&
+    (req.headers['authorization'] || '').replace('Bearer ', '').trim() === adminToken;
+
+  if (!isCron && !hasToken && !isAdmin) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

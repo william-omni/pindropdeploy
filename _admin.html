@@ -630,6 +630,7 @@
               <option value="">All categories</option>
               <option value="bug">Bug</option>
               <option value="feature">Feature</option>
+              <option value="location">Location</option>
               <option value="praise">Praise</option>
               <option value="other">Other</option>
             </select>
@@ -1756,10 +1757,11 @@ var _FB_STATUS_COLOR = {
   'done':        ['rgba(16,185,129,.15)', '#10b981'],
 };
 var _FB_CAT_COLOR = {
-  'bug':     ['rgba(248,113,113,.12)', '#f87171'],
-  'feature': ['rgba(59,130,246,.12)',  '#3b82f6'],
-  'praise':  ['rgba(16,185,129,.12)',  '#10b981'],
-  'other':   ['rgba(148,163,184,.12)','#94a3b8'],
+  'bug':      ['rgba(248,113,113,.12)', '#f87171'],
+  'feature':  ['rgba(59,130,246,.12)',  '#3b82f6'],
+  'location': ['rgba(251,191,36,.12)',  '#fbbf24'],
+  'praise':   ['rgba(16,185,129,.12)',  '#10b981'],
+  'other':    ['rgba(148,163,184,.12)','#94a3b8'],
 };
 
 function applyFbSelectStyle(sel, isStatus) {
@@ -1871,7 +1873,7 @@ function renderFeedbackList() {
     var statusOpts = ['new','triaged','in-progress','done'].map(function(s) {
       return '<option value="' + s + '"' + (item.status === s ? ' selected' : '') + '>' + s + '</option>';
     }).join('');
-    var catOpts = '<option value="">— cat —</option>' + ['bug','feature','praise','other'].map(function(c) {
+    var catOpts = '<option value="">— cat —</option>' + ['bug','feature','location','praise','other'].map(function(c) {
       return '<option value="' + c + '"' + (item.category === c ? ' selected' : '') + '>' + c + '</option>';
     }).join('');
     return (

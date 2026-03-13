@@ -11,10 +11,11 @@ const {
   seededRand,
   getDailySeed,
   ROUNDS_PER_GAME,
+  clearLockedComboCache,
 } = require('./_game-data');
 const {
   getAllLocations, replaceAllLocations, getLockedDates, getPlayedDates,
-  upsertLocation, deleteLocation, getLastUsedDates, setDayOverride,
+  upsertLocation, deleteLocation, getLastUsedDates, setDayOverride, deleteDailyCombo,
   createSocialPost, getSocialPosts, updateSocialPost, editSocialPost, deleteSocialPost,
   getYesterdayGameStats,
   getFeedbackList, getFeedbackDetail, updateFeedback,
@@ -207,6 +208,8 @@ module.exports = async function handler(req, res) {
 
   // ── GET upcoming challenges ──────────────────────────────────────────────
   if (action === 'upcoming') {
+    // Always bust the locked-combo cache so manual MotherDuck edits reflect immediately.
+    clearLockedComboCache();
     const days = Math.min(parseInt((req.query && req.query.days) || '14', 10), 60);
     const from = (req.query && req.query.from) || (() => {
       const d = new Date();
@@ -403,9 +406,31 @@ module.exports = async function handler(req, res) {
     try {
       const dayNum = getDayNumber(dateStr);
       await setDayOverride({ gameDate: dateStr, dayNumber: dayNum, locationNames });
+      // Bust the in-process locked-combo cache so the immediately-following
+      // upcoming reload always reads fresh data from daily_combinations.
+      clearLockedComboCache();
       return res.status(200).json({ saved: true });
     } catch (e) {
       return res.status(500).json({ error: 'Failed to save override: ' + e.message });
+    }
+  }
+
+  // ── POST clear-day-override — delete a locked combo (no plays yet) ──────────
+  // Body: { dateStr: 'YYYY-MM-DD' }
+  // Clears the daily_combinations row so the deterministic RNG takes over again.
+  // Rejected if any plays have been recorded for that date.
+  if (action === 'clear-day-override' && req.method === 'POST') {
+    const body = await parseJsonBody(req);
+    const { dateStr } = body || {};
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return res.status(400).json({ error: 'Valid dateStr (YYYY-MM-DD) required' });
+    }
+    try {
+      await deleteDailyCombo(dateStr);
+      clearLockedComboCache();
+      return res.status(200).json({ cleared: true });
+    } catch (e) {
+      return res.status(409).json({ error: e.message });
     }
   }
 
