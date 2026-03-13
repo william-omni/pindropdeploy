@@ -2869,31 +2869,6 @@ function applyMapStyle(m, isDark, cityLabels = true) {
       try { m.setPaintProperty(layer.id, 'fill-opacity', ['interpolate', ['exponential', 1.2], ['zoom'], 1, 0, 8, isDark ? 0.5 : 0.45]); } catch(e) {}
       continue;
     }
-
-    // Sports pitches & golf courses — same green family as forests, fades in zoom 9→10
-    const isPitch = layer.type === 'fill' && (lid.includes('pitch') || lid.includes('golf'));
-    if (isPitch) {
-      try { m.setPaintProperty(layer.id, 'fill-color', isDark ? '#263530' : '#c0d9a8'); } catch(e) {}
-      try { m.setPaintProperty(layer.id, 'fill-opacity', ['interpolate', ['linear'], ['zoom'], 9, 0, 10, isDark ? 0.9 : 0.3]); } catch(e) {}
-      continue;
-    }
-
-    // Sand / beach — warm sandy tone, fades in zoom 1→8
-    const isSand = layer.type === 'fill' && (lid.includes('sand') || lid.includes('beach'));
-    if (isSand) {
-      try { m.setPaintProperty(layer.id, 'fill-color', isDark ? '#28251a' : '#e0d4a0'); } catch(e) {}
-      try { m.setPaintProperty(layer.id, 'fill-opacity', ['interpolate', ['exponential', 1.2], ['zoom'], 1, 0, 8, isDark ? 0.55 : 0.45]); } catch(e) {}
-      continue;
-    }
-
-    // Urban landuse (residential, commercial, retail) — subtle warm tint, fades in zoom 1→7
-    const isUrban = layer.type === 'fill' && !isForest && lid.includes('residential');
-    if (isUrban) {
-      try { m.setPaintProperty(layer.id, 'fill-color', isDark ? '#4c4c59' : '#d4c9b8'); } catch(e) {}
-      try { m.setPaintProperty(layer.id, 'fill-opacity', ['interpolate', ['exponential', 1.2], ['zoom'], 1, 0, 7, isDark ? 0.45 : 0.9]); } catch(e) {}
-      continue;
-    }
-
     // National borders — bold & clearly visible
     if (lid === 'admin-0-boundary' && layer.type === 'line') {
       try { m.setPaintProperty(layer.id, 'line-color', isDark ? 'rgba(255,255,255,0.60)' : 'rgba(20,40,90,0.75)'); } catch(e) {}
