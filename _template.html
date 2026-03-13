@@ -3650,7 +3650,8 @@ function finishGame() {
 
   // Save for home screen progress + per-day history
   const store = loadStorage();
-  store.lastRoundResults = state.roundResults;
+  store.lastRoundResults    = state.roundResults;
+  store.lastRoundResultsDay = getTodayKey(); // marks that these results are from today's game
   // Append to per-day history (most-recent first; dedup by date; cap 90 days)
   const histEntry = {
     date:   getTodayKey(),   // matches lastPlayedDay format (same fn used by updateStats)
@@ -4005,12 +4006,15 @@ async function showReview(returnScreen = 'home') {
 
   const store = loadStorage();
   const todayKey = getTodayKey();
-  const localIsToday = store.lastPlayedDay === todayKey;
+  // lastRoundResultsDay is only written when we actually record round data (from
+  // playing locally or from a confirmed server fetch). It is NOT synced by auth,
+  // so it stays correct even when onAuthSuccess updates lastPlayedDay from the server.
+  const roundsAreToday = store.lastRoundResultsDay === todayKey;
 
-  // Cross-device: signed-in user played on another device — localStorage is stale/empty.
+  // Cross-device: signed-in user played on another device — round data is stale/empty.
   // Fetch today's round data from the server. Use a separate variable (serverRounds)
   // so we never accidentally fall back to yesterday's stale localStorage results.
-  if (_authUser && !localIsToday) {
+  if (_authUser && !roundsAreToday) {
     showScreen('review'); // navigate now so back button works; map will render after fetch
     reviewFocusedRound = -1;
     reviewReturnScreen = returnScreen;
@@ -4032,9 +4036,10 @@ async function showReview(returnScreen = 'home') {
           serverScore  = serverRounds.reduce((s, r) => s + (r.pts || 0), 0);
           // Persist to localStorage so subsequent opens are instant
           const fresh = loadStorage();
-          fresh.lastRoundResults = serverRounds;
-          fresh.lastScore = serverScore;
-          fresh.lastPlayedDay = todayKey;
+          fresh.lastRoundResults    = serverRounds;
+          fresh.lastRoundResultsDay = todayKey; // marks cross-device results as today's
+          fresh.lastScore           = serverScore;
+          fresh.lastPlayedDay       = todayKey;
           saveStorage(fresh);
         }
       }
