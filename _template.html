@@ -2932,6 +2932,62 @@ function applyMapStyle(m, isDark, cityLabels = true) {
     if (layer.type === 'symbol') m.removeLayer(layer.id);
   }
 
+  // ── Road network — subtle city-emphasis lines ──────────────────────────
+  // Three tiers, all fading in from zoom 5 so roads only appear when you're
+  // close enough to a city for them to be meaningful.  Opacity kept very low
+  // so they read as texture rather than competing with borders/labels.
+  const roadMajorColor  = isDark ? 'rgba(255,255,255,0.13)' : 'rgba(30,50,100,0.14)';
+  const roadPrimaryColor= isDark ? 'rgba(255,255,255,0.09)' : 'rgba(30,50,100,0.10)';
+  const roadMinorColor  = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(30,50,100,0.07)';
+
+  // Tier 1 — motorways + trunk (visible from zoom 5)
+  m.addLayer({
+    id: 'roads-major',
+    type: 'line',
+    source: 'composite',
+    'source-layer': 'road',
+    filter: ['match', ['get', 'class'], ['motorway', 'trunk'], true, false],
+    minzoom: 5,
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: {
+      'line-color': roadMajorColor,
+      'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.6, 8, 1.2, 10, 2.0],
+      'line-opacity': ['interpolate', ['linear'], ['zoom'], 5, 0, 6, 0.7, 10, 1.0],
+    },
+  });
+
+  // Tier 2 — primary roads (visible from zoom 7)
+  m.addLayer({
+    id: 'roads-primary',
+    type: 'line',
+    source: 'composite',
+    'source-layer': 'road',
+    filter: ['match', ['get', 'class'], ['primary'], true, false],
+    minzoom: 7,
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: {
+      'line-color': roadPrimaryColor,
+      'line-width': ['interpolate', ['linear'], ['zoom'], 7, 0.4, 10, 1.2],
+      'line-opacity': ['interpolate', ['linear'], ['zoom'], 7, 0, 8, 0.7, 10, 1.0],
+    },
+  });
+
+  // Tier 3 — secondary + tertiary (visible from zoom 9, very fine)
+  m.addLayer({
+    id: 'roads-secondary',
+    type: 'line',
+    source: 'composite',
+    'source-layer': 'road',
+    filter: ['match', ['get', 'class'], ['secondary', 'tertiary'], true, false],
+    minzoom: 9,
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: {
+      'line-color': roadMinorColor,
+      'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.3, 11, 0.8],
+      'line-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0, 10, 0.6, 11, 1.0],
+    },
+  });
+
   // cityLabels = false  → no labels (pure clean map for gameplay guess phase)
   // cityLabels = true   → major cities only (gameplay result reveal)
   // cityLabels = 'review' → country names + broad city coverage (results/review map)
