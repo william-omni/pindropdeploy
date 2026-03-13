@@ -3944,15 +3944,17 @@ function populateReviewMap(results) {
 }
 
 async function showReview(returnScreen = 'home') {
-  const store = loadStorage();
-  let results = store.lastRoundResults;
-  let score   = store.lastScore || 0;
+  // Normalise returnScreen in case an Event object was passed via addEventListener
+  if (typeof returnScreen !== 'string') returnScreen = 'home';
 
-  // Cross-device: signed-in user played on another device — localStorage is stale/empty.
-  // Fetch today's round data from the server so the review screen shows the correct game.
+  const store = loadStorage();
   const todayKey = getTodayKey();
   const localIsToday = store.lastPlayedDay === todayKey;
-  if (_authUser && (!results || !results.length || !localIsToday)) {
+
+  // Cross-device: signed-in user played on another device — localStorage is stale/empty.
+  // Fetch today's round data from the server. Use a separate variable (serverRounds)
+  // so we never accidentally fall back to yesterday's stale localStorage results.
+  if (_authUser && !localIsToday) {
     showScreen('review'); // navigate now so back button works; map will render after fetch
     reviewFocusedRound = -1;
     reviewReturnScreen = returnScreen;
@@ -3962,30 +3964,38 @@ async function showReview(returnScreen = 'home') {
     document.getElementById('review-title').textContent = formatDate(new Date());
     document.getElementById('review-eyebrow').textContent = 'Day #' + getDayNumber();
     document.getElementById('review-rounds').innerHTML = '';
+
+    let serverRounds = null;
+    let serverScore  = 0;
     try {
       const r = await fetch(`/api/auth?action=today-rounds&date=${getLocalDateStr()}`);
       if (r.ok) {
         const data = await r.json();
         if (data.rounds && data.rounds.length) {
-          results = data.rounds;
-          score   = results.reduce((s, r) => s + (r.pts || 0), 0);
+          serverRounds = data.rounds;
+          serverScore  = serverRounds.reduce((s, r) => s + (r.pts || 0), 0);
           // Persist to localStorage so subsequent opens are instant
           const fresh = loadStorage();
-          fresh.lastRoundResults = results;
-          fresh.lastScore = score;
+          fresh.lastRoundResults = serverRounds;
+          fresh.lastScore = serverScore;
           fresh.lastPlayedDay = todayKey;
           saveStorage(fresh);
         }
       }
     } catch {}
-    if (!results || !results.length) {
+
+    if (!serverRounds) {
+      // Server had nothing — game not played yet on any device, or fetch failed
       document.getElementById('review-score-num').textContent = '—';
-      return; // nothing to show
+      return;
     }
-    _renderReview(results, score); // helper defined below
+    _renderReview(serverRounds, serverScore);
     return;
   }
 
+  // Same-device path: use localStorage results directly
+  const results = store.lastRoundResults;
+  const score   = store.lastScore || 0;
   if (!results || results.length === 0) return;
 
   reviewFocusedRound = -1;
